@@ -16,7 +16,8 @@ the campus LAN. OpenStack needs separate management, overlay and provider networ
 * Linux bridges defined on the host (ifupdown, managed by Ansible), not libvirt `<network>`
   objects (the provider replaces networks on any change; bridges mirror a physical fabric).
   * `br-transit` 10.255.255.0/29 — host ↔ OPNsense WAN (routed, no libvirt NAT)
-  * `br-mgmt` 10.10.0.0/24 — management + APIs (VIPs .100 internal, .101 external)
+  * `br-mgmt` 10.10.0.0/24 — management + APIs (VIP .100 internal; a separate external VIP
+    .101 is proposed, one-vs-two VIPs is open — `docs/open-questions.md` B4)
   * `br-tun` 10.30.0.0/24, MTU 9000 — Geneve overlay
   * `br-ext` 10.20.0.0/24 — provider / floating IPs, unaddressed NICs on ctl and computes
 * The host is the only NAT to the uplink (nftables masquerade) and drops lab → campus LAN.

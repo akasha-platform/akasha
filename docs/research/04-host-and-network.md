@@ -23,10 +23,24 @@ Researched: 2026-11-08. Re-check versions before use. For privacy, campus networ
 | br-tun | 10.30.0.0/24 | **9000** | none | ctl01, cmp01, cmp02 |
 | br-ext (provider/floating IPs) | 10.20.0.0/24 | 1500 | none | OPNsense .1 (gateway); ctl01/cmp NICs without IP; FIP pool .100–.250 |
 
+**Per-VM IP plan (br-mgmt 10.10.0.0/24).** **INFERRED** (proposed plan, from the host-network research):
+
+| Host | Address |
+|---|---|
+| OPNsense (LAN gateway) | .1 |
+| bastion | .10 |
+| os-ctl01 | .11 |
+| os-cmp01 / os-cmp02 | .21 / .22 |
+| Internal VIP (`kolla_internal_vip_address`) | .100 |
+| External VIP (`kolla_external_vip_address`) | .101 |
+
+**OPEN:** one VIP or two. Two VIPs mean two certificates (internal and external FQDN) and an OPNsense NAT/route rule for the external one; a single VIP is simpler. Not decided yet.
+
 **MTU** (set via Kolla overrides):
 - Neutron uses `global_physnet_mtu` and `[ml2] path_mtu`. **VERIFIED**: https://docs.openstack.org/neutron/latest/admin/config-mtu.html
 - Geneve needs `max_header_size` 38. With `path_mtu` 9000, tenant networks get about 8942. **VERIFIED/INFERRED**: https://lists.launchpad.net/yahoo-eng-team/msg81975.html
 - Keep the provider network at 1500.
+- **OPEN:** whether tenant networks use the default 1442 (1500 underlay) or jumbo ~8942 (`path_mtu` 9000 on br-tun). The K8s pod MTU follows from that choice (see [05](05-kubernetes-on-openstack.md)).
 
 **Do not filter MACs on lab bridges.**
 - Never attach libvirt `clean-traffic` nwfilters to br-ext or br-tun ports. OVN routers and distributed FIPs send frames from MACs the VM does not own. **VERIFIED** (the filter exists) / **INFERRED** (the breakage): https://libvirt.org/formatnwfilter.html
@@ -40,10 +54,13 @@ Researched: 2026-11-08. Re-check versions before use. For privacy, campus networ
   - An **explicit drop of lab traffic towards the campus LAN**.
   - OPNsense outbound NAT disabled, and "Block private networks" unchecked on its WAN. **INFERRED**
 - **Why not libvirt's default NAT network:** its forward rules only allow traffic into its own subnet, so Tailscale → lab would be blocked. **INFERRED**
+  - Destroy the libvirt `default` network, or at least do not autostart it, so its NAT rules do not interfere. **INFERRED**
 - **nftables:** a packet must be accepted by *every* base chain on the same hook (libvirt's, Tailscale's and ours). **VERIFIED**: https://www.fedoraproject.org/wiki/Changes/LibvirtVirtualNetworkNFTables
 - **Access is Tailscale only.**
   - The host is already a tailnet node. It acts as a **subnet router** with `tailscale set --advertise-routes=10.10.0.0/24,10.20.0.0/24`, routes approved in the admin console, and ACLs.
   - SNAT is on by default. **VERIFIED**: https://tailscale.com/kb/1019/subnets
+  - Linux clients (the operator laptop) must run with `--accept-routes` to use the advertised routes. **VERIFIED**: https://tailscale.com/kb/1019/subnets
+  - **OPEN:** who manages the tailnet ACLs and route approvals (personal tailnet vs another owner).
 - **OPNsense Tailscale plugin:** it exists but sits behind double NAT, so keep it as a fallback. **VERIFIED**: https://tailscale.com/kb/1097/install-opnsense
 
 ## OPNsense as a KVM guest
@@ -80,6 +97,8 @@ Researched: 2026-11-08. Re-check versions before use. For privacy, campus networ
   - OPNsense, bastion, core and emulator threads are pinned to E-cores.
   - Check the result with `virsh dumpxml`, because issue #1344 reports `cpu.mode` being ignored on 0.9.7: https://github.com/dmacvicar/terraform-provider-libvirt/issues/1344
 - **No hugepages:** RAM is fully committed, and hugepages are reserved statically. **INFERRED**
+- **Nested virtualization checks at every level:** if L2 is slow, verify that `ept` and `enable_shadow_vmcs` are enabled (`/sys/module/kvm_intel/parameters/`). On Intel, migrating or save/restoring an L1 while an L2 runs needs kernel ≥ 5.3 and QEMU ≥ 4.2. **VERIFIED**: https://docs.kernel.org/virt/kvm/x86/running-nested-guests.html
+- **Hybrid CPU limits:** KVM disables vPMU on hybrid hosts and cannot expose P/E differences to guests, hence the pinning. **VERIFIED**: https://lkml.iu.edu/hypermail/linux/kernel/2302.0/07482.html, https://www.phoronix.com/news/Intel-Core-Hybrid-Better-Virt
 
 ## Storage on the host
 
@@ -102,7 +121,7 @@ Measured: 477 GiB of unallocated NVMe space after the existing partitions.
   - OPNsense config.
   - The bastion repository and configuration.
   - OpenBao raft snapshots.
-  - OpenTofu state.
+  - OpenTofu state (the L0/bootstrap state cannot live in the in-lab S3 it creates; its location is OPEN, see [07](07-trust-and-data.md)).
   - MariaDB backups.
 - **Destination:** off-site (see [07](07-trust-and-data.md)). The campus NFS share is **not used**, by policy.
 
@@ -135,3 +154,35 @@ Measured: 477 GiB of unallocated NVMe space after the existing partitions.
 - Changing `backing_store` fails mid-apply (#1374).
 - Volumes are immutable and cannot be resized (#1330, #1325).
 - Networks are replaced on any change (0.9.8).
+
+**Example `libvirt_domain`** (field names **VERIFIED** against the 0.9.9 docs; `type = "bridge"` and the pin values are **INFERRED** and must be adapted to the real core layout):
+
+```hcl
+resource "libvirt_domain" "cmp01" {
+  name        = "os-cmp01"
+  type        = "kvm"
+  memory      = 7680
+  memory_unit = "MiB"
+  vcpu        = 6
+  cpu = { mode = "host-passthrough", topology = { sockets = 1, cores = 3, threads = 2 } }
+  cpu_tune = {
+    vcpu_pin     = [for i in range(6) : { vcpu = i, cpu_set = tostring(4 + i) }]
+    emulator_pin = { cpu_set = "20-27" }
+  }
+  os = { type = "hvm", type_arch = "x86_64", type_machine = "q35" }
+  devices = {
+    disks = [{
+      source = { volume = { pool = "akasha", volume = libvirt_volume.cmp01.name } }
+      target = { dev = "vda", bus = "virtio" }
+      driver = { name = "qemu", type = "qcow2", discard = "unmap", detect_zeros = "unmap" }
+    }]
+    interfaces = [
+      { type = "bridge", model = { type = "virtio" }, source = { bridge = { bridge = "br-mgmt" } } },
+      { type = "bridge", model = { type = "virtio" }, source = { bridge = { bridge = "br-tun" } }, mtu = { size = 9000 } },
+      { type = "bridge", model = { type = "virtio" }, source = { bridge = { bridge = "br-ext" } } },
+    ]
+  }
+  running   = true
+  autostart = false # boot order is handled by a host systemd unit (see 03)
+}
+```

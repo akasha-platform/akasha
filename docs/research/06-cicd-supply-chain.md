@@ -34,6 +34,7 @@ Researched: 2026-11-08. Re-check versions and GitHub features before use. Tool v
 - **BuildKit rootless** needs Unconfined seccomp and AppArmor, and does not work with Kubernetes user namespaces. **VERIFIED**: https://kubernetes.web.cern.ch/blog/2025/06/19/rootless-container-builds-on-kubernetes/
 - **Buildah** rootless works with the vfs driver (same CERN source).
 - **Choice:** BuildKit rootless on a tainted CI node, inside a PSA-privileged namespace guarded by Kyverno. See [05](05-kubernetes-on-openstack.md). **INFERRED**
+- **Runner ↔ BuildKit wiring:** ARC runners stay in the default container mode (no Docker daemon, no privileges). A separate rootless `buildkitd` Deployment runs in the build namespace, and jobs reach it with `docker buildx create --driver remote tcp://buildkitd.<ns>:1234`. No official ARC document recommends a builder, so this is **INFERRED** from the ARC and BuildKit docs above.
 
 ## Registry
 
@@ -49,7 +50,20 @@ Researched: 2026-11-08. Re-check versions and GitHub features before use. Tool v
   - CI opens a PR in the gitops repo to bump the image tag or digest. This is the simplest and most auditable option. **INFERRED** (common practice)
   - App-of-Apps is "an admin-only tool". Bootstrapping should use ApplicationSets. **VERIFIED**: https://argo-cd.readthedocs.io/en/stable/operator-manual/cluster-bootstrapping/
   - Three layers (manifests → ApplicationSets → root app). **VERIFIED**: https://codefresh.io/blog/how-to-structure-your-argo-cd-repositories-using-application-sets
+- **GitOps Bridge** (Terraform writes cluster metadata as labels/annotations on the Argo CD cluster Secret, ApplicationSets read it) exists, **VERIFIED**: https://github.com/gitops-bridge-dev/gitops-bridge. Akuity criticises it for splitting configuration between Git and live Secrets, **VERIFIED**: https://akuity.io/blog/yet-another-take-on-integrating-terraform-with-argo-cd. Not adopted for now.
 - **Bitnami** free images were withdrawn in Aug–Sep 2025, so avoid Bitnami charts and images. **VERIFIED**: https://github.com/bitnami/charts/issues/35164
+
+**Proposed `akasha-gitops` layout** (**INFERRED**, synthesised from the Argo CD and Codefresh sources above):
+
+```
+bootstrap/root-app.yaml            # applied once (by Ansible/OpenTofu in L3/L4)
+appsets/{platform.yaml,apps.yaml}  # git-directory generators
+platform/<component>/{base/,envs/dev/,envs/prod/}
+apps/novashop/envs/{dev,prod}/values.yaml   # image digest bumped by CI PR
+projects/                          # AppProjects: platform vs apps
+```
+
+Image bumps: the release workflow opens the PR in `akasha-gitops` with a GitHub App token (or fine-grained token) scoped to that repository only. **INFERRED**
 
 ## Trivy compromise, March 2026 (CVE-2026-33634)
 
@@ -69,7 +83,19 @@ Researched: 2026-11-08. Re-check versions and GitHub features before use. Tool v
 
 - **pre-commit:** `antonbabenko/pre-commit-terraform` provides fmt, validate, tflint, `terraform_trivy` and checkov (the old tfsec hook is deprecated). **VERIFIED**: https://github.com/antonbabenko/pre-commit-terraform
   - Also: ansible-lint, yamllint, shellcheck, `helm lint` plus kubeconform, and gitleaks.
-- **zizmor** audits GitHub Actions for template injection, excessive permissions, unpinned uses and `pull_request_target`. **VERIFIED**: https://docs.zizmor.sh/integrations/
+- **zizmor** audits GitHub Actions for template injection, excessive permissions, unpinned uses and `pull_request_target`. Its hook also works with **prek** (a Rust rewrite of pre-commit). **VERIFIED**: https://docs.zizmor.sh/integrations/
+- **SBOM and second scanner:** Syft (SBOM) and Grype (vulnerabilities) from Anchore are the usual complements to Trivy. **INFERRED** (no primary source checked for current versions): https://github.com/anchore/syft , https://github.com/anchore/grype
+
+**Full CI stage list** (common practice, **INFERRED**; tool versions pinned by Renovate):
+
+| Area | Stages |
+|---|---|
+| All | pre-commit (`pre-commit run --all-files`), gitleaks, yamllint, shellcheck, zizmor |
+| OpenTofu | `tofu fmt -check`, `tofu validate`, tflint, `trivy config` (or checkov), `plan` on PR, gated `apply` |
+| Ansible | ansible-lint, `ansible-playbook --syntax-check`, Molecule (optional) |
+| Helm / manifests | `helm lint`, `ct lint` (chart-testing), kubeconform on rendered output, optional Kyverno CLI tests |
+| App (NovaShop) | ruff, pytest, image build, Trivy/Grype scan, Syft SBOM, cosign sign + attest, push by digest, PR to `akasha-gitops` |
+| Dependencies | Renovate (incl. SHA-pinned actions, `minimumReleaseAge`) |
 - **Renovate:**
   - Terraform lock-file maintenance. **VERIFIED**: https://docs.renovatebot.com/modules/manager/terraform/
   - `helpers:pinGitHubActionDigests`. **VERIFIED**: https://docs.renovatebot.com/modules/manager/github-actions
@@ -85,9 +111,10 @@ Researched: 2026-11-08. Re-check versions and GitHub features before use. Tool v
   - Digger/OpenTaco runs inside Actions. **VERIFIED** (secondary): https://github.com/diggerhq/digger
   - HCP Terraform's free tier is capped at 500 resources. **VERIFIED**: https://www.hashicorp.com/blog/continuing-hcp-terraform-s-enhanced-free-tier-experience
 - **Secrets:** use OIDC to OpenBao. JWT auth with `bound_claims`; prefer `repository_id` and bind `environment`/`ref`. **VERIFIED**: https://openbao.org/docs/auth/jwt/ , https://docs.github.com/en/actions/reference/security/oidc
-- **Attestations:** `actions/attest` gives SLSA v1.0 Build L2, free for public repos (Sigstore public-good). **VERIFIED**: https://github.com/actions/attest-build-provenance
+- **Attestations:** `actions/attest` gives SLSA v1.0 Build L2, free for public repos (Sigstore public-good). **SLSA Build L3 requires reusable workflows.** **VERIFIED**: https://github.com/actions/attest-build-provenance
 - **Signing:** cosign v3 defaults to the bundle format and keyless signing. **VERIFIED**: https://blog.sigstore.dev/cosign-3-0-available/
-- **Deploy-time verification:** Kyverno `ImageValidatingPolicy`; Kyverno 1.19 deprecates ClusterPolicy. **VERIFIED**: https://kyverno.io/blog/2026/08/20/announcing-kyverno-release-1.19
+- **Deploy-time verification and policies:** Kyverno is a CNCF graduated project. Kyverno 1.19 deprecates `ClusterPolicy`, so **new policies are written as `ValidatingPolicy` / `ImageValidatingPolicy`** (the latter verifies keyless signatures and attestations). **VERIFIED**: https://kyverno.io/blog/2026/08/20/announcing-kyverno-release-1.19
+- **Serialising applies:** a GitHub Actions `concurrency` group per stack prevents two applies at once (complements state locking). **INFERRED**
 
 ## Process for a solo developer imitating a team
 
@@ -96,7 +123,7 @@ Researched: 2026-11-08. Re-check versions and GitHub features before use. Tool v
   - bypass only through PRs.
   - **VERIFIED**: https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets
 - **Commits and ownership:** Conventional Commits, SSH-signed commits, CODEOWNERS. **INFERRED**
-- **Releases:** release-please in manifest mode, with the `helm` release type for the chart. **VERIFIED**: https://github.com/googleapis/release-please/blob/main/docs/customizing.md
+- **Releases:** release-please in manifest mode, with the `helm` release type for the chart (updates `Chart.yaml` and `CHANGELOG.md`), a language type for NovaShop, and `extra-files` to keep `appVersion` in sync. **VERIFIED**: https://github.com/googleapis/release-please/blob/main/docs/customizing.md
 - **Decision records:**
   - **MADR 4.0.0**. **VERIFIED**: https://github.com/adr/madr
   - log4brains is stale (last release 2024-12), so use plain Markdown. **VERIFIED**: https://packages.ecosyste.ms/api/v1/registries/npmjs.org/packages/@log4brains%2Fcli
@@ -104,6 +131,34 @@ Researched: 2026-11-08. Re-check versions and GitHub features before use. Tool v
 - **Postmortems:** Google SRE template. **VERIFIED**: https://sre.google/sre-book/example-postmortem/
 - **Infrastructure layout:** small root modules with one state per layer ("ideally only a few dozen" resources per state). **VERIFIED**: https://docs.cloud.google.com/docs/terraform/best-practices/root-modules
   - Terragrunt 1.0 shipped 2026-03-30; adopt it only if boilerplate hurts. **VERIFIED**: https://gruntwork.io/blog/the-road-to-terragrunt-1-0-stacks
+
+**Proposed `akasha` layout** (**INFERRED**, synthesised from the sources above; the `terraform/` vs `tofu/` folder naming is decided in Étape 3):
+
+```
+infra/
+  terraform/
+    modules/                  # libvirt_vm, os_network, os_project, k8s_node…
+    live/
+      l0-host/                # base image, OPNsense, bastion, core (host bridges/nftables are Ansible)
+      l1-openstack-vms/       # os-ctl01, os-cmp01, os-cmp02
+      l2-openstack-resources/ # projects, networks, images, flavors, app credentials
+      l3-k8s/                 # K3s VMs (openstack provider)
+  ansible/{inventories,playbooks,roles,collections}
+  kolla/                      # globals.d/, config/, inventory (passwords from OpenBao)
+apps/novashop/{src/,Dockerfile,chart/}
+docs/{adr,architecture,research,runbooks,postmortems,slo}
+.github/{workflows/,CODEOWNERS,ISSUE_TEMPLATE/}
+```
+
+**Repository files and documentation conventions** (**INFERRED** unless noted):
+- **LICENSE:** Apache-2.0 recommended for infra code (explicit patent grant); MIT also acceptable. **ESTIMATED** (judgement).
+- **SECURITY.md:** state that the lab is not Internet-exposed, what is in scope, and how to report a problem privately.
+- **README structure:** one-paragraph pitch, architecture diagram, layer table, tech stack, "reproduce it" section, roadmap/status table.
+- **Docs structure:** a trimmed arc42 (https://arc42.org) organised Diátaxis-style (https://diataxis.fr); khuedoan/homelab uses Diátaxis. **VERIFIED** (references exist).
+- **Runbook format:** Symptom → Impact → Diagnosis commands → Mitigation → Escalation/rollback → Links; one runbook per alert.
+- **SLOs:** availability and latency SLIs for NovaShop over a 30-day window, with an error-budget policy modelled on https://sre.google/workbook/error-budget-policy/.
+- **Definition of Done per phase** (each phase adds its own criteria, e.g. "`just l0-up` rebuilds from zero", "recreate cluster → platform converges with no manual step"). **Shared DoD for every phase:** merged through a PR, ADR written or superseded, diagram/README updated, runbook for new failure modes, changelog entry.
+- **GitHub Projects:** one milestone per phase; labels `layer/L0` … `layer/L5` and `type/feat|chore|docs|incident`; an issue per ADR.
 
 **Reference repositories** (all **VERIFIED**):
 

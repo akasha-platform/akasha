@@ -23,6 +23,7 @@ These notes record the evidence behind akasha's architecture decisions. Each dec
 
 | # | Note | Topics |
 |---|---|---|
+| 00 | [TD2 baseline assessment](00-td2-baseline-assessment.md) | What TD2 delivers, strengths, defects and the phase that fixes each |
 | 01 | [Private cloud with OpenStack](01-private-cloud-openstack.md) | Why OpenStack, DevStack limits, deployment tools, releases |
 | 02 | [Topology and nesting](02-topology-and-nesting.md) | Nested virtualization depth, host layouts, node roles, compute count, N+1 |
 | 03 | [Kolla-Ansible 2026.1 findings](03-kolla-2026.1-findings.md) | Verified defaults, gotchas, tuning, TLS, backups, power loss |

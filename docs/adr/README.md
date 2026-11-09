@@ -21,3 +21,7 @@ acceptance except to change its status (`superseded by ADR-NNNN`).
 | [0014](0014-gitops-with-argo-cd.md) | GitOps with Argo CD and a separate gitops repository | accepted |
 | [0015](0015-observability-stack.md) | Observability stack | accepted |
 | [0016](0016-host-memory-headroom.md) | Host memory headroom techniques | proposed |
+| [0017](0017-ingress-traefik-gateway-api.md) | Ingress: Traefik with Gateway API behind an Octavia L4 load balancer | accepted |
+| [0018](0018-postgresql-cloudnativepg.md) | PostgreSQL with CloudNativePG | accepted |
+| [0019](0019-certificate-management.md) | Certificate management: OpenBao PKI, cert-manager, trust-manager | accepted |
+| [0020](0020-policy-engine-kyverno.md) | Policy engine: Kyverno with Pod Security Admission | accepted |

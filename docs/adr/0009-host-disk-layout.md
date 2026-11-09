@@ -21,7 +21,8 @@ Create partition 4 on the free space → LVM PV → VG `vg_akasha`:
 * ~37 GiB left free for LVM snapshots before risky operations
 
 libvirt `logical` pools were rejected (thick provisioning with the current provider).
-Low `vm.swappiness` and zswap protect VM memory (see ADR-0016).
+The existing NVMe swap partition stays; zswap sits in front of it with `vm.swappiness` ≈ 80
+(see ADR-0016, which supersedes the earlier "low swappiness" idea).
 
 ### Consequences
 
