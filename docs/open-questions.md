@@ -34,7 +34,6 @@ item here.
 | B4 | One VIP or two (internal/external) for the OpenStack APIs | two VIPs need two certificates and an OPNsense rule | P2 |
 | B5 | Pin kolla-ansible by PyPI release (22.2.0) or by `stable/2026.1` commit SHA | | P2 |
 | B6 | Add `net01` (dedicated network node) | only if ≥ 1.5 GB spare after A2 | P7 |
-| B7 | Folder naming for IaC (`terraform/` vs `tofu/`) | | P0 Étape 3 |
 | B8 | Root disks of K3s VMs; metadata delivery | Cinder boot-from-volume (no disk copy on live migration, uses the 120 G Cinder LV) · local ephemeral on the computes · config drive (blocks block migration) vs metadata service | P3/P4 |
 
 ## C. Questions never discussed yet
