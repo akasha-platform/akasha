@@ -29,7 +29,12 @@ Chosen option: "OpenBao 2.7.x", single node with integrated Raft, on a dedicated
 
 Unseal: **Shamir, by hand after each host reboot** (owner's choice; static seal was the
 alternative). Kept outside OpenBao: unseal shares, offline root CA key, bootstrap-stack
-passphrase, Tailscale CI identity, restic password and off-site S3 key, break-glass procedure.
+passphrase, Tailscale CI identity (workload-identity client) and Tailscale admin credentials,
+restic password and off-site S3 key, break-glass procedure.
+
+Acceptance tests before relying on it (inferred compatibility, not yet tested): `kolla-readpwd`
+/ `kolla-writepwd` against OpenBao KV v2, cert-manager Vault issuer, OpenTofu `openbao` key
+provider, External Secrets Operator Vault provider.
 
 ### Consequences
 

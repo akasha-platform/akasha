@@ -7,6 +7,8 @@ and Kubernetes platform, built on one school-provided physical host.
 ## Read first
 
 - `docs/roadmap.md` — phases, étapes and their status. Work resumes from here.
+- `docs/open-questions.md` — pending tests, deferred decisions and questions never discussed yet.
+  Check it before planning an étape; ask the owner instead of deciding these alone.
 - `docs/architecture/overview.md` — the target design (layers L0–L5, nodes, networks, RAM/disk budgets).
 - `docs/adr/` — every architectural decision with context, options and rationale.
 - `docs/research/` — the sourced research behind the decisions (re-check versions/prices before use).
@@ -37,6 +39,9 @@ school-provided. Use placeholders such as `<host-tailscale-ip>` when needed.
 ## Repository conventions
 
 - Docs and code comments in English.
+- Every change goes through a branch and a pull request reviewed by the owner, then a squash
+  merge. Commit messages follow Conventional Commits.
+- Commits keep the owner's current git identity (owner's choice); never add or change it.
 - GitHub org: `akasha-platform`; repos `akasha` (infra + app + CI) and
   `akasha-gitops` (Argo CD desired state).
 - Org Actions policy: actions pinned by full SHA, read-only `GITHUB_TOKEN`,

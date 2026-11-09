@@ -26,7 +26,8 @@ two environments, and integrate with the cloud like production clusters.
 * OpenStack integration: cloud-controller-manager and Cinder CSI (chart 2.37.x;
   `--disable-cloud-controller`, `cloud-provider=external`; override the OCCM nodeSelector
   because K3s labels control-plane nodes with `"true"`), LoadBalancer via Octavia OVN provider.
-* Flannel VXLAN with pod MTU ≈ 1392 (tenant MTU 1442).
+* Flannel VXLAN; pod MTU = tenant MTU − 50. The tenant MTU itself is **open**: 1442 (default
+  on a 1500 underlay) or ≈ 8942 (`path_mtu` 9000 on `br-tun`) — see `docs/open-questions.md`.
 * Dev and prod are namespaces with quotas, default-deny NetworkPolicies and separate
   CloudNativePG clusters; two clusters would double ~3.5 GB of system overhead.
 * `--secrets-encryption` enabled (etcd snapshots contain every Secret).

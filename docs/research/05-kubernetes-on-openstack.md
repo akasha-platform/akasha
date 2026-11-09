@@ -16,9 +16,11 @@ Researched: 2026-11-08. RAM figures are **ESTIMATED** and must be measured with 
 
 | VM | Role | RAM (target, trimmed) | Nova server group |
 |---|---|---|---|
-| k3s-cp-1 | server, embedded etcd (`--cluster-init`), S3 snapshots | 2.5 GB | B (hard anti-affinity) |
-| k3s-w-1 / k3s-w-2 | agents for platform and apps | 3–3.5 GB each | A (hard anti-affinity) |
+| k3s-server-1 | server, embedded etcd (`--cluster-init`), S3 snapshots; tainted `CriticalAddonsOnly=true:NoExecute`, carries OCCM, the Cinder CSI controller and CoreDNS | 2.5 GB | B (hard anti-affinity) |
+| k3s-worker-1 / k3s-worker-2 | agents for platform and apps | 3–3.5 GB each | A (hard anti-affinity) |
 | k3s-ci-1 | agent tainted `ci=true:NoSchedule`, ARC runners and BuildKit only | 2–2.5 GB | B |
+
+The server taint is documented by K3s for a dedicated control plane. **VERIFIED**: https://docs.k3s.io/datastore/ha
 
 **Why not 3 servers.** With 2 hypervisors, one of them always holds 2 of the 3 etcd members. Losing that host loses quorum, so the HA is cosmetic. It also costs about 3 × 1.6 GB. **INFERRED**, from etcd quorum: https://etcd.io/docs/v3.5/faq/
 
@@ -54,13 +56,15 @@ Researched: 2026-11-08. RAM figures are **ESTIMATED** and must be measured with 
 
 ## Networking inside OpenStack
 
-- **Tenant MTU:** OVN Geneve on a 1500 underlay gives **1442**. **INFERRED**: https://lists.openstack.org/archives/list/openstack-discuss@lists.openstack.org/thread/5HBDAQDUOTRNRJU5SHVC6Y54IKAJUKD7
-  - With MTU 9000 on the tunnel network (see [04](04-host-and-network.md)), tenant MTU can be raised instead.
-- **Pod MTU:** flannel VXLAN costs another 50 B, so pod MTU is about **1392** on a 1442 network. Check `/run/flannel/subnet.env` and test with `ping -M do`. **VERIFIED**: https://github.com/flannel-io/flannel/blob/master/Documentation/backends.md
+- **Tenant MTU — OPEN decision:**
+  - Default: OVN Geneve on a 1500 underlay gives **1442**. **INFERRED**: https://lists.openstack.org/archives/list/openstack-discuss@lists.openstack.org/thread/5HBDAQDUOTRNRJU5SHVC6Y54IKAJUKD7
+  - Jumbo: br-tun is planned at MTU 9000 (see [04](04-host-and-network.md)); with `path_mtu` 9000 tenant networks get about **8942**. **VERIFIED/INFERRED** (see 04).
+- **Pod MTU = tenant MTU − 50** (flannel VXLAN overhead): about **1392** with 1442, about **8892** with 8942. **INFERRED** (arithmetic). Flannel uses the external interface MTU unless one is set. **VERIFIED**: https://github.com/flannel-io/flannel/blob/master/Documentation/backends.md. Check `/run/flannel/subnet.env` and test with `ping -M do -s <mtu-28>`.
 - **CNI choice:** keep flannel plus the embedded NetworkPolicy controller. Cilium would cost about 300–500 MiB per node. **ESTIMATED**
 - **Security group `sg-k8s-nodes`** (ports **VERIFIED**: https://docs.k3s.io/installation/requirements):
   - 6443 from nodes and the bastion/Tailscale range.
   - 10250, UDP 8472 and NodePorts within the group.
+  - NodePorts must also accept traffic from the Octavia-OVN load balancer source; OVN load balancers DNAT, so the client IP is preserved. **INFERRED**
   - 2379–2380 between servers only.
   - Attach it through `security_group_ids` on `openstack_networking_port_v2`.
 - **API exposure:** the kube-apiserver has a private IP only. **INFERRED**
@@ -87,11 +91,22 @@ Researched: 2026-11-08. RAM figures are **ESTIMATED** and must be measured with 
 
 **Loki chart default.** It ships `chunksCache.allocatedMemory: 8192` MB and SimpleScalable mode, so set **SingleBinary with caches off**. **VERIFIED**: https://raw.githubusercontent.com/grafana/loki/main/production/helm/loki/values.yaml
 
-**Fit with layout C2.** The budget fits only after measurement and trimming (see [02](02-topology-and-nesting.md)). The choice of what to cut is deferred until real numbers exist. Candidates:
-- shorter retention;
-- a single prod PostgreSQL instance;
-- merging the CI node into a worker;
-- dropping Octavia.
+**Conditions for the budget to hold** (**INFERRED**, from the K8s research):
+- `kube-reserved` / `system-reserved` and hard eviction thresholds set on every kubelet.
+- Memory requests = limits for PostgreSQL and Prometheus.
+- No swap inside the K3s VMs.
+- No Nova RAM overcommit for these L2 guests (`ram_allocation_ratio = 1.0`).
+
+**Fit with layout C2.** The budget fits only after measurement and trimming (see [02](02-topology-and-nesting.md)). The choice of what to cut is **deferred until real numbers exist** (owner's decision). Cut-down options, with rough savings (**ESTIMATED**):
+
+| Option | Saves | Cost |
+|---|---|---|
+| Shorter retention for metrics and logs (Prometheus 3–5 d, Loki 3 d), drop unused series | ~0.3–0.5 GB | Less history |
+| A single PostgreSQL instance for prod | ~0.5 GB | No in-cluster DB replica |
+| Merge the CI node into the workers (runners on a tainted worker) | ~0.8 GB | Weaker CI isolation |
+| Defer or drop Octavia (NodePort instead of LoadBalancer) | ~0.3–0.5 GB on ctl01, can be given to computes | No cloud-style LoadBalancer |
+
+**Ephemeral dev cluster (idea).** To demonstrate cluster-per-environment without paying for it permanently, CI could create a throwaway "dev" cluster from the same OpenTofu module and destroy it afterwards. **INFERRED**
 
 ### dev and prod
 

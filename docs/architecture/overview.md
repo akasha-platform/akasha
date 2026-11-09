@@ -3,10 +3,23 @@
 Status: target design, decided 2026-11-08 (see [ADRs](../adr/README.md)).
 Numbers marked *est.* are estimates to be replaced by measurements.
 
+## 0. Goals and priorities
+
+- **Why:** learn and demonstrate how professional teams build and operate a private cloud and a
+  Kubernetes platform, as a portfolio project. The original TD2/TD3 subjects are only the
+  starting point; they no longer constrain the scope (there is no TD3 subject to follow).
+- **OpenStack replaces a paid public cloud** (AWS/GCP) as the IaaS layer.
+- **Priorities:** (1) security, (2) CI/CD running *inside* the Kubernetes clusters
+  ("construire le flux CI/CD … au sein de nos clusters Kubernetes"), (3) monitoring and operations.
+- **Method:** production practices first; where the lab cannot reproduce a production guarantee,
+  say so explicitly (§7) instead of faking it.
+
 ## 1. Constraints
 
-- **One physical host** (school-provided): Intel i7-14700 (8 P-cores with HT + 12 E-cores = 28 threads),
-  31 GiB usable RAM, 954 GB NVMe (477 GiB unallocated), Debian 13. No extra hardware is possible.
+- **One physical host** (school-provided, owner has full administrative rights): Intel i7-14700
+  (8 P-cores with HT + 12 E-cores = 28 threads), 31 GiB usable RAM, 954 GiB NVMe (477 GiB
+  unallocated), Debian 13. No extra hardware is possible. Two other libvirt VMs on the host
+  are always powered off and are not part of the budget.
 - The host also has a campus network uplink; lab traffic must never enter the campus LAN.
 - Remote access only through Tailscale.
 - The repository is public.
@@ -51,7 +64,7 @@ zswap) are a safety buffer, not capacity ([ADR-0016](../adr/0016-host-memory-hea
 | Bridge | CIDR | MTU | Purpose |
 |---|---|---|---|
 | br-transit | 10.255.255.0/29 | 1500 | Host ↔ OPNsense WAN. The host is the only NAT to the uplink and drops lab → campus LAN |
-| br-mgmt | 10.10.0.0/24 | 1500 | Management + OpenStack APIs, internal VIP .100, external VIP .101 |
+| br-mgmt | 10.10.0.0/24 | 1500 | Management + OpenStack APIs: OPNsense .1, bastion .10, ctl .11, computes .21/.22, internal VIP .100, external VIP .101 (one-vs-two VIPs open) |
 | br-tun | 10.30.0.0/24 | 9000 | Geneve overlay between controller and computes |
 | br-ext | 10.20.0.0/24 | 1500 | Provider/floating-IP network (FIP pool .100–.250), unaddressed NICs on ctl + computes |
 
@@ -71,8 +84,12 @@ NVMe free space (477 GiB) → LVM VG vg_akasha
 Kolla-Ansible 2026.1 "Gazpacho" (SLURP), Debian 13 hosts, ML2/OVN with distributed
 floating IPs, three OVN gateway chassis (controller + both computes), Cinder LVM,
 Octavia with the OVN provider (L4 only), Secure RBAC defaults. Low-RAM tuning:
-one worker per API, no Heat, no fluentd, Galera buffer pool 512 MB, RabbitMQ
-absolute memory watermark, `reserved_host_memory_mb` set from measurements.
+one worker per API, no Heat, no fluentd, no `cinder_backup`, Galera buffer pool 512 MB,
+RabbitMQ absolute memory watermark, `reserved_host_memory_mb` set from measurements
+(expected ~1.8–2.6 GB per compute). Kolla's Prometheus is enabled explicitly (off by default).
+**Risk:** 8 GB is tight for the controller (measured references range from ~10 to ~12.3 GB for
+comparable setups); real usage is measured right after deployment. Tenant MTU (1442 vs ≈ 8942
+with jumbo frames on `br-tun`) is still open.
 Passwords and TLS material come from OpenBao. Details: [ADR-0004](../adr/0004-kolla-ansible-2026-1.md),
 [ADR-0006](../adr/0006-openstack-topology-v1b.md), [research note](../research/03-kolla-2026.1-findings.md).
 
@@ -82,10 +99,12 @@ Passwords and TLS material come from OpenBao. Details: [ADR-0004](../adr/0004-ko
 |---|---|---|---|
 | k3s-server-1 | K3s server, embedded etcd, snapshots to S3 | 2.5 GB | B |
 | k3s-worker-1/2 | Workloads | 3–3.5 GB each | A |
-| k3s-ci-1 | Tainted node for ARC runners and BuildKit | 2 GB | B |
+| k3s-ci-1 | Tainted node for ARC runners and BuildKit | 2–2.5 GB | B |
 
 Total guest RAM available ≈ 10–12 GB *est.*; platform working set ≈ 10.3 GB steady,
-≈ 12.3 GB during image builds *est.* Cut-downs are decided after measurement.
+≈ 12.3 GB during image builds *est.* (the app itself is only ~0.5 GB; most of it is OS + K3s
+and platform services). Cut-downs, if needed, are chosen after measurement from the list in
+[open-questions.md](../open-questions.md).
 
 ## 6. Delivery and trust
 
@@ -94,7 +113,9 @@ Total guest RAM available ≈ 10–12 GB *est.*; platform working set ≈ 10.3 G
 - App changes: build on ARC (push/tag only), sign with cosign, attest, push to GHCR,
   open a PR in `akasha-gitops`; Argo CD syncs.
 - Secrets: OpenBao (Shamir unseal by hand after each host reboot). Root CA offline.
-- Backups: restic to in-lab S3 (versitygw) and off-site AWS S3 with Object Lock.
+- Data and backups: OpenTofu state (L1–L3), K3s etcd snapshots, CloudNativePG backups and
+  OpenBao raft snapshots go to the in-lab S3 (versitygw on `core`); restic copies the critical
+  data off-site to AWS S3 Standard with Object Lock. VM disks are rebuilt from code.
 
 ## 7. Production north star (not built here)
 
@@ -107,4 +128,5 @@ What a real deployment of the same platform would use, and why the lab differs:
 | Ceph (≥3–5 nodes) | Cinder LVM on one node | RAM, single disk |
 | N+1/N+2 compute capacity | 2 computes, CI node as preemptible spare | RAM |
 | 3 K8s control-plane nodes in 3 zones | 1 K3s server + etcd snapshots | Only 2 hypervisors |
+| Dedicated monitoring nodes | Kolla Prometheus on the controller, platform monitoring in K3s | RAM (a dedicated node would cost 1.5–2 GB) |
 | HA Vault/OpenBao with auto-unseal (KMS/HSM) | 1 OpenBao node, Shamir | No KMS/HSM |

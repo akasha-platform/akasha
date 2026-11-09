@@ -41,6 +41,10 @@ Evolution: after measuring real overhead, if ≥1.5 GB is spare, add `net01` wit
 
 * Good, because gateway failover, live migration and evacuation can be exercised.
 * Bad, because the control plane is a single point of failure (documented, not hidden).
+* Risk: 8 GB may be tight for the controller. Measured references: a Kolla 2026.1 all-in-one
+  used ≈ 12.3 GB right after deploy, a lab OVN controller needed "about 10 GB", and Kolla's own
+  CI hit the OOM killer on 8 GB nodes during Octavia tests. Mitigation: low-RAM tuning, measure
+  after deploy, defer Octavia if needed, rebalance RAM from the computes.
 * Neutral: evacuating a member of a hard anti-affinity pair with 2 computes fails with
   "No valid host" — expected behaviour, used as a failure drill.
 

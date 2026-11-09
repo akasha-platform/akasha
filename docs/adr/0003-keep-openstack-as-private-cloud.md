@@ -28,8 +28,8 @@ Should the lab keep OpenStack, or provision VMs directly on the hypervisor?
 
 Chosen option: "OpenStack on the host", because it provides cloud-native integrations for
 Kubernetes (cloud controller manager, Cinder CSI, Octavia) and portable OpenTofu code.
-Kubernetes-hosted control planes are the vendor direction but need 16–48+ GB or Ubuntu-only
-tooling, leaving too little memory for workloads.
+Kubernetes-hosted control planes are the vendor direction but need from 16 GB (Sunbeam single
+node) to 192+ GB (Mirantis), or Ubuntu-only tooling, leaving too little memory for workloads.
 
 ### Consequences
 
