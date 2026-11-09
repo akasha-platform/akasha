@@ -8,7 +8,8 @@ decision-makers: dhuy21
 
 ## Context and Problem Statement
 
-VM disks need ~340 GB (thin) and Cinder needs a dedicated block device. The root filesystem
+VM disks total ≈ 346 GB thin-provisioned (OPNsense 16, bastion 20, core 20 + 30 data,
+ctl01 60, computes 2 × 100) and Cinder needs a dedicated block device. The root filesystem
 has ~145 GB free; 477 GiB at the end of the NVMe are unallocated.
 
 ## Decision Outcome
@@ -27,4 +28,6 @@ The existing NVMe swap partition stays; zswap sits in front of it with `vm.swapp
 ### Consequences
 
 * Good, because no existing data is touched and snapshots are possible.
+* Accepted over-allocation: the thin total (≈ 346 GB) exceeds `lv_images` (320 GiB); real usage
+  is expected far lower. Pool usage is monitored and `lv_images` can grow from the VG free space.
 * Bad, because the partitioning step is irreversible without care; it is done in its own étape.

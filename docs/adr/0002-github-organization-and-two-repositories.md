@@ -41,6 +41,10 @@ approval for all external contributors, members must use secure 2FA methods only
 * Good, because policies are enforced centrally and audited via the API.
 * Good, because image promotion is a reviewable pull request in `akasha-gitops`.
 * Bad, because cross-repository automation needs a scoped token or GitHub App.
+* Never create a repository named `akasha` under the former personal account: GitHub would
+  permanently delete the redirects left by the transfer.
+* `allowed_actions` deliberately stays `all` until Étape 6 restricts it to a selected list.
+  `akasha-gitops` was created public, with a README and the wiki disabled.
 
 ### Confirmation
 

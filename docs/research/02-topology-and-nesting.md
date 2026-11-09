@@ -87,8 +87,8 @@ Caveats of the "adding hosts" procedure (relevant for `net01` and any future con
 - Kolla warns about the **LVM backend in multi-controller setups** (Launchpad bug 1571211): keep LVM-backed `cinder-volume` on a single `storage` host when controllers are added. **VERIFIED** — https://docs.openstack.org/kolla-ansible/2026.2/reference/storage/cinder-guide.html
 
 **One availability zone per compute** (mirrors Red Hat DCN, where edge sites are compute-only under a central control plane; **VERIFIED (snippet)** — https://docs.redhat.com/en/documentation/red_hat_openstack_platform/17.1/html/deploying_a_distributed_compute_node_dcn_architecture/index):
-- Nova: one host aggregate per compute with availability-zone metadata (e.g. `az-a`, `az-b`). **INFERRED** (standard Nova aggregate mechanism)
-- Neutron/OVN: Kolla exposes `neutron_ovn_availability_zones`, which `setup-ovs.yml` writes into the chassis' `ovn-cms-options`. **VERIFIED** — KA/ansible/roles/ovn-controller/tasks/setup-ovs.yml (stable/2026.1)
+- **Nova AZs come from host aggregates**, not from Kolla: one aggregate per compute with availability-zone metadata (e.g. `az-a`, `az-b`), created in the L2 OpenTofu stack or with the CLI. **INFERRED** (standard Nova aggregate mechanism)
+- **Neutron/OVN AZs are a different thing.** Kolla's `neutron_ovn_availability_zones` is a **single global list**, written into `ovn-cms-options` only for hosts in `ovn-controller-network` (`setup-ovs.yml:30-31`), and it sets **router gateway availability zones**, not Nova AZs. To give each gateway chassis its own AZ, set the variable per host in `host_vars`. **VERIFIED** — KA/ansible/roles/ovn-controller/tasks/setup-ovs.yml (stable/2026.1)
 
 **Controller OOM risk at 8 GB (with Octavia and Kolla Prometheus):**
 - Measured evidence that 8 GB is tight:
@@ -117,6 +117,7 @@ Caveats of the "adding hosts" procedure (relevant for `net01` and any future con
 - **CI node as preemptible N+1 capacity** (runbook idea): if a compute fails, delete `k3s-ci-1` to free capacity on the surviving compute, then evacuate or recreate `k3s-server-1` there (restore from etcd snapshot if needed). Hard anti-affinity blocks this by design, so the runbook must remove the CI VM first or the pair must use soft anti-affinity.
 - C3 is the only layout with real etcd quorum, but the platform would have to shrink by 60–70%.
 - K3s VMs are not hypervisors, so live-migrating them between L1 computes should work. Avoid config drives (they break block migration) and give both computes an identical CPU model. **VERIFIED** for the config-drive limit — https://docs.openstack.org/nova/latest/admin/configuring-migrations.html
+- This only holds while the K3s VMs run no guests of their own: **no KubeVirt or Kata inside them**, otherwise they become nested hypervisors and fail to live-migrate. **VERIFIED** — https://docs.openstack.org/nova/latest/admin/configuration/hypervisor-kvm.html
 
 ## Memory measurements behind the estimates
 
