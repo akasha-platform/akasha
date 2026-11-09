@@ -21,7 +21,7 @@ Phase-specific completion criteria are listed with each phase below.
 |---|---|---|
 | 1 | GitHub org `akasha-platform`, transfer `akasha`, create `akasha-gitops`, org Actions policy (SHA pinning, read-only token, fork-PR approval), org 2FA with secure methods only | ✅ 2026-11-08 |
 | 2 | Durable record of all decisions: `CLAUDE.md`, roadmap, architecture overview, ADRs, research notes; audit against the design conversation (PR #1, PR #2) | ✅ 2026-11-09 |
-| 3 | Tag the TD2 baseline (`td2-final`), remove it from the tree, create the new directory skeleton (folder naming `terraform/` vs `tofu/` decided here), README/LICENSE/SECURITY.md | ⏳ |
+| 3 | Tag the TD2 baseline (`td2-final`), remove it from the tree, new directory skeleton (`infra/opentofu/`, ADR-0021), README, Apache-2.0 LICENSE, SECURITY.md, `.gitignore`; repository security settings (secret scanning, push protection, squash-only) | ✅ 2026-11-09 |
 | 4 | Pinned local toolchain (OpenTofu, pre-commit, tflint, ansible-lint, …) | ⏳ |
 | 5 | pre-commit configuration and lint CI on GitHub-hosted runners | ⏳ |
 | 6 | Renovate, zizmor, restrict allowed actions to a selected list | ⏳ |

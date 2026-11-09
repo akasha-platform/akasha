@@ -8,4 +8,5 @@
 | [adr/](adr/README.md) | Architecture Decision Records (MADR 4.0) |
 | [research/](research/README.md) | Sourced research notes behind the decisions |
 
-The original TD2 deliverable is preserved in Git history (tag `td2-final`, created in a later étape).
+The original TD2 deliverable is preserved at tag `td2-final` (see
+[research/00](research/00-td2-baseline-assessment.md)). Runbooks live in [runbooks/](runbooks/README.md).
