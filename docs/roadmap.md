@@ -10,7 +10,7 @@ Legend: ✅ done · 🔄 in progress · ⏳ planned
 | Étape | Scope | Status |
 |---|---|---|
 | 1 | GitHub org `akasha-platform`, transfer `akasha`, create `akasha-gitops`, org Actions policy (SHA pinning, read-only token, fork-PR approval), org 2FA with secure methods only | ✅ 2026-11-08 |
-| 2 | Durable record of all decisions: `CLAUDE.md`, roadmap, architecture overview, ADRs, research notes | 🔄 |
+| 2 | Durable record of all decisions: `CLAUDE.md`, roadmap, architecture overview, ADRs, research notes | ✅ 2026-11-09 (PR #1) |
 | 3 | Tag the TD2 baseline (`td2-final`), remove it from the tree, create the new directory skeleton, README/LICENSE/SECURITY.md | ⏳ |
 | 4 | Pinned local toolchain (OpenTofu, pre-commit, tflint, ansible-lint, …) | ⏳ |
 | 5 | pre-commit configuration and lint CI on GitHub-hosted runners | ⏳ |
