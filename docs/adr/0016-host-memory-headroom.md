@@ -8,7 +8,8 @@ decision-makers: dhuy21
 
 ## Context and Problem Statement
 
-The design commits ~100% of the host's 31 GB. Production keeps 20–30% headroom. How can
+The design commits ~100% of the host's 31 GB, whereas production capacity plans keep explicit
+headroom (N+1/N+2; a 20–30% margin is a common rule of thumb — ESTIMATED, not sourced). How can
 safety margin be created without buying RAM, without destabilising Galera, RabbitMQ or etcd?
 
 ## Decision Outcome (proposed, confirmed after measurement)
