@@ -25,3 +25,4 @@ acceptance except to change its status (`superseded by ADR-NNNN`).
 | [0018](0018-postgresql-cloudnativepg.md) | PostgreSQL with CloudNativePG | accepted |
 | [0019](0019-certificate-management.md) | Certificate management: OpenBao PKI, cert-manager, trust-manager | accepted |
 | [0020](0020-policy-engine-kyverno.md) | Policy engine: Kyverno with Pod Security Admission | accepted |
+| [0021](0021-repository-layout.md) | Repository layout | accepted |

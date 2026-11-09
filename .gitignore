@@ -1,10 +1,59 @@
+# --- OpenTofu / Terraform ---
+.terraform/
 *.tfstate
 *.tfstate.*
-.terraform/
+*.tfplan
+*.plan
 crash.log
+crash.*.log
 *.tfvars
-!example.tfvars
+*.tfvars.json
+!*.example.tfvars
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# --- Ansible / Kolla ---
 *.retry
+.vault-pass*
+vault-password*
+# Kolla passwords must never be committed in clear (they live in OpenBao)
+infra/kolla/passwords.yml
+infra/kolla/**/passwords.yml
+# Generated inventories
 inventory.ini
-ansible/kubeconfig
+inventories/**/generated*
+
+# --- Kubernetes ---
+kubeconfig
 *.kubeconfig
+.kube/
+
+# --- Keys, certificates, secrets ---
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt.key
+id_rsa*
+id_ed25519*
+*.age
+!*.pub
+.env
+.env.*
+!.env.example
+
+# --- Python / tooling ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# --- Editors / OS ---
+.vscode/
+.idea/
+*.swp
+.DS_Store

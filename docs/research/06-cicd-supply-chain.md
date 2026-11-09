@@ -132,7 +132,7 @@ Image bumps: the release workflow opens the PR in `akasha-gitops` with a GitHub 
 - **Infrastructure layout:** small root modules with one state per layer ("ideally only a few dozen" resources per state). **VERIFIED**: https://docs.cloud.google.com/docs/terraform/best-practices/root-modules
   - Terragrunt 1.0 shipped 2026-03-30; adopt it only if boilerplate hurts. **VERIFIED**: https://gruntwork.io/blog/the-road-to-terragrunt-1-0-stacks
 
-**Proposed `akasha` layout** (**INFERRED**, synthesised from the sources above; the `terraform/` vs `tofu/` folder naming is decided in Étape 3):
+**Proposed `akasha` layout** (**INFERRED**, synthesised from the sources above; the IaC folder was later named `infra/opentofu/` — see ADR-0021):
 
 ```
 infra/

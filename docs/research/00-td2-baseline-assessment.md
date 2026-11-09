@@ -1,6 +1,6 @@
 # 00 — TD2 baseline assessment
 
-Assessed: 2026-11-08, on commit `4e6ac89` (to be tagged `td2-final` in Étape 3). Paths refer to
+Assessed: 2026-11-08, on commit `4e6ac89` (tagged `td2-final`). Paths refer to
 that tree. This is the "before" picture and the backlog for phases P1–P6.
 
 ## What TD2 delivers

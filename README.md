@@ -1,61 +1,81 @@
-# TD2 — Industrialiser K3s avec Terraform, Ansible et Helm
+# akasha
 
-Pipeline IaC qui déploie l'application 3-tiers **NovaShop** (nginx, API Python,
-PostgreSQL) sur une VM K3s mono-nœud dans OpenStack (DevStack, projet `asl-project`).
+A private cloud and Kubernetes platform built the way production teams build them —
+OpenStack as the IaaS layer, Kubernetes on top, GitOps delivery, CI/CD running inside the
+cluster, and security, monitoring and operations treated as first-class concerns — all on a
+single school-provided machine.
 
-## Rôle de chaque outil
+> **Status:** design complete, implementation started.
+> See the [roadmap](docs/roadmap.md) for the current étape.
 
-| Outil | Rôle | Dossier |
-|---|---|---|
-| Terraform | Provisionnement : SG, VM, IP flottante (le socle ASL est lu via data sources) | `terraform/` |
-| Ansible | Configuration : prérequis système, installation de K3s, récupération du kubeconfig | `ansible/` |
-| Helm | Déploiement applicatif : 3 charts indépendants (`postgres`, `backend`, `frontend`) | `helm/` |
+## Architecture
 
-## Rejouer le pipeline
-
-```bash
-source ~/devstack/asl-openrc                      # identifiants ASL uniquement
-cd terraform && cp example.tfvars terraform.tfvars  # renseigner le login
-terraform init && terraform apply
-terraform output -raw ansible_inventory > ../ansible/inventory.ini
-
-cd ../ansible && ansible-playbook playbook.yml    # K3s + kubeconfig (API sur 127.0.0.1)
-./tunnel.sh &                                     # tunnel SSH vers l'API K3s (6443)
-
-export KUBECONFIG=$PWD/kubeconfig
-kubectl create namespace td2
-cd ../helm
-helm install postgres ./postgres -n td2 --wait
-helm install backend  ./backend  -n td2 --wait
-helm install frontend ./frontend -n td2 --wait
+```mermaid
+flowchart TB
+    dev[Operator laptop] -- Tailscale --> host
+    gh[GitHub Actions / GHCR] -. pull-based GitOps .-> argocd
+    subgraph host["Physical host (libvirt/KVM)"]
+        opn[OPNsense edge firewall]
+        bastion[Bastion: OpenTofu / Ansible / Kolla]
+        core[core: OpenBao + in-lab S3]
+        subgraph openstack["OpenStack 2026.1 (Kolla-Ansible)"]
+            ctl[Controller]
+            cmp1[Compute 1]
+            cmp2[Compute 2]
+        end
+        subgraph k8s["K3s on Nova VMs"]
+            argocd[Argo CD + platform]
+            app[NovaShop dev / prod]
+        end
+    end
+    cmp1 --> k8s
+    cmp2 --> k8s
 ```
 
-Application : `http://<floating_ip>`.
+| Layer | What | Tooling |
+|---|---|---|
+| L0 Host | libvirt VMs, Linux bridges, nftables, OPNsense, bastion, OpenBao | OpenTofu, Ansible |
+| L1 OpenStack | 1 controller + 2 computes, ML2/OVN, Octavia, Cinder | Kolla-Ansible 2026.1 |
+| L2 Cloud resources | projects, users, networks, images, flavors | OpenTofu |
+| L3 Kubernetes | K3s on Nova with OCCM and Cinder CSI | OpenTofu, Ansible |
+| L4 Platform | Argo CD, Traefik/Gateway API, cert-manager, External Secrets, Kyverno, CloudNativePG, Prometheus/Loki | Argo CD (`akasha-gitops`) |
+| L5 Application | NovaShop (frontend, API, PostgreSQL) | GitHub Actions + ARC, GitOps |
 
-Destruction : `helm uninstall` des 3 releases, `kubectl -n td2 delete pvc --all`
-(le PVC du StatefulSet n'est pas supprimé par Helm), puis `terraform destroy`.
+Every multi-node property runs on one physical failure domain; the
+[architecture overview](docs/architecture/overview.md#7-production-north-star-not-built-here)
+lists what the lab reproduces and what it cannot.
 
-## Bonus — compteur de visites
+## Documentation
 
-Le dépôt contient la version avec l'endpoint `GET /api/visits` et la card « Visites totales ».
-La table `visits` est créée par `init.sql` lors d'un déploiement neuf ; sur une base
-existante, elle doit être ajoutée par migration (le script d'init ne rejoue pas).
+- [Architecture overview](docs/architecture/overview.md) — goals, layers, budgets, production north star
+- [Architecture Decision Records](docs/adr/README.md) — why each choice was made
+- [Research notes](docs/research/README.md) — sourced findings behind the decisions
+- [Open questions](docs/open-questions.md) — pending tests and deferred decisions
 
-## Choix et écarts par rapport à l'énoncé
+## Repository layout
 
-- **cloud-init** : `chpasswd.list` plutôt qu'une redéfinition de l'utilisateur `ubuntu`,
-  qui empêchait l'injection de la keypair Nova.
-- **Rôle kubeconfig** : l'adresse de l'API est une variable (`kubeconfig_api_host`,
-  fixée à `127.0.0.1` dans le playbook). Le kubeconfig est directement utilisable
-  avec le tunnel SSH et le playbook reste idempotent (`changed=0`).
-- **Annotations `checksum/*`** dans les Deployments backend et frontend : une
-  modification de ConfigMap déclenche un rollout lors d'un `helm upgrade`.
-- **`.gitignore`** : `ansible/kubeconfig` au lieu de `kubeconfig`, qui excluait aussi
-  le dossier du rôle `roles/kubeconfig/`.
+```
+infra/opentofu/   OpenTofu stacks, one state per layer
+infra/ansible/    host, bastion and K3s configuration
+infra/kolla/      Kolla-Ansible configuration as code
+apps/novashop/    application source, image and chart
+docs/             ADRs, architecture, research, runbooks
+```
 
-## Sécurité (labo)
+The companion repository [`akasha-gitops`](https://github.com/akasha-platform/akasha-gitops)
+holds the desired state that Argo CD applies.
 
-- Port 6443 fermé dans le SG : l'API K3s n'est accessible que par tunnel SSH.
-- Exclus du dépôt : `terraform.tfstate`, `*.tfvars`, `inventory.ini`, `ansible/kubeconfig`.
-- Les mots de passe en clair (`azerty`, Postgres `changeme`) sont assumés dans ce labo
-  isolé ; ils seront protégés au TD3 (Ansible Vault, Sealed Secrets).
+## Origin
+
+akasha started as a school exercise (TD2: Terraform → Ansible → Helm deploying NovaShop on a
+single K3s VM in DevStack). That deliverable is preserved at tag
+[`td2-final`](https://github.com/akasha-platform/akasha/tree/td2-final); its assessment is in
+[research/00](docs/research/00-td2-baseline-assessment.md).
+
+## Security
+
+See [SECURITY.md](SECURITY.md). The lab is not exposed to the Internet.
+
+## License
+
+Copyright 2026 Dinh Huy NGUYEN. Licensed under the [Apache License 2.0](LICENSE).
