@@ -24,7 +24,13 @@ the campus LAN. OpenStack needs separate management, overlay and provider networ
 * OPNsense (3 GB, official minimum) is the lab edge: routing, firewall, Unbound DNS for
   `akasha.internal` (ICANN-reserved), NTP for the lab.
 * Remote access only through Tailscale; the host acts as subnet router for 10.10/24 and 10.20/24.
-* No libvirt nwfilter on bridge ports used by OVN; `br_netfilter` kept off.
+* No libvirt nwfilter on bridge ports used by OVN; `br_netfilter` kept off; libvirt's
+  nftables backend selected explicitly (`firewall_backend`), and the libvirt `default` network
+  is not autostarted.
+* Host addresses on `br-mgmt`: OPNsense .1, bastion .10, ctl .11, core .12, computes .21/.22.
+
+The lab CIDRs, the `akasha.internal` zone and the 3 GB OPNsense sizing were confirmed
+explicitly by the owner on 2026-11-09.
 
 ### Consequences
 

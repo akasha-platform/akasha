@@ -31,8 +31,9 @@ production-faithful while leaving enough guest RAM (~10–12 GB) for Kubernetes?
 
 Chosen option: "V1b". `os-ctl01` (8 GB) runs the control plane, API VIP and Cinder LVM;
 `os-cmp01`/`os-cmp02` (~7.6 GB) run Nova and act as OVN gateway chassis together with the
-controller (three chassis, as OpenStack-Ansible recommends for reliable failover). One
-availability zone per compute. Distributed floating IPs.
+controller (three chassis, as OpenStack-Ansible recommends for reliable failover). One Nova
+availability zone per compute (host aggregates; `neutron_ovn_availability_zones` only sets
+router-gateway AZs and needs per-host `host_vars`). Distributed floating IPs.
 
 Evolution: after measuring real overhead, if ≥1.5 GB is spare, add `net01` with Kolla's
 "adding hosts" procedure and move HAProxy/gateways to it.

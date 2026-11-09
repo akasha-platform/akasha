@@ -16,7 +16,9 @@ public repositories": a fork PR can rewrite `runs-on`.
 
 * **Infrastructure** (OpenTofu, Ansible, Kolla): GitHub-hosted runners join Tailscale with
   `tailscale/github-action` workload identity (ephemeral node, tag-restricted to the bastion's
-  SSH). `plan` on pull requests, `apply` after merge through a protected environment.
+  SSH). `plan` only on pull requests from branches of this repository — fork PRs get no OIDC
+  identity and never reach Tailscale; the identity is bound to the repository and to the
+  protected environment. `apply` after merge through that environment.
 * **Application builds**: ARC runner scale sets (0.15.x) inside K3s, only for `push`/tag
   events, ephemeral runners, dedicated namespace and tainted node, no service-account token,
   egress NetworkPolicy (blocks node subnet and the metadata endpoint 169.254.169.254).
@@ -27,7 +29,8 @@ public repositories": a fork PR can rewrite `runs-on`.
   Lessons from the March 2026 Trivy compromise (CVE-2026-33634).
 * **Process** (planned, Étapes 5–7): rulesets on `main` (PR required, status checks, signed
   commits), Conventional Commits, release-please. Until then, every change goes through a
-  pull request reviewed by the owner and is squash-merged.
+  pull request reviewed by the owner and is squash-merged. GHCR as the registry and
+  Conventional Commits + release-please were confirmed explicitly by the owner on 2026-11-09.
 
 ### Consequences
 

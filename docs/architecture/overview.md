@@ -9,8 +9,8 @@ Numbers marked *est.* are estimates to be replaced by measurements.
   Kubernetes platform, as a portfolio project. The original TD2/TD3 subjects are only the
   starting point; they no longer constrain the scope (there is no TD3 subject to follow).
 - **OpenStack replaces a paid public cloud** (AWS/GCP) as the IaaS layer.
-- **Priorities:** (1) security, (2) CI/CD running *inside* the Kubernetes clusters
-  ("construire le flux CI/CD … au sein de nos clusters Kubernetes"), (3) monitoring and operations.
+- **Priorities (equal, not ranked):** security · CI/CD running *inside* the Kubernetes clusters
+  ("construire le flux CI/CD … au sein de nos clusters Kubernetes") · monitoring and operations.
 - **Method:** production practices first; where the lab cannot reproduce a production guarantee,
   say so explicitly (§7) instead of faking it.
 
@@ -50,7 +50,7 @@ Proxmox layer, so Kubernetes VMs run at nesting level 2 ([ADR-0005](../adr/0005-
 |---|---|---|---|---|
 | opnsense | Edge router/firewall, DNS (Unbound), NTP | 2 → E-cores | 3 GB | 16 G |
 | bastion | Runs OpenTofu/Ansible/Kolla; single SSH entry point for CI (via Tailscale) | 1 → E-cores | 1 GB | 20 G |
-| core | OpenBao (secrets, PKI, SSH CA, JWT auth) + versitygw (in-lab S3) | 1 → E-cores | 0.75 GB | 20 G + data |
+| core | OpenBao (secrets, PKI, SSH CA, JWT auth) + versitygw (in-lab S3) | 1 → E-cores | 0.75 GB | 20 G + 30 G data |
 | os-ctl01 | OpenStack control plane, API VIP (HAProxy/keepalived), Cinder LVM, OVN gateway | 4 → P-cores | 8 GB | 60 G + 120 G raw LV |
 | os-cmp01 | Nova compute + OVN gateway chassis (AZ a) | 6 → P-cores | ~7.6 GB | 100 G |
 | os-cmp02 | Nova compute + OVN gateway chassis (AZ b) | 6 → P-cores | ~7.6 GB | 100 G |
@@ -64,7 +64,7 @@ zswap) are a safety buffer, not capacity ([ADR-0016](../adr/0016-host-memory-hea
 | Bridge | CIDR | MTU | Purpose |
 |---|---|---|---|
 | br-transit | 10.255.255.0/29 | 1500 | Host ↔ OPNsense WAN. The host is the only NAT to the uplink and drops lab → campus LAN |
-| br-mgmt | 10.10.0.0/24 | 1500 | Management + OpenStack APIs: OPNsense .1, bastion .10, ctl .11, computes .21/.22, internal VIP .100, external VIP .101 (one-vs-two VIPs open) |
+| br-mgmt | 10.10.0.0/24 | 1500 | Management + OpenStack APIs: OPNsense .1, bastion .10, ctl .11, core .12, computes .21/.22, internal VIP .100, external VIP .101 (one-vs-two VIPs open) |
 | br-tun | 10.30.0.0/24 | 9000 | Geneve overlay between controller and computes |
 | br-ext | 10.20.0.0/24 | 1500 | Provider/floating-IP network (FIP pool .100–.250), unaddressed NICs on ctl + computes |
 
@@ -74,7 +74,7 @@ DNS zone: `akasha.internal`. Access from the operator laptop: Tailscale subnet r
 
 ```
 NVMe free space (477 GiB) → LVM VG vg_akasha
-├─ lv_images 320 GiB  XFS → libvirt dir pool "akasha" (thin qcow2)
+├─ lv_images 320 GiB  XFS → libvirt dir pool "akasha" (thin qcow2; ≈346 GB allocated, over-allocation monitored)
 ├─ lv_cinder 120 GiB  raw → attached to os-ctl01 → guest VG "cinder-volumes"
 └─ ~37 GiB free for LVM snapshots / growth
 ```

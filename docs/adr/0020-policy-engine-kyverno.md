@@ -18,7 +18,7 @@ and a guard for the privileged BuildKit namespace.
 
 ## Decision Outcome
 
-Chosen option: "Kyverno" (CNCF graduated) together with Pod Security Admission (`restricted`
+Chosen option (confirmed explicitly by the owner on 2026-11-09): "Kyverno" (CNCF graduated) together with Pod Security Admission (`restricted`
 by default, `privileged` only for the build namespace). Kyverno is needed for image signature
 and attestation verification (ImageValidatingPolicy), which native ValidatingAdmissionPolicy
 cannot do. New policies use the CEL-based ValidatingPolicy / ImageValidatingPolicy kinds,

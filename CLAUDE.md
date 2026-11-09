@@ -24,6 +24,11 @@ and Kubernetes platform, built on one school-provided physical host.
   tag claims VERIFIED / INFERRED / ESTIMATED, cite URLs.
 - Irreversible actions (deleting VMs, partitioning disks, transferring repos,
   force-pushes) need explicit confirmation inside the étape.
+- Propose every architecture change individually (options, recommendation, how professional
+  teams do it) and wait for the owner's choice — even inside an approved étape.
+- Claude has **no direct access** to the host or the lab. Give the owner explicit command blocks
+  (read-only unless the étape says otherwise), then verify the pasted output — and anything
+  checkable independently (e.g. GitHub API) — before moving on.
 - Every decision that changes the design gets an ADR (MADR 4.0) in `docs/adr/`.
 
 ## Public-repo hygiene (this repository is PUBLIC)
