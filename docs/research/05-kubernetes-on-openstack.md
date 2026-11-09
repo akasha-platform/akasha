@@ -28,6 +28,10 @@ The server taint is documented by K3s for a dedicated control plane. **VERIFIED*
 
 **Server groups.** Soft anti-affinity spreads members "as many separate hosts as possible". Hard anti-affinity accepts `max_server_per_host` from microversion 2.64. **VERIFIED**: https://docs.openstack.org/nova/latest/user/server-groups.html
 
+**Boot disks — OPEN** (open-questions B8): K3s VM root disks either boot from a Cinder volume (no disk copy on live migration, but shares the 120 GiB `lv_cinder` with PVCs) or use local ephemeral disks on the computes (100 G each; live migration then needs block migration). Config drive vs metadata service is part of the same decision: block migration is incompatible with a config drive. **VERIFIED**: https://docs.openstack.org/nova/latest/admin/configuring-migrations.html
+
+**Constraint: no KubeVirt or Kata inside the K3s VMs.** Running guests inside them would make them nested hypervisors, and Nova guests that run their own nested guests fail to live-migrate. **VERIFIED**: https://docs.openstack.org/nova/latest/admin/configuration/hypervisor-kvm.html
+
 ## OpenStack integration ("the cloud way")
 
 **Versions.** cloud-provider-openstack **v1.37.1**, charts **2.37.x**, tracking Kubernetes minors. **VERIFIED**: https://github.com/kubernetes/cloud-provider-openstack/releases
@@ -44,6 +48,8 @@ The server taint is documented by K3s for a dedicated control plane. **VERIFIED*
 - **VERIFIED**: https://github.com/kubernetes/cloud-provider-openstack/blob/master/docs/openstack-cloud-controller-manager/using-openstack-cloud-controller-manager.md
 
 **Gotcha: OCCM node selector.** The OCCM chart's default `nodeSelector` is `node-role.kubernetes.io/control-plane: ""`. K3s labels servers `"true"`, so the pods stay Pending. Override the selector or use an `Exists` affinity. **VERIFIED** (chart values) / **INFERRED** (K3s label value): https://github.com/kubernetes/cloud-provider-openstack/issues/2550
+
+**Gotcha: toleration for the server taint.** `k3s-server-1` carries `CriticalAddonsOnly=true:NoExecute`, but the OCCM chart's default tolerations are only `node.cloudprovider.kubernetes.io/uninitialized` and `node-role.kubernetes.io/control-plane:NoSchedule` (chart `values.yaml`, around lines 59–69). OCCM and the Cinder CSI controller therefore need an extra toleration `{key: CriticalAddonsOnly, operator: Exists, effect: NoExecute}` **in addition to** the nodeSelector override, or they will never schedule on the server. **VERIFIED** (chart defaults): https://raw.githubusercontent.com/kubernetes/cloud-provider-openstack/master/charts/openstack-cloud-controller-manager/values.yaml
 
 **Cinder CSI.** Use it as the default StorageClass with `WaitForFirstConsumer`, for CloudNativePG and Prometheus PVCs. **INFERRED**
 
@@ -79,7 +85,7 @@ The server taint is documented by K3s for a dedicated control plane. **VERIFIED*
 | Kyverno (chart defaults: 320 Mi requests, 768 Mi limits) | 0.45 | VERIFIED: https://github.com/kyverno/kyverno/blob/main/charts/kyverno/values.yaml |
 | Argo CD non-HA (dex and notifications off) | 0.75 | ESTIMATED |
 | kube-prometheus-stack (5–7 d retention) | 1.4 | ESTIMATED |
-| Loki SingleBinary, caches off | 0.45 | ESTIMATED |
+| Loki Monolithic, caches off | 0.45 | ESTIMATED |
 | Alloy DaemonSet, 4 nodes | 0.5 | ESTIMATED |
 | CloudNativePG operator + Barman plugin | 0.25 | ESTIMATED |
 | PostgreSQL prod (2 × 512 Mi) + dev (1 × 384 Mi) | 1.4 | ESTIMATED |
@@ -89,7 +95,7 @@ The server taint is documented by K3s for a dedicated control plane. **VERIFIED*
 | CI burst on the CI node (runner + BuildKit) | +1.5–2 | ESTIMATED |
 | **Peak** | **≈ 12.3** | |
 
-**Loki chart default.** It ships `chunksCache.allocatedMemory: 8192` MB and SimpleScalable mode, so set **SingleBinary with caches off**. **VERIFIED**: https://raw.githubusercontent.com/grafana/loki/main/production/helm/loki/values.yaml
+**Loki chart default.** It ships `chunksCache.allocatedMemory: 8192` MB and SimpleScalable mode, so set `deploymentMode: Monolithic` (the community-maintained `grafana-community/loki` chart renamed `SingleBinary` to `Monolithic`) **with caches off**. **VERIFIED**: https://raw.githubusercontent.com/grafana/loki/main/production/helm/loki/values.yaml, https://grafana.com/docs/loki/latest/setup/install/helm/install-monolithic/
 
 **Conditions for the budget to hold** (**INFERRED**, from the K8s research):
 - `kube-reserved` / `system-reserved` and hard eviction thresholds set on every kubelet.
@@ -105,6 +111,9 @@ The server taint is documented by K3s for a dedicated control plane. **VERIFIED*
 | A single PostgreSQL instance for prod | ~0.5 GB | No in-cluster DB replica |
 | Merge the CI node into the workers (runners on a tainted worker) | ~0.8 GB | Weaker CI isolation |
 | Defer or drop Octavia (NodePort instead of LoadBalancer) | ~0.3–0.5 GB on ctl01, can be given to computes | No cloud-style LoadBalancer |
+| Replace Kyverno with native ValidatingAdmissionPolicy | ~0.45 GB | No image signature/attestation verification at admission |
+
+These options are tracked as open-questions B1.
 
 **Ephemeral dev cluster (idea).** To demonstrate cluster-per-environment without paying for it permanently, CI could create a throwaway "dev" cluster from the same OpenTofu module and destroy it afterwards. **INFERRED**
 

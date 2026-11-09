@@ -28,8 +28,15 @@ two environments, and integrate with the cloud like production clusters.
   because K3s labels control-plane nodes with `"true"`), LoadBalancer via Octavia OVN provider.
 * Flannel VXLAN; pod MTU = tenant MTU − 50. The tenant MTU itself is **open**: 1442 (default
   on a 1500 underlay) or ≈ 8942 (`path_mtu` 9000 on `br-tun`) — see `docs/open-questions.md`.
+* The server carries `CriticalAddonsOnly=true:NoExecute`; OCCM and the Cinder CSI controller
+  need a matching toleration in addition to the nodeSelector override.
 * Dev and prod are namespaces with quotas, default-deny NetworkPolicies and separate
-  CloudNativePG clusters; two clusters would double ~3.5 GB of system overhead.
+  CloudNativePG clusters; two clusters would double ~3.5 GB of system overhead (confirmed
+  explicitly by the owner on 2026-11-09).
+* Constraint: no KubeVirt or Kata inside the K3s VMs — they would become nested hypervisors and
+  lose live migration.
+* Root disks of K3s VMs (Cinder boot-from-volume vs local ephemeral, config drive vs metadata
+  service) are open (`docs/open-questions.md` B8).
 * `--secrets-encryption` enabled (etcd snapshots contain every Secret).
 
 ### Consequences

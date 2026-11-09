@@ -30,6 +30,7 @@ Researched: 2026-11-08. Re-check versions before use. For privacy, campus networ
 | OPNsense (LAN gateway) | .1 |
 | bastion | .10 |
 | os-ctl01 | .11 |
+| core (OpenBao, versitygw) | .12 |
 | os-cmp01 / os-cmp02 | .21 / .22 |
 | Internal VIP (`kolla_internal_vip_address`) | .100 |
 | External VIP (`kolla_external_vip_address`) | .101 |
@@ -108,6 +109,7 @@ Measured: 477 GiB of unallocated NVMe space after the existing partitions.
   - `lv_images`: 320 GiB XFS mounted at `/var/lib/libvirt/akasha`, used as a libvirt `dir` pool of thin qcow2 volumes.
   - `lv_cinder`: 120 GiB raw LV passed to ctl01 as a block device. Inside the VM it becomes VG `cinder-volumes`, used with `enable_cinder_backend_lvm`.
   - About 37 GiB is left free for LVM snapshots.
+- **Thin over-allocation (accepted):** planned virtual disk sizes are OPNsense 16 + bastion 20 + core 20 (+30 data disk) + ctl01 60 + cmp01 100 + cmp02 100 ≈ **346 G**, more than the 320 GiB of `lv_images`. Thin qcow2 only consumes what is written, so this is accepted; monitor pool usage (`virsh pool-info akasha`, `df`) and grow `lv_images` from the ~37 GiB VG free space if needed. **ESTIMATED**
 - **Why a dir pool:** libvirt `logical` pools are thick, and thin pools were only requested in issue #1364. **VERIFIED**: https://github.com/dmacvicar/terraform-provider-libvirt/issues/1364
 - **Cinder backend docs:** https://docs.openstack.org/kolla-ansible/latest/reference/storage/cinder-guide.html **VERIFIED**
 - **LVM filter:** add a host `lvm.conf` `global_filter` so the host does not activate the guest's `cinder-volumes` VG. **INFERRED**
@@ -130,7 +132,10 @@ Measured: 477 GiB of unallocated NVMe space after the existing partitions.
 - **nftables (inet table):**
   - Input policy drop; allow lo, established, ICMP, and SSH on `tailscale0` only.
   - Forward: tailscale0 ↔ lab and lab → uplink, except the campus LAN.
-  - libvirt ≥ 10.4 has an nftables backend. **VERIFIED**: https://lists.libvirt.org/archives/list/users@lists.libvirt.org/thread/BF774GLLZN26XMEKAY5IRPZ6WISYXYQV
+  - libvirt ≥ 10.4 has an nftables backend. Set `firewall_backend = "nftables"` explicitly in `/etc/libvirt/network.conf` so libvirt, Tailscale and the host rules share one backend. **VERIFIED**: https://lists.libvirt.org/archives/list/users@lists.libvirt.org/thread/BF774GLLZN26XMEKAY5IRPZ6WISYXYQV
+- **Operating the host (practical gotchas):**
+  - The host locale is French: prefix commands whose output is parsed with `LC_ALL=C` (e.g. `LC_ALL=C virsh dominfo …`), otherwise field names such as `Max memory` are translated. **VERIFIED** (observed 2026-11-08)
+  - Use `sudo virsh` or `virsh -c qemu:///system`; plain `virsh` as a user connects to `qemu:///session` and shows no system VMs or pools. **VERIFIED** (observed 2026-11-08)
 - **Remote access:**
   - libvirt through the `libvirt` group and `qemu+ssh://` over Tailscale.
   - Consoles bound to 127.0.0.1, serial console as break-glass.
@@ -155,7 +160,7 @@ Measured: 477 GiB of unallocated NVMe space after the existing partitions.
 - Volumes are immutable and cannot be resized (#1330, #1325).
 - Networks are replaced on any change (0.9.8).
 
-**Example `libvirt_domain`** (field names **VERIFIED** against the 0.9.9 docs; `type = "bridge"` and the pin values are **INFERRED** and must be adapted to the real core layout):
+**Example `libvirt_domain`** (attribute names and nesting **VERIFIED** against v0.9.9 `docs/resources/domain.md`; interfaces have no `type` attribute — the source kind is selected by `source.bridge`; the pin values are **INFERRED** and must be adapted to the real core layout):
 
 ```hcl
 resource "libvirt_domain" "cmp01" {
@@ -177,9 +182,9 @@ resource "libvirt_domain" "cmp01" {
       driver = { name = "qemu", type = "qcow2", discard = "unmap", detect_zeros = "unmap" }
     }]
     interfaces = [
-      { type = "bridge", model = { type = "virtio" }, source = { bridge = { bridge = "br-mgmt" } } },
-      { type = "bridge", model = { type = "virtio" }, source = { bridge = { bridge = "br-tun" } }, mtu = { size = 9000 } },
-      { type = "bridge", model = { type = "virtio" }, source = { bridge = { bridge = "br-ext" } } },
+      { model = { type = "virtio" }, source = { bridge = { bridge = "br-mgmt" } } },
+      { model = { type = "virtio" }, source = { bridge = { bridge = "br-tun" } }, mtu = { size = 9000 } },
+      { model = { type = "virtio" }, source = { bridge = { bridge = "br-ext" } } },
     ]
   }
   running   = true

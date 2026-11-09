@@ -16,7 +16,7 @@ Researched: 2026-11-08. Prices and free tiers change often; **re-check before si
 **Storage**
 - Integrated Raft, which needs `cluster_addr` even on a single node. **VERIFIED**: https://openbao.org/docs/configuration/storage/raft/
 - A 3-node Raft cluster on one physical host adds nothing, so akasha runs **one node** and takes `raft snapshot` backups. **INFERRED**
-- **Declarative first start:** an `initialize` (self-init) stanza in the server config applies setup (auth methods, mounts, policies) on first start. **VERIFIED**: https://openbao.org/docs/configuration/self-init/ . The docs pair it with auto-unseal; with Shamir, check how it behaves (**OPEN**).
+- **Declarative first start:** an `initialize` (self-init) stanza in the server config applies setup (auth methods, mounts, policies) on first start. **VERIFIED**: https://openbao.org/docs/configuration/self-init/ . The docs pair it with auto-unseal; with Shamir, check how it behaves (**OPEN**, tracked as open-questions A14).
 
 ### Seal options without a cloud KMS
 
@@ -126,7 +126,7 @@ terraform {
 }
 ```
 
-`dynamodb_table` locking is deprecated in favour of `use_lockfile`. Applies are also serialised with a GitHub Actions `concurrency` group (see [06](06-cicd-supply-chain.md)).
+`dynamodb_table` locking is deprecated in favour of `use_lockfile`. All argument names above also exist in OpenTofu's S3 backend, which implements `use_lockfile` as native S3 locking via conditional writes (`If-None-Match`); OpenTofu recommends enabling bucket versioning and a lifecycle rule, because locking adds object writes. **VERIFIED**: https://opentofu.org/docs/language/settings/backends/s3/ . Applies are also serialised with a GitHub Actions `concurrency` group (see [06](06-cicd-supply-chain.md)).
 
 ### Where the bootstrap state lives — OPEN
 
@@ -144,6 +144,14 @@ The campus NFS share is **not used**, by policy. Off-site means a cloud object s
 | Hetzner (EU) | None (€6.49/TB-month) | Object lock listed | **VERIFIED**: https://www.hetzner.com/storage/object-storage |
 | Scaleway | 75 GB storage tier ended | — | **VERIFIED**: https://scaleway.com/en/docs/faq/objectstorage |
 
-**Decision: AWS S3 Standard + Object Lock** (the project owner's choice).
+**Decision: AWS S3 Standard + Object Lock** (the project owner's choice; Backblaze B2 had been recommended for its per-key capabilities).
 - AWS free-tier terms and current prices are **NOT yet verified**. Check before creating the bucket.
-- Use a restic key **without delete permission**, and lifecycle rules for retention. **INFERRED**
+- Design intent: a restic key **without delete permission**, and lifecycle rules for retention. **INFERRED** — this idea comes from **B2 per-key capabilities**; the AWS equivalent (an IAM policy without `s3:DeleteObject`) is **unverified** for restic.
+
+### restic on AWS S3 with Object Lock — not yet researched (open-questions A13)
+
+The off-site research compared B2, R2, IDrive, Hetzner and Scaleway; AWS was chosen afterwards, so the combination below still needs a design and a test:
+- **Object Lock requires a versioned bucket.** **VERIFIED**: https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock.html
+- **restic `forget` / `prune` delete objects.** **VERIFIED**: https://restic.readthedocs.io/en/stable/060_forget.html
+- So a "no-delete" backup key cannot also run `prune`. Options to evaluate (**INFERRED**): a separate maintenance credential used only for `forget --prune` (from a trusted machine, on a schedule), or retention handled by Object Lock retention mode + lifecycle rules (noncurrent versions, delete markers) with restic never pruning.
+- To decide and test: versioning settings, retention mode (governance vs compliance) and period, who runs `prune` and with which credential, restore drill, monthly cost.
