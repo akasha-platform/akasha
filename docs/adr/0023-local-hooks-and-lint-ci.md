@@ -65,3 +65,6 @@ script with a shebang and committed merge markers after the switch to local hook
 `pre-commit clean`, a full run initialised no remote environment. Trivy with
 `--skip-check-update` and an empty cache still reported HIGH findings and downloaded nothing.
 Lockfile enforcement under `MISE_SAFE=1` was verified with a tampered checksum (install refused).
+A clean-room run executed the workflow's `run:` steps verbatim (parsed from `lint.yml`, empty
+caches, `CI=true`): all exited 0. The CI mise version 2026.11.1 (binary checksum matched the
+release `SHASUMS256.txt`) installed all eight tools from the format-v4 `mise.lock`.
