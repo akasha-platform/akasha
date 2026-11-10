@@ -38,7 +38,7 @@ New files are only checked once they are staged (`git add`).
 
 ## Updating a tool
 
-1. Pick the newest release published **at least 7 days ago**.
+1. Pick the newest release published **at least 6 days ago**.
 2. Change the version in `mise.toml`, run `mise lock --platform linux-x64`, review the diff.
 3. If the tool has no publisher signature (gitleaks, shellcheck) or mise records no provenance
    (OpenTofu), compare the new checksum with the release's official checksum file and, for
@@ -47,5 +47,5 @@ New files are only checked once they are staged (`git add`).
 
 Python tools: move `exclude-newer` in `pyproject.toml` forward on purpose, run `uv lock`,
 review `uv.lock`, then `uv sync --locked`. Python itself: change `.python-version` to a patch
-release whose standalone build is at least 7 days old. uv: change `mise.toml` and
+release whose standalone build is at least 6 days old. uv: change `mise.toml` and
 `required-version` in `pyproject.toml` together.

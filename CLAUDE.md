@@ -46,7 +46,7 @@ school-provided. Use placeholders such as `<host-tailscale-ip>` when needed.
 - Docs and code comments in English.
 - Toolchain is pinned (ADR-0022): run binaries through mise (`mise exec -- <tool>` or an
   activated shell) and Python tools with `uv run`; never install project tools globally.
-  New versions follow the 7-day rule and are re-locked (`mise lock`, `uv lock`).
+  New versions follow the 6-day release cooldown and are re-locked (`mise lock`, `uv lock`).
 - Every change goes through a branch and a pull request reviewed by the owner, then a squash
   merge. Commit messages follow Conventional Commits.
 - Commits keep the owner's current git identity (owner's choice); never add or change it.

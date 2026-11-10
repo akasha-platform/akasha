@@ -36,8 +36,11 @@ Chosen option: "mise + uv".
   and `required-version = ">=0.13.6,<0.14"` (an older system uv refuses the project), for
   ansible-core 2.20.x (compatible with kolla-ansible 2026.1 and 2026.2), ansible-lint,
   yamllint and pre-commit (chosen over prek: mature; same config format if switched later).
-* **7-day rule:** pin the newest release published at least 7 days earlier. For PyPI this is a
-  fixed `exclude-newer` timestamp, moved forward deliberately.
+* **Release cooldown (6 days):** pin the newest release published at least 6 days earlier
+  (shortened from 7 days by the owner on 2026-11-10; common practice is 3–7 days, see
+  [research/06](../research/06-cicd-supply-chain.md)). Exceptions are
+  allowed only when recorded with a reason in the ADR or pull request that uses them. For PyPI
+  this is a fixed `exclude-newer` timestamp, moved forward deliberately.
 * System-wide Terraform/Ansible on the laptop are left untouched; mise and uv only apply
   inside the repository.
 
