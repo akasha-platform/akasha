@@ -1,0 +1,56 @@
+# Static checks on GitHub-hosted runners (ADR-0013, ADR-0023).
+# No secrets, read-only token, actions pinned by full SHA, never pull_request_target.
+name: lint
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: {}
+
+# Every tool is called through `mise exec --` so the pinned version wins over anything the
+# runner image preinstalls (e.g. shellcheck 0.9, yamllint, ansible 2.21 on ubuntu-24.04).
+
+concurrency:
+  group: lint-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      MISE_SAFE: "1"   # project config may come from a pull request: no tasks/hooks/[env]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0   # full history for gitleaks
+
+      - name: Install pinned toolchain (mise install --locked)
+        uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c  # v5.2.6
+        with:
+          version: 2026.11.1   # lockfile format v4
+          cache: false
+
+      - name: Install Python tooling (uv sync --locked)
+        run: mise exec -- uv sync --locked
+
+      - name: pre-commit (all files)
+        env:
+          SKIP: no-commit-to-branch
+        run: mise exec -- uv run --locked pre-commit run --all-files --show-diff-on-failure
+
+      - name: gitleaks (full history)
+        run: mise exec -- gitleaks git --redact --no-banner .
+
+      - name: zizmor (online audits)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: mise exec -- zizmor --format github .

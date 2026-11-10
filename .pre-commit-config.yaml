@@ -1,0 +1,141 @@
+# Same checks as a local git hook and in CI (ADR-0023).
+# Every hook is `local`: tools come from mise.lock (binaries) and uv.lock (Python, incl.
+# pre-commit-hooks and its ruamel.yaml dependency). pre-commit downloads nothing itself.
+minimum_pre_commit_version: "4.7.0"
+default_install_hook_types: [pre-commit]
+
+repos:
+  # --- Generic hygiene: pre-commit-hooks 6.0.0 console scripts (definitions copied from upstream)
+  - repo: local
+    hooks:
+      - id: trailing-whitespace
+        name: trim trailing whitespace
+        entry: mise exec -- uv run --locked trailing-whitespace-fixer --markdown-linebreak-ext=md
+        language: system
+        types: [text]
+      - id: end-of-file-fixer
+        name: fix end of files
+        entry: mise exec -- uv run --locked end-of-file-fixer
+        language: system
+        types: [text]
+      - id: mixed-line-ending
+        name: mixed line ending
+        entry: mise exec -- uv run --locked mixed-line-ending --fix=lf
+        language: system
+        types: [text]
+      - id: check-yaml
+        name: check yaml
+        entry: mise exec -- uv run --locked check-yaml
+        language: system
+        types: [yaml]
+      - id: check-toml
+        name: check toml
+        entry: mise exec -- uv run --locked check-toml
+        language: system
+        types: [toml]
+      - id: check-json
+        name: check json
+        entry: mise exec -- uv run --locked check-json
+        language: system
+        types: [json]
+      - id: check-merge-conflict
+        name: check for merge conflicts
+        # --assume-in-merge: also check outside a merge (otherwise the hook is a no-op in CI)
+        entry: mise exec -- uv run --locked check-merge-conflict --assume-in-merge
+        language: system
+        types: [text]
+      - id: check-case-conflict
+        name: check for case conflicts
+        entry: mise exec -- uv run --locked check-case-conflict
+        language: system
+      - id: check-added-large-files
+        name: check for added large files
+        entry: mise exec -- uv run --locked check-added-large-files --maxkb=500
+        language: system
+      - id: check-executables-have-shebangs
+        name: check that executables have shebangs
+        entry: mise exec -- uv run --locked check-executables-have-shebangs
+        language: system
+        types: [text, executable]
+      - id: check-shebang-scripts-are-executable
+        name: check that scripts with shebangs are executable
+        entry: mise exec -- uv run --locked check-shebang-scripts-are-executable
+        language: system
+        types: [text]
+      - id: detect-private-key
+        name: detect private key
+        entry: mise exec -- uv run --locked detect-private-key
+        language: system
+        types: [text]
+      - id: no-commit-to-branch   # skipped in CI (SKIP=no-commit-to-branch)
+        name: don't commit to branch
+        entry: mise exec -- uv run --locked no-commit-to-branch --branch main
+        language: system
+        pass_filenames: false
+        always_run: true
+
+  # --- Pinned tools from mise.lock / uv.lock
+  - repo: local
+    hooks:
+      - id: gitleaks
+        name: gitleaks (secrets in staged changes)
+        entry: mise exec -- gitleaks git --pre-commit --staged --redact --no-banner
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: tofu-fmt
+        name: tofu fmt
+        entry: mise exec -- tofu fmt -check -diff
+        language: system
+        files: \.(tf|tofu|tfvars)$
+
+      - id: tflint
+        name: tflint
+        entry: mise exec -- tflint --recursive
+        language: system
+        files: \.(tf|tofu)$
+        pass_filenames: false
+
+      - id: trivy-config
+        name: trivy config (IaC misconfigurations, HIGH/CRITICAL)
+        # --skip-check-update: use the checks embedded in the pinned, signed binary
+        # instead of pulling the floating trivy-checks bundle at run time
+        entry: >-
+          mise exec -- trivy config --skip-check-update --skip-dirs .venv
+          --quiet --exit-code 1 --severity HIGH,CRITICAL .
+        language: system
+        files: ^(infra|apps)/
+        pass_filenames: false
+
+      - id: actionlint
+        name: actionlint
+        entry: mise exec -- actionlint
+        language: system
+        files: ^\.github/workflows/.*\.ya?ml$
+
+      - id: zizmor
+        name: zizmor (workflow security, offline)
+        entry: mise exec -- zizmor --offline .
+        language: system
+        files: ^\.github/
+        pass_filenames: false
+
+      - id: shellcheck
+        name: shellcheck
+        entry: mise exec -- shellcheck
+        language: system
+        types: [shell]
+
+      - id: yamllint
+        name: yamllint
+        entry: mise exec -- uv run --locked yamllint --strict
+        language: system
+        types: [yaml]
+
+      - id: ansible-lint
+        name: ansible-lint
+        entry: mise exec -- uv run --locked ansible-lint
+        language: system
+        files: ^infra/ansible/.*\.ya?ml$
+        pass_filenames: false

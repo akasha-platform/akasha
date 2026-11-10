@@ -23,7 +23,7 @@ Phase-specific completion criteria are listed with each phase below.
 | 2 | Durable record of all decisions: `CLAUDE.md`, roadmap, architecture overview, ADRs, research notes; audit against the design conversation (PR #1, PR #2) | ✅ 2026-11-09 |
 | 3 | Tag the TD2 baseline (`td2-final`), remove it from the tree, new directory skeleton (`infra/opentofu/`, ADR-0021), README, Apache-2.0 LICENSE, SECURITY.md, `.gitignore`; repository security settings (secret scanning, push protection, squash-only) | ✅ 2026-11-09 |
 | 4 | Pinned and verified local toolchain: mise + `mise.lock`, uv + `uv.lock` (ADR-0022, `docs/development.md`) | ✅ 2026-11-09 |
-| 5 | pre-commit configuration and lint CI on GitHub-hosted runners | ⏳ |
+| 5 | pre-commit hooks and lint CI on GitHub-hosted runners, one shared check list (ADR-0023) | 🔄 pull request opened on 2026-11-10; merged once CI is green |
 | 6 | Renovate, zizmor, restrict allowed actions to a selected list | ⏳ |
 | 7 | SSH commit signing, rulesets protecting `main`; drop the `admin:org` scope from the local `gh` token | ⏳ |
 
