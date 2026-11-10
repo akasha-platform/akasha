@@ -51,6 +51,7 @@ lists what the lab reproduces and what it cannot.
 - [Architecture Decision Records](docs/adr/README.md) — why each choice was made
 - [Research notes](docs/research/README.md) — sourced findings behind the decisions
 - [Open questions](docs/open-questions.md) — pending tests and deferred decisions
+- [Development setup](docs/development.md) — pinned, verified toolchain (mise + uv)
 
 ## Repository layout
 

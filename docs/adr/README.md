@@ -26,3 +26,4 @@ acceptance except to change its status (`superseded by ADR-NNNN`).
 | [0019](0019-certificate-management.md) | Certificate management: OpenBao PKI, cert-manager, trust-manager | accepted |
 | [0020](0020-policy-engine-kyverno.md) | Policy engine: Kyverno with Pod Security Admission | accepted |
 | [0021](0021-repository-layout.md) | Repository layout | accepted |
+| [0022](0022-pinned-toolchain.md) | Pinned and verified developer toolchain (mise + uv) | accepted |

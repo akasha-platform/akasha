@@ -1,0 +1,20 @@
+# Pinned command-line toolchain for the laptop and CI (ADR-0022).
+# Versions follow the 7-day rule: newest release published at least 7 days before pinning.
+# Update with care: change a version, run `mise lock`, review the mise.lock diff.
+
+min_version = "2026.11.1"   # lockfile format v4
+
+[settings]
+locked = true                       # install only what mise.lock describes (checksums required)
+locked_verify_provenance = true     # re-verify signatures/attestations on every locked install
+disable_backends = ["asdf", "vfox"] # never run third-party plugin scripts
+
+[tools]
+"aqua:opentofu/opentofu"        = "1.13.2"  # bump to >=1.13.9 (state-persistence fix) before the first apply in P1
+"aqua:terraform-linters/tflint" = "0.65.0"
+"aqua:aquasecurity/trivy"       = "0.76.1"  # installed as a binary, never via trivy-action
+"aqua:gitleaks/gitleaks"        = "8.30.1"
+"aqua:rhysd/actionlint"         = "1.7.12"
+"aqua:koalaman/shellcheck"      = "0.11.0"
+"aqua:zizmorcore/zizmor"        = "1.32.0"
+"aqua:astral-sh/uv"             = "0.13.6"

@@ -1,0 +1,23 @@
+# Pinned Python tooling for this repository (ADR-0022). Not a Python package.
+# uv.lock records exact versions and hashes; install with `uv sync --locked`.
+
+[project]
+name = "akasha-tooling"
+version = "0.0.0"
+description = "Pinned Python developer tooling for the akasha repository"
+requires-python = ">=3.14,<3.15"
+dependencies = []
+
+[dependency-groups]
+dev = [
+  # ansible-core 2.20.x satisfies kolla-ansible 2026.1 (<2.21) and 2026.2 (>=2.20)
+  "ansible-core>=2.20,<2.21",
+  "ansible-lint",
+  "yamllint",
+  "pre-commit",
+]
+
+[tool.uv]
+package = false
+# 7-day rule for PyPI, as a fixed date so resolution is reproducible. Move it forward on purpose.
+exclude-newer = "2026-11-02T00:00:00Z"
