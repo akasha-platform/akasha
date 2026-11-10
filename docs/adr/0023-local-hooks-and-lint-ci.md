@@ -33,8 +33,10 @@ they reach `main`, on the laptop and again on GitHub, with exactly the same tool
   * `permissions: {}` at workflow level, `contents: read` for the job; no secrets;
     `actions/checkout` v7.0.1 and `jdx/mise-action` v5.2.6 pinned by full SHA;
     `persist-credentials: false`; `MISE_SAFE=1`; no cache (cache poisoning avoided; revisit if slow);
-  * mise `2026.11.1` (oldest release able to read lockfile format v4) — the pull request that
-    introduces CI is opened only once that release is 7 days old (2026-11-11);
+  * mise `2026.11.1` (oldest release able to read lockfile format v4). The pull request that
+    introduces CI was opened on 2026-11-10, when that release was 5 days 20 hours old: a
+    recorded exception to the release cooldown (ADR-0022), accepted by the owner because this
+    job has no secrets and only a read-only token;
   * steps: `mise install --locked` (by the action), `uv sync --locked`, pre-commit on all files
     (`SKIP=no-commit-to-branch`), gitleaks on the **full history**, zizmor with **online**
     audits using the read-only token;
