@@ -14,13 +14,18 @@ they reach `main`, on the laptop and again on GitHub, with exactly the same tool
 
 ## Decision Outcome
 
-* **One list of checks** in `.pre-commit-config.yaml`, run by pre-commit 4.7:
-  * generic hygiene from `pre-commit/pre-commit-hooks` pinned by SHA (frozen v6.0.0): whitespace,
-    end of file, LF line endings, YAML/TOML/JSON syntax, merge markers, case conflicts, large
-    files, shebangs, **private keys**, **no commit to `main`**;
-  * `repo: local` hooks that call the pinned tools through `mise exec --` / `uv run --locked`
-    (no third version-pinning layer): gitleaks, tofu fmt, tflint, trivy config, actionlint,
-    zizmor (offline), shellcheck, yamllint, ansible-lint.
+* **One list of checks** in `.pre-commit-config.yaml`, run by pre-commit 4.7. **Every hook is
+  `repo: local`** and calls a pinned tool through `mise exec --` / `uv run --locked`, so
+  pre-commit itself downloads nothing (no third, unlocked pinning layer):
+  * generic hygiene from the `pre-commit-hooks` 6.0.0 package, locked in `uv.lock` together with
+    its `ruamel.yaml` dependency (a remote `repo:` entry would make pre-commit pip-install
+    `ruamel.yaml>=0.15` without hashes or cooldown): whitespace, end of file, LF line endings,
+    YAML/TOML/JSON syntax, merge markers (`--assume-in-merge`, otherwise a no-op outside a
+    merge and in CI), case conflicts, large files, shebangs, **private keys**, **no commit to
+    `main`**; hook definitions copied from upstream `.pre-commit-hooks.yaml`;
+  * pinned tools: gitleaks, tofu fmt, tflint, trivy config with `--skip-check-update` (checks
+    embedded in the signed binary, instead of pulling the floating `trivy-checks:2` bundle at
+    run time), actionlint, zizmor (offline), shellcheck, yamllint, ansible-lint.
 * **Local git hook**: `pre-commit install` (per clone). The `no-commit-to-branch` hook makes
   every change go through a branch and a pull request.
 * **CI** (`.github/workflows/lint.yml`) on GitHub-hosted `ubuntu-24.04`, on pull requests,
@@ -41,6 +46,8 @@ they reach `main`, on the laptop and again on GitHub, with exactly the same tool
 * Bad, because the first local run downloads the hook environment and CI downloads all tools
   on every run (~1–2 minutes).
 * Making the `lint` check **required** on `main` is part of the rulesets (Étape 7).
+* When Ansible code arrives (P1), add `.ansible-lint` with `offline: true` so ansible-lint never
+  installs collections from the network.
 
 ### Confirmation
 
@@ -48,5 +55,8 @@ Negative tests on 2026-11-10: a fake token (gitleaks), a private-key header, unf
 OpenTofu, an unused variable (tflint, confirming the root `.tflint.hcl` is used recursively),
 duplicate YAML keys (check-yaml, yamllint), an unpinned action with template injection
 (actionlint, zizmor), an unquoted shell variable (shellcheck) and a commit on `main`
-(`no-commit-to-branch`) were all rejected. Lockfile enforcement under `MISE_SAFE=1` was
-verified with a tampered checksum (install refused).
+(`no-commit-to-branch`) were all rejected, and so were trailing whitespace, a non-executable
+script with a shebang and committed merge markers after the switch to local hooks. After
+`pre-commit clean`, a full run initialised no remote environment. Trivy with
+`--skip-check-update` and an empty cache still reported HIGH findings and downloaded nothing.
+Lockfile enforcement under `MISE_SAFE=1` was verified with a tampered checksum (install refused).
