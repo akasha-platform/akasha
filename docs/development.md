@@ -20,7 +20,10 @@ mise install --locked     # binaries exactly as described by mise.lock
 uv sync --locked          # Python tools exactly as described by uv.lock (.venv/)
 ```
 
-Run Python tools with `uv run <tool>` (e.g. `uv run ansible-lint`).
+Run Python tools with `uv run <tool>` (e.g. `uv run ansible-lint`). The first `uv sync`
+downloads the pinned CPython (3.14.10); the system Python is never used. If `uv` reports
+"Required uv version … does not match", the shell is not using mise's uv — open a new terminal
+or run `mise exec -- uv …`.
 
 ## Updating a tool
 
@@ -32,4 +35,6 @@ Run Python tools with `uv run <tool>` (e.g. `uv run ansible-lint`).
 4. `mise install --locked`, check the version, open a pull request.
 
 Python tools: move `exclude-newer` in `pyproject.toml` forward on purpose, run `uv lock`,
-review `uv.lock`, then `uv sync --locked`.
+review `uv.lock`, then `uv sync --locked`. Python itself: change `.python-version` to a patch
+release whose standalone build is at least 7 days old. uv: change `mise.toml` and
+`required-version` in `pyproject.toml` together.

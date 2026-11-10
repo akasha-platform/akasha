@@ -19,5 +19,8 @@ dev = [
 
 [tool.uv]
 package = false
+# Same interpreter and uv on the laptop and in CI (ADR-0022)
+required-version = ">=0.13.6,<0.14"   # keep in line with mise.toml
+python-preference = "only-managed"    # uv-downloaded, hash-verified CPython; never the system one
 # 7-day rule for PyPI, as a fixed date so resolution is reproducible. Move it forward on purpose.
 exclude-newer = "2026-11-02T00:00:00Z"
