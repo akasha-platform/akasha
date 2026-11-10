@@ -30,7 +30,10 @@ Chosen option: "mise + uv".
   `mise.lock` (version, URL, SHA-256 and provenance per platform). Settings: `locked = true`,
   `locked_verify_provenance = true`, `disable_backends = ["asdf", "vfox"]`; every tool uses an
   explicit `aqua:` backend.
-* **uv** project (`pyproject.toml`, `uv.lock` with hashes, `.python-version` 3.14) for
+* **uv** project (`pyproject.toml`, `uv.lock` with hashes) running on the exact interpreter
+  `.python-version` = 3.14.10 with `python-preference = "only-managed"` (uv-downloaded,
+  hash-verified CPython, identical on the laptop and in CI; the system Python is never used)
+  and `required-version = ">=0.13.6,<0.14"` (an older system uv refuses the project), for
   ansible-core 2.20.x (compatible with kolla-ansible 2026.1 and 2026.2), ansible-lint,
   yamllint and pre-commit (chosen over prek: mature; same config format if switched later).
 * **7-day rule:** pin the newest release published at least 7 days earlier. For PyPI this is a
