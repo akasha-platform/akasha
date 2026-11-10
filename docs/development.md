@@ -25,6 +25,17 @@ downloads the pinned CPython (3.14.10); the system Python is never used. If `uv`
 "Required uv version … does not match", the shell is not using mise's uv — open a new terminal
 or run `mise exec -- uv …`.
 
+## Checks (git hook and CI)
+
+```bash
+uv run pre-commit install          # once per clone: run the checks on every `git commit`
+uv run pre-commit run --all-files  # run every check on the whole repository
+```
+
+The same list (`.pre-commit-config.yaml`) runs in CI (`.github/workflows/lint.yml`,
+ADR-0023). Commits on `main` are refused locally: work on a branch and open a pull request.
+New files are only checked once they are staged (`git add`).
+
 ## Updating a tool
 
 1. Pick the newest release published **at least 7 days ago**.

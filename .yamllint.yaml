@@ -1,0 +1,16 @@
+# yamllint configuration (ADR-0023)
+extends: default
+
+ignore: |
+  .venv/
+  uv.lock
+
+rules:
+  document-start: disable
+  line-length:
+    max: 120
+  truthy:
+    allowed-values: ["true", "false"]
+    check-keys: false   # GitHub Actions uses the key `on:`
+  comments:
+    min-spaces-from-content: 1

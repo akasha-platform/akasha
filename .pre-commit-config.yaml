@@ -1,0 +1,87 @@
+# Same checks as a local git hook and in CI (ADR-0023).
+# Tool versions come from mise.lock / uv.lock; only pre-commit-hooks is pinned here (by SHA).
+minimum_pre_commit_version: "4.7.0"
+default_install_hook_types: [pre-commit]
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # frozen: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+        args: [--fix=lf]
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: check-added-large-files
+        args: [--maxkb=500]
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+      - id: detect-private-key
+      - id: no-commit-to-branch   # skipped in CI (SKIP=no-commit-to-branch)
+        args: [--branch, main]
+
+  - repo: local
+    hooks:
+      - id: gitleaks
+        name: gitleaks (secrets in staged changes)
+        entry: mise exec -- gitleaks git --pre-commit --staged --redact --no-banner
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: tofu-fmt
+        name: tofu fmt
+        entry: mise exec -- tofu fmt -check -diff
+        language: system
+        files: \.(tf|tofu|tfvars)$
+
+      - id: tflint
+        name: tflint
+        entry: mise exec -- tflint --recursive
+        language: system
+        files: \.(tf|tofu)$
+        pass_filenames: false
+
+      - id: trivy-config
+        name: trivy config (IaC misconfigurations, HIGH/CRITICAL)
+        entry: mise exec -- trivy config --quiet --exit-code 1 --severity HIGH,CRITICAL infra
+        language: system
+        files: ^infra/
+        pass_filenames: false
+
+      - id: actionlint
+        name: actionlint
+        entry: mise exec -- actionlint
+        language: system
+        files: ^\.github/workflows/.*\.ya?ml$
+
+      - id: zizmor
+        name: zizmor (workflow security, offline)
+        entry: mise exec -- zizmor --offline .
+        language: system
+        files: ^\.github/
+        pass_filenames: false
+
+      - id: shellcheck
+        name: shellcheck
+        entry: mise exec -- shellcheck
+        language: system
+        types: [shell]
+
+      - id: yamllint
+        name: yamllint
+        entry: mise exec -- uv run --locked yamllint --strict
+        language: system
+        types: [yaml]
+
+      - id: ansible-lint
+        name: ansible-lint
+        entry: mise exec -- uv run --locked ansible-lint
+        language: system
+        files: ^infra/ansible/.*\.ya?ml$
+        pass_filenames: false

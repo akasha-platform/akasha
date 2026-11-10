@@ -27,3 +27,4 @@ acceptance except to change its status (`superseded by ADR-NNNN`).
 | [0020](0020-policy-engine-kyverno.md) | Policy engine: Kyverno with Pod Security Admission | accepted |
 | [0021](0021-repository-layout.md) | Repository layout | accepted |
 | [0022](0022-pinned-toolchain.md) | Pinned and verified developer toolchain (mise + uv) | accepted |
+| [0023](0023-local-hooks-and-lint-ci.md) | Local git hooks and lint CI share one check list | accepted |
