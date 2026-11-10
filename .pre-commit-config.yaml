@@ -101,9 +101,11 @@ repos:
         name: trivy config (IaC misconfigurations, HIGH/CRITICAL)
         # --skip-check-update: use the checks embedded in the pinned, signed binary
         # instead of pulling the floating trivy-checks bundle at run time
-        entry: mise exec -- trivy config --skip-check-update --quiet --exit-code 1 --severity HIGH,CRITICAL infra
+        entry: >-
+          mise exec -- trivy config --skip-check-update --skip-dirs .venv
+          --quiet --exit-code 1 --severity HIGH,CRITICAL .
         language: system
-        files: ^infra/
+        files: ^(infra|apps)/
         pass_filenames: false
 
       - id: actionlint

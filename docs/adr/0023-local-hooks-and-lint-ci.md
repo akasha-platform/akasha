@@ -37,7 +37,12 @@ they reach `main`, on the laptop and again on GitHub, with exactly the same tool
     introduces CI is opened only once that release is 7 days old (2026-11-11);
   * steps: `mise install --locked` (by the action), `uv sync --locked`, pre-commit on all files
     (`SKIP=no-commit-to-branch`), gitleaks on the **full history**, zizmor with **online**
-    audits using the read-only token.
+    audits using the read-only token;
+  * every `run:` step calls its tool through `mise exec --`, because the `ubuntu-24.04` image
+    preinstalls other versions (shellcheck 0.9, yamllint, ansible 2.21 — incompatible with
+    kolla-ansible 2026.1) that must never win on `PATH`.
+* trivy config scans the whole repository (`infra/` and `apps/`, `.venv` skipped) so Dockerfiles
+  and charts added in P6 are covered.
 
 ### Consequences
 

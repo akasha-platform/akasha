@@ -10,6 +10,9 @@ on:
 
 permissions: {}
 
+# Every tool is called through `mise exec --` so the pinned version wins over anything the
+# runner image preinstalls (e.g. shellcheck 0.9, yamllint, ansible 2.21 on ubuntu-24.04).
+
 concurrency:
   group: lint-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -37,17 +40,17 @@ jobs:
           cache: false
 
       - name: Install Python tooling (uv sync --locked)
-        run: uv sync --locked
+        run: mise exec -- uv sync --locked
 
       - name: pre-commit (all files)
         env:
           SKIP: no-commit-to-branch
-        run: uv run --locked pre-commit run --all-files --show-diff-on-failure
+        run: mise exec -- uv run --locked pre-commit run --all-files --show-diff-on-failure
 
       - name: gitleaks (full history)
-        run: gitleaks git --redact --no-banner .
+        run: mise exec -- gitleaks git --redact --no-banner .
 
       - name: zizmor (online audits)
         env:
           GH_TOKEN: ${{ github.token }}
-        run: zizmor --format github .
+        run: mise exec -- zizmor --format github .
