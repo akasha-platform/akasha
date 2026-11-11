@@ -47,6 +47,10 @@ Chosen option: "Repository rulesets + SSH commit signing".
   human pull request.
 * Vigilant mode (flag unsigned commits as unverified) is left off for now: history before
   2026-11-11 contains unsigned commits.
+* **Least-privilege `gh` token** on the laptop: scopes `gist`, `read:org`, `repo`, `workflow`
+  (`admin:org` removed). When an étape must read or change organisation settings, the owner
+  grants it just in time (`gh auth refresh -h github.com -s admin:org`) and removes it
+  afterwards (`--remove-scopes admin:org`).
 
 ### Consequences
 
@@ -69,3 +73,11 @@ On 2026-11-11, with the rulesets active:
 * Test pull request #16, with `lint` green: an unsigned commit made it `BLOCKED` ("the base
   branch policy prohibits the merge"); the same commit re-signed made it `CLEAN`; a signed
   commit failing `lint` made it `BLOCKED` again. Closed without merging.
+* A signed, green pull request (#17) was squash-merged normally (GitHub-signed merge commit,
+  linear history).
+* A direct push of a signed commit to `main` was refused: `GH013: Repository rule violations`
+  ("Changes must be made through a pull request", "Required status check "lint" is
+  expected"). A force-push test was not run (destructive if a rule were missing); the
+  `non_fast_forward` rule is listed by the API.
+* After `gh auth refresh --remove-scopes admin:org`, the token scopes are `gist, read:org,
+  repo, workflow`, and `GET /orgs/akasha-platform/actions/permissions` is refused.

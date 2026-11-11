@@ -25,9 +25,10 @@ Phase-specific completion criteria are listed with each phase below.
 | 4 | Pinned and verified local toolchain: mise + `mise.lock`, uv + `uv.lock` (ADR-0022, `docs/development.md`) | ✅ 2026-11-09 |
 | 5 | pre-commit hooks and lint CI on GitHub-hosted runners, one shared check list (ADR-0023) | ✅ 2026-11-10 (PR #8) |
 | 6 | Renovate (Mend-hosted app, 6-day cooldown), Dependabot alerts only, explicit allow-list of actions (ADR-0024) | ✅ 2026-11-11 |
-| 7 | SSH commit signing, rulesets protecting `main`; drop the `admin:org` scope from the local `gh` token | ⏳ |
+| 7 | SSH commit signing, rulesets protecting `main` (ADR-0025); drop the `admin:org` scope from the local `gh` token | ✅ 2026-11-11 |
 
 Done when: an empty PR passes every check; actions are SHA-pinned; `main` is protected.
+**P0 done on 2026-11-11.**
 
 ## P1 — L0 host (`insa`)
 
