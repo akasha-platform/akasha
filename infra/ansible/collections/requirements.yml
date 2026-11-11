@@ -1,0 +1,11 @@
+# Collections, pinned to exact versions (release cooldown, ADR-0022), including
+# transitive dependencies, so that a reinstall gives exactly the same set.
+# ansible-galaxy checks each download against the SHA-256 published by Galaxy.
+# Install: cd infra/ansible && uv run ansible-galaxy collection install -r collections/requirements.yml -p collections
+collections:
+  - name: community.general
+    version: 13.5.1   # requires ansible-core >= 2.18
+  - name: ansible.posix
+    version: 2.2.2
+  - name: community.library_inventory_filtering_v1
+    version: 1.1.5    # dependency of community.general (">=1.0.0")

@@ -1,0 +1,8 @@
+# ansible-lint configuration (ADR-0023, ADR-0026)
+profile: production
+# Never install collections or roles from the network: they come from
+# infra/ansible/collections/requirements.yml, installed beforehand.
+offline: true
+exclude_paths:
+  - .venv/
+  - infra/ansible/collections/ansible_collections/

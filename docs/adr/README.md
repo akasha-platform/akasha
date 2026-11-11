@@ -30,3 +30,4 @@ acceptance except to change its status (`superseded by ADR-NNNN`).
 | [0023](0023-local-hooks-and-lint-ci.md) | Local git hooks and lint CI share one check list | accepted |
 | [0024](0024-dependency-updates-and-allowed-actions.md) | Dependency updates with Renovate and an allow-list of GitHub Actions | accepted |
 | [0025](0025-signed-commits-and-rulesets.md) | Signed commits and repository rulesets protecting `main` | accepted |
+| [0026](0026-ansible-conventions.md) | Ansible conventions for host configuration | accepted |

@@ -36,6 +36,19 @@ The same list (`.pre-commit-config.yaml`) runs in CI (`.github/workflows/lint.ym
 ADR-0023). Commits on `main` are refused locally: work on a branch and open a pull request.
 New files are only checked once they are staged (`git add`).
 
+## Ansible
+
+Host configuration lives in `infra/ansible/` (ADR-0026). Once per clone, and after a
+collection bump:
+
+```bash
+cd infra/ansible
+uv run ansible-galaxy collection install -r collections/requirements.yml -p collections
+```
+
+The inventory uses the SSH alias `insa` from your `~/.ssh/config` (Tailscale). Always dry-run
+first: `uv run ansible-playbook playbooks/<name>.yml --check --diff -K`.
+
 ## Signed commits
 
 `main` accepts only signed commits (ADR-0025): a pull request containing an unsigned commit

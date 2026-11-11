@@ -103,6 +103,7 @@ repos:
         # instead of pulling the floating trivy-checks bundle at run time
         entry: >-
           mise exec -- trivy config --skip-check-update --skip-dirs .venv
+          --skip-dirs infra/ansible/collections/ansible_collections
           --quiet --exit-code 1 --severity HIGH,CRITICAL .
         language: system
         files: ^(infra|apps)/
