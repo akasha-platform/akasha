@@ -27,6 +27,11 @@ read-only CI model (ADR-0013). Separately, the organisation still allows any act
 
 Chosen option: "Renovate, Mend-hosted GitHub App", installed on the `akasha` repository only.
 
+* Mend Developer Portal settings (outside the repository): organisation default **Silent mode
+  on** (a newly added repository stays silent until enabled on purpose); for `akasha`: Silent
+  mode off, **Automated PRs on**, **Require config file on** (no pull requests without
+  `.github/renovate.json5`), Create onboarding PRs off.
+
 * Configuration in `.github/renovate.json5`:
   * `config:best-practices` (SHA-pinned action digests, dependency dashboard), Conventional
     Commits, schedule `before 6am on monday` (Europe/Paris), **no automerge**;
@@ -74,9 +79,19 @@ Chosen option: "Renovate, Mend-hosted GitHub App", installed on the `akasha` rep
   as repository configuration on 2026-11-11.
 * `uv lock` with the relative cutoff resolved the same 38 packages; only the `[options]` block
   of `uv.lock` changed.
-* After installation: the dependency dashboard must list the eight mise tools, both actions,
-  the CI mise version, `.python-version` and the uv dependencies; a workflow using an action
-  outside the allow-list must be refused.
+* Allow-list (2026-11-11): on a temporary branch, a workflow using `actions/setup-python`
+  (full commit SHA) ended in `startup_failure`; the same workflow using `actions/checkout`
+  succeeded; `lint` on `main` stayed green.
+* Dependency dashboard (issue #12): all eight mise tools, both actions, the CI mise version,
+  `.python-version` and the uv dependencies detected; updates under 6 days old wait in
+  "Pending Status Checks", older ones in "Awaiting Schedule"; only the runner image needs
+  approval. The first run proposed Python 3.15, `constraints.mise` and ubuntu-26.04: fixed by
+  rules in #11.
+* First `mise.lock` update (#13, uv 0.13.6 → 0.13.7): Renovate's `mise.toml` and `mise.lock`
+  were byte-identical to a local `mise lock`; the checksum matched uv's official `.sha256`;
+  `provenance = "github-attestations"` kept; commit signed; `lint` and
+  `renovate/stability-days` passed.
+* Dependabot: security updates disabled and alerts enabled on both repositories (API).
 
 ## More Information
 
