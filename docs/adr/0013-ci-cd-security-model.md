@@ -27,9 +27,9 @@ public repositories": a fork PR can rewrite `runs-on`.
   `minimumReleaseAge`, zizmor for workflows, never `pull_request_target`, scanners run without
   secrets, cosign keyless signing and GitHub artifact attestations, images in GHCR.
   Lessons from the March 2026 Trivy compromise (CVE-2026-33634).
-* **Process** (planned, Étapes 5–7): rulesets on `main` (PR required, status checks, signed
-  commits), Conventional Commits, release-please. Until then, every change goes through a
-  pull request reviewed by the owner and is squash-merged. GHCR as the registry and
+* **Process**: rulesets on `main` (PR required, `lint` required, signed commits, squash only;
+  ADR-0025), Conventional Commits, release-please (later). Every change goes through a pull
+  request reviewed by the owner and is squash-merged. GHCR as the registry and
   Conventional Commits + release-please were confirmed explicitly by the owner on 2026-11-09.
 
 ### Consequences
