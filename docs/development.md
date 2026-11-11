@@ -36,6 +36,28 @@ The same list (`.pre-commit-config.yaml`) runs in CI (`.github/workflows/lint.ym
 ADR-0023). Commits on `main` are refused locally: work on a branch and open a pull request.
 New files are only checked once they are staged (`git add`).
 
+## Signed commits
+
+`main` accepts only signed commits (ADR-0025): a pull request containing an unsigned commit
+cannot be merged. Sign with a dedicated SSH key, once per machine:
+
+```bash
+ssh-keygen -t ed25519 -C "git signing (<you>, <machine>)" -f ~/.ssh/id_ed25519_signing
+ssh-add ~/.ssh/id_ed25519_signing
+git config --global gpg.format ssh
+git config --global user.signingkey ~/.ssh/id_ed25519_signing.pub
+git config --global commit.gpgsign true
+git config --global tag.gpgsign true
+mkdir -p ~/.config/git
+printf '%s namespaces="git" %s\n' "$(git config --global user.email)" \
+  "$(cat ~/.ssh/id_ed25519_signing.pub)" >> ~/.config/git/allowed_signers
+git config --global gpg.ssh.allowedSignersFile ~/.config/git/allowed_signers
+```
+
+Add the public key on GitHub as a **Signing Key** (Settings → SSH and GPG keys → New SSH key →
+Key type). The committer e-mail must be a verified address of the account. Check a commit with
+`git log --show-signature -1`.
+
 ## Updating a tool
 
 Renovate proposes updates as pull requests (ADR-0024; dependency dashboard issue in the
