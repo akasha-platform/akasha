@@ -17,4 +17,4 @@ disable_backends = ["asdf", "vfox"] # never run third-party plugin scripts
 "aqua:rhysd/actionlint"         = "1.7.12"
 "aqua:koalaman/shellcheck"      = "0.11.0"
 "aqua:zizmorcore/zizmor"        = "1.32.0"
-"aqua:astral-sh/uv"             = "0.13.6"
+"aqua:astral-sh/uv"             = "0.13.7"
