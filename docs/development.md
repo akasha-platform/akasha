@@ -38,6 +38,9 @@ New files are only checked once they are staged (`git add`).
 
 ## Updating a tool
 
+Renovate proposes updates as pull requests (ADR-0024; dependency dashboard issue in the
+repository). Review them like any other pull request, with the checks below. By hand:
+
 1. Pick the newest release published **at least 6 days ago**.
 2. Change the version in `mise.toml`, run `mise lock --platform linux-x64`, review the diff.
 3. If the tool has no publisher signature (gitleaks, shellcheck) or mise records no provenance
@@ -45,7 +48,8 @@ New files are only checked once they are staged (`git add`).
    OpenTofu, run `cosign verify-blob` with the identity published in the OpenTofu docs.
 4. `mise install --locked`, check the version, open a pull request.
 
-Python tools: move `exclude-newer` in `pyproject.toml` forward on purpose, run `uv lock`,
-review `uv.lock`, then `uv sync --locked`. Python itself: change `.python-version` to a patch
+Python tools: `exclude-newer = "6 days"` in `pyproject.toml` keeps every package at least 6 days
+old whenever the lock is re-resolved; run `uv lock --upgrade-package <name>` (or `uv lock
+--upgrade`), review `uv.lock`, then `uv sync --locked`. Python itself: change `.python-version` to a patch
 release whose standalone build is at least 6 days old. uv: change `mise.toml` and
 `required-version` in `pyproject.toml` together.

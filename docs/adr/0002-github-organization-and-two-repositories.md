@@ -40,7 +40,7 @@ Repository settings applied to both repositories (2026-11-09): secret scanning a
 protection enabled (free for public repositories — verified by enabling them), private
 vulnerability reporting enabled, squash merge only (commit title = PR title, body = PR body),
 head branches deleted on merge, wiki disabled (`docs/` is the single source of truth).
-Dependabot security updates are left as they are until Renovate is introduced (Étape 6).
+Dependabot security updates are switched off in favour of Renovate; alerts stay on (ADR-0024).
 
 ### Consequences
 
@@ -49,7 +49,7 @@ Dependabot security updates are left as they are until Renovate is introduced (�
 * Bad, because cross-repository automation needs a scoped token or GitHub App.
 * Never create a repository named `akasha` under the former personal account: GitHub would
   permanently delete the redirects left by the transfer.
-* `allowed_actions` deliberately stays `all` until Étape 6 restricts it to a selected list.
+* `allowed_actions` is restricted to an explicit allow-list (ADR-0024).
   `akasha-gitops` was created public, with a README and the wiki disabled.
 
 ### Confirmation

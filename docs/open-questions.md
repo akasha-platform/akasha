@@ -35,7 +35,6 @@ item here.
 | B5 | Pin kolla-ansible by PyPI release (22.2.0) or by `stable/2026.1` commit SHA | | P2 |
 | B6 | Add `net01` (dedicated network node) | only if ≥ 1.5 GB spare after A2 | P7 |
 | B8 | Root disks of K3s VMs; metadata delivery | Cinder boot-from-volume (no disk copy on live migration, uses the 120 G Cinder LV) · local ephemeral on the computes · config drive (blocks block migration) vs metadata service | P3/P4 |
-| B9 | Toolchain updates: can the Mend-hosted Renovate app refresh `mise.lock` (needs `mise` in `allowedUnsafeExecutions`)? Which component owns the 6-day release cooldown (Renovate `minimumReleaseAge` vs mise/uv settings)? | hosted Renovate · CI drift check + manual re-lock · self-hosted Renovate | P0 Étape 6 |
 
 ## C. Questions never discussed yet
 
