@@ -25,4 +25,4 @@ package = false
 required-version = ">=0.13.6,<0.14"   # keep in line with mise.toml
 python-preference = "only-managed"    # uv-downloaded, hash-verified CPython; never the system one
 # 7-day rule for PyPI, as a fixed date so resolution is reproducible. Move it forward on purpose.
-exclude-newer = "2026-11-02T00:00:00Z"
+exclude-newer = "6 days"   # release cooldown (ADR-0022), recorded as a span in uv.lock

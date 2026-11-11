@@ -1,0 +1,86 @@
+---
+status: accepted
+date: 2026-11-11
+decision-makers: dhuy21
+---
+
+# Dependency updates with Renovate and an allow-list of GitHub Actions
+
+## Context and Problem Statement
+
+Every tool and action is pinned (ADR-0022, ADR-0023). Pins go stale and miss security fixes
+unless something proposes updates. The update mechanism must respect the 6-day release
+cooldown, cover every pinned file (`mise.toml` + `mise.lock`, `pyproject.toml` + `uv.lock`,
+`.python-version`, SHA-pinned actions, the CI mise version), and must not weaken the
+read-only CI model (ADR-0013). Separately, the organisation still allows any action to run.
+
+## Considered Options
+
+* **Renovate, Mend-hosted GitHub App** (Community Cloud, free)
+* Dependabot version updates (first party, but no `mise` or `aqua` ecosystem: the eight mise
+  tools would need manual updates)
+* Renovate self-hosted in GitHub Actions (needs a GitHub App or PAT secret with write access in
+  a public repository)
+* No bot (manual updates only)
+
+## Decision Outcome
+
+Chosen option: "Renovate, Mend-hosted GitHub App", installed on the `akasha` repository only.
+
+* Configuration in `.github/renovate.json5`:
+  * `config:best-practices` (SHA-pinned action digests, dependency dashboard), Conventional
+    Commits, schedule `before 6am on monday` (Europe/Paris), **no automerge**;
+  * `minimumReleaseAge: "6 days"` with `internalChecksFilter: strict`; security fixes are exempt;
+  * `constraints.mise = 2026.11.1`: the mise that Renovate runs for `mise lock` (≥ 2026.7.12
+    runs in safe mode, so no `allowedUnsafeExecutions` is needed); kept equal to `min_version`
+    in `mise.toml` by hand, changed only when the lockfile format changes. The CI mise
+    (`version:` of `jdx/mise-action`) is extracted and updated by Renovate;
+  * lock file maintenance (`mise.lock`, `uv.lock`) on the first day of the month;
+  * `pep621`: `rangeStrategy: update-lockfile` (ranges stay as written); `ansible-core` held
+    below 2.21 for kolla-ansible 2026.1; `.python-version` bumps need dashboard approval
+    (a CPython release can precede its uv-managed build).
+* **uv cooldown**: `exclude-newer = "6 days"` instead of a fixed timestamp. `uv.lock` records
+  the span (`exclude-newer-span = "P6D"`); the cutoff is recomputed only when the lock is
+  re-resolved, so `uv sync --locked` stays reproducible. Renovate passes no cooldown to uv, so
+  this setting is what enforces the cooldown for Python packages, including lock file
+  maintenance.
+* **Dependabot**: alerts stay on (Renovate reads them through `vulnerabilityAlerts`);
+  Dependabot security updates are switched off so only one bot opens fix pull requests.
+* **Allowed actions** (organisation level, both repositories): `allowed_actions: selected`,
+  GitHub-owned and verified-creator actions **not** allowed wholesale, explicit patterns only:
+  `actions/checkout@*`, `jdx/mise-action@*`. `sha_pinning_required` stays on. Each later étape
+  adds the actions it needs.
+
+### Consequences
+
+* Good, because every pinned file is covered by one bot with one cooldown, and the repository
+  holds no write-capable secret.
+* Good, because a workflow can no longer run an action that was not reviewed and listed.
+* Bad, because the Mend app has write access to code, pull requests and workflows; mitigated
+  by owner review of every pull request (and, in Étape 7, rulesets on `main`).
+* Bad, because a Renovate-run `mise lock` ignores the project `[settings]` (safe mode); whether
+  its output (checksums, provenance lines) matches a local `mise lock` must be checked on the
+  first `mise.lock` pull request. Fallback: manual re-lock.
+* `min_version` (`mise.toml`), `constraints.mise` and `required-version` (`pyproject.toml`,
+  bounds the uv version) are updated by hand.
+* Not adopted yet: GitHub workflow lockfiles (`actions.lock`, GA 2026-10-28); to be decided
+  separately.
+
+### Confirmation
+
+* `renovate-config-validator --strict` (Renovate 44.216.2) accepted `.github/renovate.json5`
+  as repository configuration on 2026-11-11.
+* `uv lock` with the relative cutoff resolved the same 38 packages; only the `[options]` block
+  of `uv.lock` changed.
+* After installation: the dependency dashboard must list the eight mise tools, both actions,
+  the CI mise version, `.python-version` and the uv dependencies; a workflow using an action
+  outside the allow-list must be refused.
+
+## More Information
+
+Research: [research/06](../research/06-cicd-supply-chain.md). Renovate mise manager:
+https://docs.renovatebot.com/modules/manager/mise/ (safe mode in
+`lib/modules/manager/mise/artifacts.ts`); minimum release age:
+https://docs.renovatebot.com/key-concepts/minimum-release-age/; uv `exclude-newer`:
+https://docs.astral.sh/uv/reference/settings/#exclude-newer; allowed actions API:
+https://docs.github.com/en/rest/actions/permissions.

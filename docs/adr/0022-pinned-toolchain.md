@@ -40,7 +40,7 @@ Chosen option: "mise + uv".
   (shortened from 7 days by the owner on 2026-11-10; common practice is 3–7 days, see
   [research/06](../research/06-cicd-supply-chain.md)). Exceptions are
   allowed only when recorded with a reason in the ADR or pull request that uses them. For PyPI
-  this is a fixed `exclude-newer` timestamp, moved forward deliberately.
+  this is `exclude-newer = "6 days"` (a fixed timestamp until ADR-0024).
 * System-wide Terraform/Ansible on the laptop are left untouched; mise and uv only apply
   inside the repository.
 
@@ -60,8 +60,8 @@ Verification level at first lock (2026-11-09):
 * Bad, because updates need a deliberate re-lock and, for unsigned tools, a manual check.
 * OpenTofu must be bumped to ≥ 1.13.9 (fixes a local-state persistence bug on a crashed first
   apply and a panic on invalid state-encryption config) before the first apply in P1.
-* Whether Renovate can refresh `mise.lock` and which component owns the cooldown are decided
-  in Étape 6 (`docs/open-questions.md` B9).
+* Updates are proposed by Renovate; the cooldown is owned by Renovate `minimumReleaseAge` and,
+  for Python packages, by uv `exclude-newer` (ADR-0024).
 
 ## More Information
 

@@ -24,7 +24,7 @@ Phase-specific completion criteria are listed with each phase below.
 | 3 | Tag the TD2 baseline (`td2-final`), remove it from the tree, new directory skeleton (`infra/opentofu/`, ADR-0021), README, Apache-2.0 LICENSE, SECURITY.md, `.gitignore`; repository security settings (secret scanning, push protection, squash-only) | ✅ 2026-11-09 |
 | 4 | Pinned and verified local toolchain: mise + `mise.lock`, uv + `uv.lock` (ADR-0022, `docs/development.md`) | ✅ 2026-11-09 |
 | 5 | pre-commit hooks and lint CI on GitHub-hosted runners, one shared check list (ADR-0023) | ✅ 2026-11-10 (PR #8) |
-| 6 | Renovate, zizmor, restrict allowed actions to a selected list | ⏳ |
+| 6 | Renovate (Mend-hosted app, 6-day cooldown), Dependabot alerts only, explicit allow-list of actions (ADR-0024) | 🔄 |
 | 7 | SSH commit signing, rulesets protecting `main`; drop the `admin:org` scope from the local `gh` token | ⏳ |
 
 Done when: an empty PR passes every check; actions are SHA-pinned; `main` is protected.

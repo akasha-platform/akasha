@@ -1,0 +1,57 @@
+// Renovate configuration, read by the Mend-hosted Renovate GitHub App (ADR-0024).
+// Renovate opens pull requests; the owner reviews and merges every one by hand.
+{
+  $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+  extends: [
+    'config:best-practices', // SHA-pinned actions, dependency dashboard, ...
+    ':semanticCommits', // Conventional Commits
+    ':timezone(Europe/Paris)',
+  ],
+
+  // Release cooldown (ADR-0022): never propose a version published less than 6 days ago.
+  // Security fixes are exempt (vulnerabilityAlerts has no minimumReleaseAge by default).
+  minimumReleaseAge: '6 days',
+  internalChecksFilter: 'strict',
+
+  schedule: ['before 6am on monday'],
+  automerge: false,
+
+  // mise used by Renovate to run `mise lock`: the oldest release that reads lockfile
+  // format v4, the same as `min_version` in mise.toml. Both change by hand, together,
+  // only when the lockfile format changes. The CI mise (`version:` of jdx/mise-action)
+  // is updated by Renovate.
+  constraints: {
+    mise: '2026.11.1',
+  },
+
+  // Re-resolve mise.lock and uv.lock once a month. Renovate does not apply
+  // minimumReleaseAge here; uv applies its own `exclude-newer = "6 days"` and mise
+  // versions are exact pins.
+  lockFileMaintenance: {
+    enabled: true,
+    schedule: ['before 6am on the first day of the month'],
+  },
+
+  vulnerabilityAlerts: {
+    labels: ['security'],
+  },
+
+  packageRules: [
+    {
+      description: 'Keep pyproject.toml ranges as written and update uv.lock within them',
+      matchManagers: ['pep621'],
+      rangeStrategy: 'update-lockfile',
+    },
+    {
+      description: 'kolla-ansible 2026.1 needs ansible-core 2.20.x',
+      matchManagers: ['pep621'],
+      matchPackageNames: ['ansible-core'],
+      allowedVersions: '<2.21',
+    },
+    {
+      description: 'A CPython release can precede its uv-managed build: wait for approval',
+      matchManagers: ['pyenv'],
+      dependencyDashboardApproval: true,
+    },
+  ],
+}
