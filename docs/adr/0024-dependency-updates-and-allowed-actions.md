@@ -38,7 +38,9 @@ Chosen option: "Renovate, Mend-hosted GitHub App", installed on the `akasha` rep
   * lock file maintenance (`mise.lock`, `uv.lock`) on the first day of the month;
   * `pep621`: `rangeStrategy: update-lockfile` (ranges stay as written); `ansible-core` held
     below 2.21 for kolla-ansible 2026.1; `.python-version` bumps need dashboard approval
-    (a CPython release can precede its uv-managed build).
+    (a CPython release can precede its uv-managed build); the Python minor version (3.15+,
+    `.python-version` and `requires-python` together) and `constraints.mise` move by hand;
+    a new runner image (`runs-on`, e.g. ubuntu-26.04) needs dashboard approval.
 * **uv cooldown**: `exclude-newer = "6 days"` instead of a fixed timestamp. `uv.lock` records
   the span (`exclude-newer-span = "P6D"`); the cutoff is recomputed only when the lock is
   re-resolved, so `uv sync --locked` stays reproducible. Renovate passes no cooldown to uv, so

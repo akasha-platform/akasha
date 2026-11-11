@@ -53,5 +53,29 @@
       matchManagers: ['pyenv'],
       dependencyDashboardApproval: true,
     },
+    {
+      description: 'Python minor version (3.15+) moves by hand with requires-python (Ansible/Kolla support)',
+      matchManagers: ['pyenv'],
+      allowedVersions: '<3.15',
+    },
+    {
+      description: 'requires-python moves by hand together with .python-version',
+      matchManagers: ['pep621'],
+      matchDepTypes: ['requires-python'],
+      enabled: false,
+    },
+    {
+      description: 'constraints.mise stays equal to min_version in mise.toml (changed by hand)',
+      matchManagers: ['renovate-config'],
+      matchDepTypes: ['tool-constraint'],
+      matchDepNames: ['mise'],
+      enabled: false,
+    },
+    {
+      description: 'A new runner image (e.g. ubuntu-26.04) changes preinstalled software: wait for approval',
+      matchManagers: ['github-actions'],
+      matchDepTypes: ['github-runner'],
+      dependencyDashboardApproval: true,
+    },
   ],
 }
