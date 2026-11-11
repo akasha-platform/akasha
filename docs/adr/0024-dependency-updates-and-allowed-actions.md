@@ -45,7 +45,8 @@ Chosen option: "Renovate, Mend-hosted GitHub App", installed on the `akasha` rep
     below 2.21 for kolla-ansible 2026.1; `.python-version` bumps need dashboard approval
     (a CPython release can precede its uv-managed build); the Python minor version (3.15+,
     `.python-version` and `requires-python` together) and `constraints.mise` move by hand;
-    a new runner image (`runs-on`, e.g. ubuntu-26.04) needs dashboard approval.
+    a new runner image (`runs-on`, e.g. ubuntu-26.04) and a new uv 0.x series (raise
+    `required-version` in the same pull request) need dashboard approval.
 * **uv cooldown**: `exclude-newer = "6 days"` instead of a fixed timestamp. `uv.lock` records
   the span (`exclude-newer-span = "P6D"`); the cutoff is recomputed only when the lock is
   re-resolved, so `uv sync --locked` stays reproducible. Renovate passes no cooldown to uv, so
@@ -63,8 +64,10 @@ Chosen option: "Renovate, Mend-hosted GitHub App", installed on the `akasha` rep
 * Good, because every pinned file is covered by one bot with one cooldown, and the repository
   holds no write-capable secret.
 * Good, because a workflow can no longer run an action that was not reviewed and listed.
-* Bad, because the Mend app has write access to code, pull requests and workflows; mitigated
-  by owner review of every pull request (and, in Étape 7, rulesets on `main`).
+* Bad, because the Mend app has write access to code (contents), pull requests, issues, checks,
+  commit statuses and workflows, and read access to administration, members, packages and
+  Dependabot alerts (verified on the installation, 2026-11-11); mitigated by owner review of
+  every pull request (and, in Étape 7, rulesets on `main`).
 * Bad, because a Renovate-run `mise lock` ignores the project `[settings]` (safe mode); whether
   its output (checksums, provenance lines) matches a local `mise lock` must be checked on the
   first `mise.lock` pull request. Fallback: manual re-lock.

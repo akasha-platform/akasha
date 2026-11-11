@@ -72,6 +72,13 @@
       enabled: false,
     },
     {
+      description: 'uv 0.x minor releases can break: wait for approval, then raise required-version in pyproject.toml',
+      matchManagers: ['mise'],
+      matchDepNames: ['aqua:astral-sh/uv'],
+      matchUpdateTypes: ['minor', 'major'],
+      dependencyDashboardApproval: true,
+    },
+    {
       description: 'A new runner image (e.g. ubuntu-26.04) changes preinstalled software: wait for approval',
       matchManagers: ['github-actions'],
       matchDepTypes: ['github-runner'],
