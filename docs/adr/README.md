@@ -29,3 +29,4 @@ acceptance except to change its status (`superseded by ADR-NNNN`).
 | [0022](0022-pinned-toolchain.md) | Pinned and verified developer toolchain (mise + uv) | accepted |
 | [0023](0023-local-hooks-and-lint-ci.md) | Local git hooks and lint CI share one check list | accepted |
 | [0024](0024-dependency-updates-and-allowed-actions.md) | Dependency updates with Renovate and an allow-list of GitHub Actions | accepted |
+| [0025](0025-signed-commits-and-rulesets.md) | Signed commits and repository rulesets protecting `main` | accepted |
