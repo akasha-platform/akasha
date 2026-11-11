@@ -32,10 +32,13 @@ Done when: an empty PR passes every check; actions are SHA-pinned; `main` is pro
 
 ## P1 — L0 host (`insa`)
 
-1. **Inventory and back up the current state.** The Proxmox VM contains: OPNsense (VMID 100),
-   DevStack (7001), the DevStack template (7000) and a Debian VM (105). Confirm with the owner
-   that nothing must be kept before deletion.
-2. Remove the Proxmox VM.
+1. ✅ 2026-11-11 **Inventory and back up the current state.** Only `linux2024` (Proxmox) is
+   left in libvirt; the two other VMs were deleted by the owner and no disk file remains.
+   Inside Proxmox: OPNsense (100), DevStack (7001), DevStack template (7000), Debian template
+   (105) and an old vzdump of a VM 102 (kept). The OPNsense `config.xml` (3 filter rules, near
+   default) is copied to a private location outside the repository.
+2. ✅ 2026-11-11 **Power off the Proxmox VM and keep it** (ADR-0005): guests and `linux2024`
+   shut down cleanly, autostart disabled; host RAM available went from ~6 GiB to 28 GiB.
 3. Partition the free NVMe space and create LVM (`vg_akasha`, see ADR-0009).
 4. Host bridges and nftables (campus LAN drop rule), Tailscale subnet routing.
 5. Memory headroom (KSM, zswap, free page reporting) and host monitoring (ADR-0016).

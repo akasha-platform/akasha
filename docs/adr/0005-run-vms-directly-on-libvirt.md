@@ -35,6 +35,10 @@ and the parent/child relation mirrors production. VMs are managed with OpenTofu
 * Good, because performance and stability of K8s guests improve.
 * Bad, because Proxmox skills, GUI and vzdump backups are lost; the libvirt provider 0.9.x
   is a recent rewrite with known gotchas.
+* The former Proxmox VM (`linux2024`, ~199 GiB qcow2 on the host root filesystem, 24 GiB RAM)
+  is **powered off and kept, not deleted** (owner's choice, 2026-11-11), with autostart
+  disabled. The owner may start it again, but never while the new lab runs: it would take the
+  RAM the lab needs. Its disk is outside `vg_akasha`, so the LVM plan is unchanged.
 
 ## More Information
 
