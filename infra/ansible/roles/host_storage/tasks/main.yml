@@ -1,0 +1,228 @@
+---
+# ADR-0009: partition N+1 in the free space at the end of the disk -> PV -> VG
+# -> lv_images (XFS, libvirt images) + lv_cinder (raw). Existing partitions are never touched.
+
+# --- 1. Refuse to run unless the disk is exactly as measured ------------------------------
+
+- name: Read the LVM setting that hides guest volumes from the host
+  ansible.builtin.command: lvmconfig --typeconfig full devices/scan_lvs
+  register: host_storage_scan_lvs
+  changed_when: false
+  check_mode: false
+
+- name: Read the partition table
+  community.general.parted:
+    device: "{{ host_storage_device }}"
+    unit: MiB
+    state: info
+  register: host_storage_disk
+
+- name: Note whether the LVM partition already exists
+  ansible.builtin.set_fact:
+    host_storage_part_exists: >-
+      {{ host_storage_disk.partitions | selectattr('num', 'eq', host_storage_part_number | int)
+         | list | length == 1 }}
+    host_storage_last_part: >-
+      {{ host_storage_disk.partitions
+         | selectattr('num', 'eq', host_storage_existing_partitions) | first | default({}) }}
+
+- name: Check that the disk is the measured one
+  ansible.builtin.assert:
+    that:
+      - host_storage_scan_lvs.stdout == 'scan_lvs=0'
+      - host_storage_disk.disk.table == 'gpt'
+      - ((host_storage_disk.disk.size | float) - host_storage_disk_size_mib) | abs < 1
+      - ((host_storage_last_part.end | default(0) | float) - host_storage_part_start_mib) | abs < 1
+    fail_msg: >-
+      {{ host_storage_device }} is not in the expected state (GPT, {{ host_storage_disk_size_mib }} MiB,
+      partition {{ host_storage_existing_partitions }} ending at {{ host_storage_part_start_mib }} MiB,
+      scan_lvs=0). Nothing was changed.
+    quiet: true
+
+- name: Check the partition numbers before the first run
+  ansible.builtin.assert:
+    that:
+      - host_storage_disk.partitions | map(attribute='num') | list
+        == range(1, host_storage_existing_partitions + 1) | list
+    fail_msg: Expected exactly partitions 1 to {{ host_storage_existing_partitions }}. Nothing was changed.
+    quiet: true
+  when: not host_storage_part_exists
+
+- name: Check the existing LVM partition on later runs
+  vars:
+    host_storage_part: >-
+      {{ host_storage_disk.partitions | selectattr('num', 'eq', host_storage_part_number | int) | first }}
+  ansible.builtin.assert:
+    that:
+      - host_storage_disk.partitions | length == host_storage_part_number | int
+      - ((host_storage_part.begin | float) - host_storage_part_start_mib) | abs < 1
+      - "'lvm' in host_storage_part.flags"
+    fail_msg: Partition {{ host_storage_part_number }} exists but does not match ADR-0009.
+    quiet: true
+  when: host_storage_part_exists
+
+- name: Require an explicit confirmation before creating the partition
+  ansible.builtin.assert:
+    that:
+      - host_storage_confirm == host_storage_device | basename
+    fail_msg: >-
+      This run would create partition {{ host_storage_part_number }} on {{ host_storage_device }}.
+      Dry-run first (--check --diff), then re-run with
+      -e host_storage_confirm={{ host_storage_device | basename }}
+    quiet: true
+  when: not host_storage_part_exists and not ansible_check_mode
+
+# --- 2. Back up the partition table to the laptop ------------------------------------------
+
+- name: Back up the partition table before creating the partition
+  when: not host_storage_part_exists
+  block:
+    - name: Dump the partition table
+      ansible.builtin.command: sfdisk --dump {{ host_storage_device }}
+      register: host_storage_sfdisk
+      changed_when: false
+      check_mode: false
+
+    - name: Create the private backup directory on the laptop
+      ansible.builtin.file:
+        path: "{{ host_storage_backup_dir }}"
+        state: directory
+        mode: "0700"
+      delegate_to: localhost
+      become: false
+
+    - name: Save the dump on the laptop (restore with sfdisk, see docs/runbooks/host-storage.md)
+      ansible.builtin.copy:
+        content: "{{ host_storage_sfdisk.stdout }}\n"
+        dest: >-
+          {{ host_storage_backup_dir }}/{{ inventory_hostname }}-{{ host_storage_device | basename
+          }}-{{ now(utc=true, fmt='%Y%m%dT%H%M%SZ') }}.sfdisk
+        mode: "0600"
+      delegate_to: localhost
+      become: false
+
+# --- 3. Partition ---------------------------------------------------------------------------
+
+- name: Install the XFS tools
+  ansible.builtin.apt:
+    name: xfsprogs
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Create the LVM partition in the free space at the end of the disk
+  community.general.parted:
+    device: "{{ host_storage_device }}"
+    # Must be set: with the module default (msdos) a GPT disk would get a new, empty table.
+    label: gpt
+    number: "{{ host_storage_part_number | int }}"
+    state: present
+    part_start: "{{ host_storage_part_start_mib }}MiB"
+    part_end: 100%
+    name: "{{ host_storage_part_name }}"
+    flags: [lvm]
+    unit: MiB
+  register: host_storage_part
+
+- name: Show the parted commands of this run (must not contain mklabel)
+  ansible.builtin.debug:
+    var: host_storage_part.script
+  when: host_storage_part.script | default([]) | length > 0
+
+# --- 4. LVM, filesystem, mount (skipped in a dry run until the partition exists) -----------
+
+- name: Configure LVM, the volumes and the mount
+  when: not (ansible_check_mode and not host_storage_part_exists)
+  block:
+    - name: Wait for udev to create the partition device links
+      ansible.builtin.command: udevadm settle
+      changed_when: false
+
+    - name: Read the PARTUUID of the LVM partition
+      ansible.builtin.command: blkid -s PARTUUID -o value {{ host_storage_part_dev }}
+      register: host_storage_partuuid
+      changed_when: false
+      check_mode: false
+      failed_when: host_storage_partuuid.rc != 0 or host_storage_partuuid.stdout | length == 0
+
+    - name: Let LVM use only the akasha partition (ADR-0009)
+      ansible.builtin.blockinfile:
+        # lvmlocal.conf overrides lvm.conf and is not rewritten by lvm2 package upgrades.
+        path: /etc/lvm/lvmlocal.conf
+        marker: "# {mark} akasha host_storage (Ansible)"
+        block: |
+          devices {
+          	# The akasha PV only: never guest volumes, loop or nbd devices.
+          	global_filter = [ "a|^/dev/disk/by-partuuid/{{ host_storage_partuuid.stdout }}$|", "r|.*|" ]
+          }
+        backup: true
+
+    - name: List the block devices LVM accepts
+      ansible.builtin.command: pvs -a --noheadings -o pv_name
+      register: host_storage_lvm_devices
+      changed_when: false
+      check_mode: false
+
+    - name: Check that the filter accepts the akasha partition and nothing else
+      ansible.builtin.assert:
+        that:
+          - host_storage_lvm_devices.stdout_lines | length == 1
+          - (host_storage_lvm_devices.stdout | trim) in
+            [host_storage_part_dev, '/dev/disk/by-partuuid/' ~ host_storage_partuuid.stdout]
+        fail_msg: "LVM sees {{ host_storage_lvm_devices.stdout_lines | map('trim') | list }}"
+        quiet: true
+      when: not ansible_check_mode
+
+    - name: Create the volume group
+      community.general.lvg:
+        vg: "{{ host_storage_vg }}"
+        pvs: ["{{ host_storage_part_dev }}"]
+        remove_extra_pvs: false
+        state: present
+
+    - name: Create the images volume
+      community.general.lvol:
+        vg: "{{ host_storage_vg }}"
+        lv: "{{ host_storage_images_lv }}"
+        size: "{{ host_storage_images_size }}"
+        shrink: false
+        state: present
+
+    - name: Create the Cinder volume (raw, formatted inside os-ctl01)
+      community.general.lvol:
+        vg: "{{ host_storage_vg }}"
+        lv: "{{ host_storage_cinder_lv }}"
+        size: "{{ host_storage_cinder_size }}"
+        shrink: false
+        state: present
+
+    - name: Create the XFS filesystem on the images volume
+      community.general.filesystem:
+        dev: "{{ host_storage_images_dev }}"
+        fstype: xfs
+
+    - name: Read the filesystem UUID of the images volume
+      ansible.builtin.command: blkid -s UUID -o value {{ host_storage_images_dev }}
+      register: host_storage_images_uuid
+      changed_when: false
+      check_mode: false
+      failed_when: false
+
+    - name: Mount the images volume (nofail, so the host still boots without it)
+      ansible.posix.mount:
+        path: "{{ host_storage_images_mount }}"
+        src: UUID={{ host_storage_images_uuid.stdout }}
+        fstype: xfs
+        opts: defaults,nofail
+        state: mounted
+        backup: true
+      notify: Reload systemd
+      when: host_storage_images_uuid.stdout | length > 0
+
+- name: Apply the new fstab to systemd
+  ansible.builtin.meta: flush_handlers
+
+- name: Check /etc/fstab
+  ansible.builtin.command: findmnt --verify --tab-file /etc/fstab
+  changed_when: false
+  check_mode: false

@@ -1,0 +1,14 @@
+---
+# L0 host configuration (P1). Always dry-run first:
+#   uv run ansible-playbook playbooks/host.yml -K --check --diff
+- name: Configure the L0 host
+  hosts: l0_hosts
+  become: true
+  gather_facts: true
+  # Modules parse command output (sizes with a decimal point): never use the host locale.
+  environment:
+    LC_ALL: C
+    LANGUAGE: C
+  roles:
+    - role: host_storage
+      tags: [storage]

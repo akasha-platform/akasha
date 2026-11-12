@@ -1,0 +1,12 @@
+---
+# Layout of ADR-0009. The disk-specific values (device, size, start) have no default:
+# they come from the inventory (host_vars) and are checked against the real disk.
+host_storage_part_name: akasha
+host_storage_vg: vg_akasha
+host_storage_images_lv: lv_images
+host_storage_images_size: 320g
+host_storage_images_mount: /var/lib/libvirt/akasha
+host_storage_cinder_lv: lv_cinder
+host_storage_cinder_size: 120g
+host_storage_backup_dir: ~/akasha-private/backups
+host_storage_confirm: ""

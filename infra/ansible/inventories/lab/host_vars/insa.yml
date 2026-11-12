@@ -1,0 +1,7 @@
+---
+# Disk of insa, measured on 2026-11-12 (`parted /dev/nvme0n1 unit MiB print free`):
+# p1 EFI, p2 / (ext4), p3 swap ending at 488386 MiB, then 488376 MiB free (ADR-0009).
+host_storage_device: /dev/nvme0n1
+host_storage_disk_size_mib: 976762
+host_storage_existing_partitions: 3
+host_storage_part_start_mib: 488386
