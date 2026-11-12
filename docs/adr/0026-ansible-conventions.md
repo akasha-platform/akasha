@@ -57,5 +57,7 @@ Chosen option: "Ansible", laid out under `infra/ansible/`:
 
 * `ansible-lint` (production profile) passes; `ansible-inventory --graph` and
   `--syntax-check` succeed; CI installs the collections and passes.
-* Read-only check from the laptop: `ansible insa -m ansible.builtin.ping` and
-  `playbooks/facts.yml` (to be recorded once run by the owner).
+* Read-only check from the laptop on 2026-11-12: `ansible insa -m ansible.builtin.ping`
+  returns `pong`; `playbooks/facts.yml` reports Debian 13.6, kernel 6.12.115, Python 3.13.5,
+  28 CPU threads, 31839 MiB RAM and partitions `nvme0n1p1`–`p3` (matching the P1 inventory),
+  with `changed=0`.
