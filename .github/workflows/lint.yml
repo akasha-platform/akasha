@@ -42,6 +42,12 @@ jobs:
       - name: Install Python tooling (uv sync --locked)
         run: mise exec -- uv sync --locked
 
+      - name: Install Ansible collections (pinned, hash-checked by ansible-galaxy)
+        working-directory: infra/ansible
+        run: >-
+          mise exec -- uv run --locked ansible-galaxy collection install
+          -r collections/requirements.yml -p collections
+
       - name: pre-commit (all files)
         env:
           SKIP: no-commit-to-branch

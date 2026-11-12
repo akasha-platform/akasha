@@ -1,0 +1,14 @@
+# Read-only: prove that Ansible reaches the hosts and show what it sees.
+- name: Show facts of the L0 host
+  hosts: l0_hosts
+  gather_facts: true
+  vars:
+    facts: "{{ ansible_facts }}"
+  tasks:
+    - name: Summary of the host
+      ansible.builtin.debug:
+        msg:
+          - "{{ facts['hostname'] }}: {{ facts['distribution'] }} {{ facts['distribution_version'] }}"
+          - "Kernel: {{ facts['kernel'] }}, Python: {{ facts['python_version'] }}"
+          - "CPU threads: {{ facts['processor_nproc'] }}, RAM: {{ facts['memtotal_mb'] }} MiB"
+          - "nvme0n1 partitions: {{ facts['devices']['nvme0n1']['partitions'].keys() | list | sort }}"

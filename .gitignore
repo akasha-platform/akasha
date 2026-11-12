@@ -21,6 +21,8 @@ vault-password*
 # Kolla passwords must never be committed in clear (they live in OpenBao)
 infra/kolla/passwords.yml
 infra/kolla/**/passwords.yml
+# Installed Ansible collections (from infra/ansible/collections/requirements.yml)
+infra/ansible/collections/ansible_collections/
 # Generated inventories
 inventory.ini
 inventories/**/generated*
