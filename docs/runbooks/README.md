@@ -17,4 +17,5 @@ One runbook per alert or known failure mode, written when the failure mode is in
 
 ## Index
 
-_(empty — first runbooks arrive in P1/P2, e.g. host power loss and Galera recovery)_
+* [host-storage.md](host-storage.md) — host LVM storage: images volume not mounted, restore the
+  partition table, undo the layout, grow `lv_images`

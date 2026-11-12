@@ -136,7 +136,8 @@ repos:
 
       - id: ansible-lint
         name: ansible-lint
-        entry: mise exec -- uv run --locked ansible-lint
+        # ansible.cfg (roles and collections paths) is in infra/ansible/, not at the root.
+        entry: env ANSIBLE_CONFIG=infra/ansible/ansible.cfg mise exec -- uv run --locked ansible-lint
         language: system
         files: ^infra/ansible/.*\.ya?ml$
         pass_filenames: false

@@ -1,0 +1,7 @@
+---
+# nvme0n1 -> nvme0n1p4, sda -> sda4
+host_storage_part_number: "{{ host_storage_existing_partitions | int + 1 }}"
+host_storage_part_dev: >-
+  {{ host_storage_device ~ ('p' if host_storage_device is match('.*[0-9]$') else '')
+     ~ host_storage_part_number }}
+host_storage_images_dev: /dev/{{ host_storage_vg }}/{{ host_storage_images_lv }}

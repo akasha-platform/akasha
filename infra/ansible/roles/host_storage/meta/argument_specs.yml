@@ -1,0 +1,64 @@
+---
+argument_specs:
+  main:
+    short_description: LVM partition, volume group and volumes of the L0 host (ADR-0009)
+    description:
+      - Creates one partition in the free space at the end of a GPT disk, a volume group on it,
+        an XFS volume mounted for the libvirt images and a raw volume for Cinder.
+      - Refuses to run unless the disk is exactly in the expected state, and creates the
+        partition only when O(host_storage_confirm) names the disk.
+    options:
+      host_storage_device:
+        type: str
+        required: true
+        description: Whole disk that receives the new partition, for example V(/dev/nvme0n1).
+      host_storage_disk_size_mib:
+        type: int
+        required: true
+        description: Size of the disk in MiB, as printed by C(parted unit MiB print).
+      host_storage_existing_partitions:
+        type: int
+        required: true
+        description: Number of partitions that must already exist (numbered 1 to N).
+      host_storage_part_start_mib:
+        type: int
+        required: true
+        description: End of the last existing partition in MiB; the new partition starts here.
+      host_storage_part_name:
+        type: str
+        default: akasha
+        description: GPT name of the new partition.
+      host_storage_vg:
+        type: str
+        default: vg_akasha
+        description: Volume group created on the new partition.
+      host_storage_images_lv:
+        type: str
+        default: lv_images
+        description: XFS volume holding the libvirt images.
+      host_storage_images_size:
+        type: str
+        default: 320g
+        description: Size of the images volume (LVM units, never shrunk).
+      host_storage_images_mount:
+        type: path
+        default: /var/lib/libvirt/akasha
+        description: Mount point of the images volume.
+      host_storage_cinder_lv:
+        type: str
+        default: lv_cinder
+        description: Raw volume given to the OpenStack controller for Cinder.
+      host_storage_cinder_size:
+        type: str
+        default: 120g
+        description: Size of the Cinder volume (LVM units, never shrunk).
+      host_storage_backup_dir:
+        type: path
+        default: ~/akasha-private/backups
+        description: Directory on the control machine (laptop) that receives the partition table dump.
+      host_storage_confirm:
+        type: str
+        default: ""
+        description:
+          - Must equal the basename of O(host_storage_device) (for example V(nvme0n1)) for the
+            partition to be created. Pass it on the command line with C(-e).

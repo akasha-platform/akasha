@@ -39,7 +39,11 @@ Chosen option: "Ansible", laid out under `infra/ansible/`:
   2.20); Galaxy publishes no signatures for these collections. Renovate updates the pins with
   the 6-day cooldown (ADR-0024).
 * `.ansible-lint`: profile `production`, `offline: true`; CI installs the pinned collections
-  before pre-commit. trivy skips the installed collections (third-party test fixtures).
+  before pre-commit. trivy skips the installed collections (third-party test fixtures). The
+  pre-commit hook runs ansible-lint with `ANSIBLE_CONFIG=infra/ansible/ansible.cfg`, so roles
+  and collections resolve as in a real run.
+* Playbooks set `LC_ALL=C`: some modules parse command output (`lvol` reads sizes with
+  `float()`), and the host locale is French (decimal comma).
 * **Runs**: from the owner's laptop, `--check --diff` first, privilege escalation with `sudo`
   and the password prompted (`-K`); no become password or secret in the repository.
   Destructive roles (disk partitioning) carry explicit guards and are run only after the
