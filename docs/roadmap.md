@@ -44,7 +44,8 @@ Done when: an empty PR passes every check; actions are SHA-pinned; `main` is pro
    `/var/lib/libvirt/akasha` + `lv_cinder` 120 GiB raw, ~37 GiB free; role `host_storage`
    idempotent; activation and mount checked after a reboot. Host upgraded to Debian 13.7
    (runbook `host-upgrade.md`).
-4. Host bridges and nftables (campus LAN drop rule), Tailscale subnet routing.
+4. 🔄 Host bridges and nftables (campus LAN drop rule), Tailscale subnet routing, in three
+   steps: 4a bridges + forwarding + libvirt backend, 4b nftables, 4c Tailscale.
 5. Memory headroom (KSM, zswap, free page reporting) and host monitoring (ADR-0016).
 6. OpenTofu L0 (first apply from the laptop; state location decided before this step;
    OpenTofu bumped to ≥ 1.13.9 first, see ADR-0022):

@@ -1,0 +1,22 @@
+# {{ ansible_managed }}
+# Lab bridges (ADR-0008). NetworkManager ignores interfaces listed here
+# ([ifupdown] managed=false); the uplink stays with NetworkManager.
+{% for bridge in host_network_bridges %}
+
+auto {{ bridge.name }}
+{% if bridge.address is defined %}
+iface {{ bridge.name }} inet static
+    address {{ bridge.address }}
+{% else %}
+iface {{ bridge.name }} inet manual
+{% endif %}
+    mtu {{ bridge.mtu }}
+    bridge_ports none
+    bridge_stp off
+    bridge_fd 0
+    bridge_maxwait 0
+{% for route in bridge.routes | default([]) %}
+    up ip route replace {{ route }} via {{ host_network_transit_gateway }} dev {{ bridge.name }}
+    down ip route del {{ route }} via {{ host_network_transit_gateway }} dev {{ bridge.name }} || true
+{% endfor %}
+{% endfor %}

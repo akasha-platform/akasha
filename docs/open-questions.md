@@ -44,7 +44,6 @@ item here.
 | C2 | Is there a real domain name (for public TLS / DNS-01), or only `akasha.internal`? | P5 |
 | C3 | Where do alerts go (Alertmanager receiver: email, Discord, …)? Retention targets for metrics and logs? | P5/P7 |
 | C4 | Upstream NTP source for the host (campus server or public pool)? | P1 |
-| C5 | Who manages the Tailscale tailnet ACLs and route approvals (personal account vs school)? | P1 |
 | C6 | Acceptable reboot window for host kernel updates (unattended upgrades never reboot automatically) | P1 |
 | C7 | AWS account, free-tier terms and expected monthly cost for off-site backups | P1 |
 

@@ -24,6 +24,8 @@ the campus LAN. OpenStack needs separate management, overlay and provider networ
 * OPNsense (3 GB, official minimum) is the lab edge: routing, firewall, Unbound DNS for
   `akasha.internal` (ICANN-reserved), NTP for the lab.
 * Remote access only through Tailscale; the host acts as subnet router for 10.10/24 and 10.20/24.
+  The tailnet is the owner's personal tailnet: the owner approves the advertised routes and
+  writes the ACLs (open question C5, answered on 2026-11-13).
 * No libvirt nwfilter on bridge ports used by OVN; `br_netfilter` kept off; libvirt's
   nftables backend selected explicitly (`firewall_backend`), and the libvirt `default` network
   is not autostarted.
@@ -31,6 +33,27 @@ the campus LAN. OpenStack needs separate management, overlay and provider networ
 
 The lab CIDRs, the `akasha.internal` zone and the 3 GB OPNsense sizing were confirmed
 explicitly by the owner on 2026-11-09.
+
+### Implementation (P1 step 4a, 2026-11-13)
+
+Ansible role `host_network` (`playbooks/host.yml`, tag `network`):
+
+* The uplink stays with NetworkManager (the host has a desktop session). The bridges are
+  ifupdown stanzas in `/etc/network/interfaces.d/akasha-bridges` (package `bridge-utils`,
+  `bridge_ports none`, STP off); NetworkManager ignores them (`[ifupdown] managed=false`).
+  New bridges are brought up with `ifup`; a changed definition of an existing bridge is not
+  restarted automatically (VMs may be attached), the role prints a warning instead.
+* `br-transit` carries 10.255.255.1/29 and the routes to 10.10.0.0/24 and 10.20.0.0/24 via
+  OPNsense (10.255.255.2). The other bridges have no host address.
+* IPv6 is disabled on every lab bridge (`net.ipv6.conf.<bridge>.disable_ipv6`, applied by
+  systemd-sysctl when the interface appears): without it the host gets a link-local address
+  on `br-mgmt` and `br-ext`, reachable from lab VMs and floating IPs. IPv4 forwarding is on;
+  IPv6 forwarding stays off (IPv4-only lab; forwarding would make the uplink ignore router
+  advertisements).
+* libvirt: `firewall_backend = "nftables"`; the `default` network is stopped and not
+  autostarted, but kept defined for the powered-off Proxmox VM.
+* The host firewall (nftables input policy, NAT, campus drop) is step 4b; Tailscale subnet
+  routing is step 4c.
 
 ### Consequences
 

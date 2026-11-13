@@ -12,3 +12,5 @@
   roles:
     - role: host_storage
       tags: [storage]
+    - role: host_network
+      tags: [network]
