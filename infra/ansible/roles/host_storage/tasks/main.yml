@@ -145,6 +145,13 @@
       check_mode: false
       failed_when: host_storage_partuuid.rc != 0 or host_storage_partuuid.stdout | length == 0
 
+    - name: Wait for the PARTUUID link used by the LVM filter
+      # udev re-creates partition links after parted closes the disk, sometimes only after
+      # `udevadm settle` has returned (seen on the first run, 2026-11-13).
+      ansible.builtin.wait_for:
+        path: /dev/disk/by-partuuid/{{ host_storage_partuuid.stdout }}
+        timeout: 30
+
     - name: Let LVM use only the akasha partition (ADR-0009)
       ansible.builtin.blockinfile:
         # lvmlocal.conf overrides lvm.conf and is not rewritten by lvm2 package upgrades.
@@ -162,6 +169,9 @@
       register: host_storage_lvm_devices
       changed_when: false
       check_mode: false
+      until: host_storage_lvm_devices.stdout_lines | length > 0
+      retries: 10
+      delay: 3
 
     - name: Check that the filter accepts the akasha partition and nothing else
       ansible.builtin.assert:
