@@ -39,8 +39,10 @@ Done when: an empty PR passes every check; actions are SHA-pinned; `main` is pro
    default) is copied to a private location outside the repository.
 2. ✅ 2026-11-11 **Power off the Proxmox VM and keep it** (ADR-0005): guests and `linux2024`
    shut down cleanly, autostart disabled; host RAM available went from ~6 GiB to 28 GiB.
-3. 🔄 Partition the free NVMe space and create LVM (`vg_akasha`, see ADR-0009), with Ansible
-   (skeleton and conventions: ADR-0026, ✅ 2026-11-12); role `host_storage` in progress.
+3. ✅ 2026-11-13 **Partition the free NVMe space and create LVM** (ADR-0009) with Ansible
+   (ADR-0026): `nvme0n1p4` → `vg_akasha` → `lv_images` 320 GiB XFS on
+   `/var/lib/libvirt/akasha` + `lv_cinder` 120 GiB raw, ~37 GiB free; role `host_storage`
+   idempotent. Reboot check pending (A16, with the Debian 13.7 host upgrade).
 4. Host bridges and nftables (campus LAN drop rule), Tailscale subnet routing.
 5. Memory headroom (KSM, zswap, free page reporting) and host monitoring (ADR-0016).
 6. OpenTofu L0 (first apply from the laptop; state location decided before this step;

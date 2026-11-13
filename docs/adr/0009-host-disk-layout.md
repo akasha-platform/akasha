@@ -58,3 +58,20 @@ disk values in `inventories/lab/host_vars/insa.yml`), decided on 2026-11-12:
 * Accepted over-allocation: the thin total (≈ 346 GB) exceeds `lv_images` (320 GiB); real usage
   is expected far lower. Pool usage is monitored and `lv_images` can grow from the VG free space.
 * Bad, because the partitioning step is irreversible without care; it is done in its own étape.
+
+### Confirmation
+
+On 2026-11-13, `playbooks/host.yml` (role `host_storage`, after the fixes of PR #22 and #23):
+
+* Dry run (`--check --diff`) printed the parted script `mkpart primary 488386MiB 100%`,
+  `name 4 "akasha"`, `set 4 lvm on`, without `mklabel`; the `sfdisk --dump` was saved on the
+  laptop before the confirmed run.
+* `parted print`: partitions 1–3 unchanged; p4 488386–976762 MiB (488376 MiB), name `akasha`,
+  flag `lvm`.
+* `pvs -a` lists only the PARTUUID path of p4 (member of `vg_akasha`); `vg_akasha` 476.93 GiB
+  with 36.93 GiB free; `lv_images` 320 GiB and `lv_cinder` 120 GiB.
+* `lv_images` is XFS, mounted on `/var/lib/libvirt/akasha` (`var-lib-libvirt-akasha.mount`
+  active), fstab entry by UUID with `defaults,nofail`; `findmnt --verify` passes. The empty
+  filesystem shows 6.2 GiB used (XFS log and metadata reservations).
+* A second run reports `changed=0`.
+* Not yet verified: activation and mount after a reboot (open question A16).
