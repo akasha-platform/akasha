@@ -47,8 +47,7 @@ disk values in `inventories/lab/host_vars/insa.yml`), decided on 2026-11-12:
   role waits for the `by-partuuid` link and checks that `pvs -a -o pv_name,vg_name` lists only
   p4 before creating the PV. `vg_name` is required: with `-o pv_name` alone, `pvs` reports
   labelled PVs only and ignores `-a` (report type LABEL, `tools/reporter.c`, lvm2 2.03.31), which
-  stopped the first two runs on 2026-11-13 at this check, before any PV was created. Boot
-  activation with this filter is open question A16.
+  stopped the first two runs on 2026-11-13 at this check, before any PV was created.
 * `lvol` with `shrink: false`, `lvg` with `remove_extra_pvs: false`; fstab entry by UUID with
   `defaults,nofail`, checked with `findmnt --verify`.
 
@@ -74,4 +73,6 @@ On 2026-11-13, `playbooks/host.yml` (role `host_storage`, after the fixes of PR 
   active), fstab entry by UUID with `defaults,nofail`; `findmnt --verify` passes. The empty
   filesystem shows 6.2 GiB used (XFS log and metadata reservations).
 * A second run reports `changed=0`.
-* Not yet verified: activation and mount after a reboot (open question A16).
+* After the host upgrade to Debian 13.7 and a reboot (kernel 6.12.116, 2026-11-13): the boot
+  log shows `PV /dev/nvme0n1p4 online, VG vg_akasha is complete`, both LVs are active,
+  `lv_images` is mounted, `pvs -a` still lists only p4, and the playbook reports `changed=0`.

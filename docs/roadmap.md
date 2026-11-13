@@ -42,7 +42,8 @@ Done when: an empty PR passes every check; actions are SHA-pinned; `main` is pro
 3. ✅ 2026-11-13 **Partition the free NVMe space and create LVM** (ADR-0009) with Ansible
    (ADR-0026): `nvme0n1p4` → `vg_akasha` → `lv_images` 320 GiB XFS on
    `/var/lib/libvirt/akasha` + `lv_cinder` 120 GiB raw, ~37 GiB free; role `host_storage`
-   idempotent. Reboot check pending (A16, with the Debian 13.7 host upgrade).
+   idempotent; activation and mount checked after a reboot. Host upgraded to Debian 13.7
+   (runbook `host-upgrade.md`).
 4. Host bridges and nftables (campus LAN drop rule), Tailscale subnet routing.
 5. Memory headroom (KSM, zswap, free page reporting) and host monitoring (ADR-0016).
 6. OpenTofu L0 (first apply from the laptop; state location decided before this step;
