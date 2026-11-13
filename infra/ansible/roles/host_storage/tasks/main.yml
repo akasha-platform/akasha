@@ -146,8 +146,6 @@
       failed_when: host_storage_partuuid.rc != 0 or host_storage_partuuid.stdout | length == 0
 
     - name: Wait for the PARTUUID link used by the LVM filter
-      # udev re-creates partition links after parted closes the disk, sometimes only after
-      # `udevadm settle` has returned (seen on the first run, 2026-11-13).
       ansible.builtin.wait_for:
         path: /dev/disk/by-partuuid/{{ host_storage_partuuid.stdout }}
         timeout: 30
@@ -165,19 +163,18 @@
         backup: true
 
     - name: List the block devices LVM accepts
-      ansible.builtin.command: pvs -a --noheadings -o pv_name
+      # vg_name is required: with label fields only (pv_name), pvs ignores -a and lists
+      # labelled PVs only (report type LABEL, tools/reporter.c in lvm2 2.03.31).
+      ansible.builtin.command: pvs -a --noheadings -o pv_name,vg_name
       register: host_storage_lvm_devices
       changed_when: false
       check_mode: false
-      until: host_storage_lvm_devices.stdout_lines | length > 0
-      retries: 10
-      delay: 3
 
     - name: Check that the filter accepts the akasha partition and nothing else
       ansible.builtin.assert:
         that:
           - host_storage_lvm_devices.stdout_lines | length == 1
-          - (host_storage_lvm_devices.stdout | trim) in
+          - (host_storage_lvm_devices.stdout | trim).split() | first in
             [host_storage_part_dev, '/dev/disk/by-partuuid/' ~ host_storage_partuuid.stdout]
         fail_msg: "LVM sees {{ host_storage_lvm_devices.stdout_lines | map('trim') | list }}"
         quiet: true
