@@ -44,7 +44,10 @@ disk values in `inventories/lab/host_vars/insa.yml`), decided on 2026-11-12:
   PARTUUID does not change when another disk is added. `scan_lvs=0` (lvm2 default, checked
   by the role) already keeps the host out of the guest VG inside `lv_cinder`; the whitelist
   also hides loop and nbd devices (a guest qcow2 attached for recovery) from the host. The
-  role checks that `pvs -a` lists only p4 before creating the PV.
+  role waits for the `by-partuuid` link and checks that `pvs -a` lists only p4 before creating
+  the PV (on the first run, 2026-11-13, the link was not there yet right after `udevadm settle`;
+  the run stopped at this check before any PV was created). Boot activation with this filter is
+  open question A16.
 * `lvol` with `shrink: false`, `lvg` with `remove_extra_pvs: false`; fstab entry by UUID with
   `defaults,nofail`, checked with `findmnt --verify`.
 
