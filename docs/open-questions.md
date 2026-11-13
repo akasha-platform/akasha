@@ -23,7 +23,7 @@ item here.
 | A13 | Design and test restic on AWS S3 with Object Lock: bucket versioning, retention mode, which credential runs `forget/prune`, cost | Object Lock needs versioning; prune deletes objects; the "no-delete key" idea came from B2 | P1 |
 | A14 | OpenBao self-init (`initialize` stanza) behaviour with Shamir unseal | Self-init is documented mainly with auto-unseal | P1 |
 | A15 | Host checks after setup: cgroup2 `memory_recursiveprot` (for `MemoryLow=`), default QEMU `oom_score_adj`, `/sys/module/zswap/parameters/zpool`, `virsh dumpxml` shows the requested `cpu.mode` (provider issue #1344), OPNsense vtnet offload measured with iperf3 (FreeBSD bug 290773) | Each is an assumption of the host design | P1 |
-| A16 | Boot activation of `vg_akasha` with the PARTUUID-only LVM filter: after a reboot, `lv_images` is mounted and `pvs` shows only p4 (run it together with the host upgrade to Debian 13.7: on 2026-11-13 `insa` was still on 13.6 because its `trixie` package lists had not refreshed since July; fixed by deleting them and running `apt-get update`, upgrade not yet done) | The filter relies on the udev `by-partuuid` link existing when LVM autoactivates at boot | P1 |
+| A16 | Boot activation of `vg_akasha` with the PARTUUID-only LVM filter: after a reboot, `lv_images` is mounted and `pvs` shows only p4 (run it together with the host upgrade to Debian 13.7: on 2026-11-13 `insa` was still on 13.6 because its `trixie` package lists had not refreshed since July; fixed by deleting them and running `apt-get update`; 148 packages upgradable, upgrade not yet done) | The filter relies on the udev `by-partuuid` link existing when LVM autoactivates at boot | P1 |
 
 ## B. Decisions deliberately deferred
 
