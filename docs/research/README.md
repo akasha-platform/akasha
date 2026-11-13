@@ -32,6 +32,7 @@ These notes record the evidence behind akasha's architecture decisions. Each dec
 | 06 | [CI/CD and supply chain](06-cicd-supply-chain.md) | Runner safety on public repos, image builds, GitOps, Trivy incident, pinning, process |
 | 07 | [Trust and data](07-trust-and-data.md) | OpenBao, PKI, External Secrets, in-lab S3, off-site backups |
 | 08 | [Observability and host memory](08-observability-and-host-memory.md) | Metrics, logs, traces, SLOs, PostgreSQL, ingress; KSM, zswap, free page reporting |
+| 09 | [Host virtual switching](09-host-virtual-switching.md) | How OpenStack tools and vendors build host networks, virtual switch options, config tools, NetworkManager coexistence, MTU (2026-11-13) |
 
 ## Privacy note
 

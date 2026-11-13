@@ -7,6 +7,18 @@
     name: bridge-utils
     state: present
 
+- name: Keep NetworkManager away from the lab bridges
+  ansible.builtin.template:
+    src: 90-akasha-unmanaged.conf.j2
+    dest: /etc/NetworkManager/conf.d/90-akasha-unmanaged.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload the NetworkManager configuration
+
+- name: Apply the NetworkManager setting before any bridge exists
+  ansible.builtin.meta: flush_handlers
+
 - name: Configure IPv4 forwarding and disable IPv6 on the lab bridges
   ansible.builtin.template:
     src: 90-akasha-network.conf.j2
@@ -44,8 +56,9 @@
   ansible.builtin.debug:
     msg: >-
       The bridge definitions changed while some bridges already existed. They are not
-      restarted automatically (VMs may be attached): run `ifdown <bridge> && ifup <bridge>`
-      during a maintenance window.
+      restarted automatically: `ifdown` deletes the bridge and detaches the VMs. Shut down
+      the VMs attached to it, then run `ifdown <bridge> && ifup <bridge>` (runbook
+      docs/runbooks/host-network.md).
   when:
     - host_network_bridges_file is changed
     - host_network_bridges | map(attribute='name')
@@ -94,6 +107,11 @@
         "$(ip -6 -o addr show dev $b | wc -l)"
     done
     echo "ip_forward=$(cat /proc/sys/net/ipv4/ip_forward)"
+    for b in {{ host_network_bridges | map(attribute='name') | join(' ') }}; do
+      printf '%s mcast_snooping=%s nm=%s\n' "$b" \
+        "$(cat /sys/class/net/$b/bridge/multicast_snooping)" \
+        "$(nmcli -g GENERAL.STATE device show $b | cut -d' ' -f2-)"
+    done
     echo "br_netfilter=$(lsmod | grep -c '^br_netfilter ' || true)"
   args:
     executable: /bin/bash
@@ -109,6 +127,8 @@
       - "('br_netfilter=0') in host_network_state.stdout_lines"
       - >-
         (item.name ~ ' mtu=' ~ item.mtu ~ ' ipv6=0') in host_network_state.stdout_lines
+      - >-
+        (item.name ~ ' mcast_snooping=0 nm=(unmanaged)') in host_network_state.stdout_lines
     fail_msg: "{{ host_network_state.stdout_lines }}"
     quiet: true
   loop: "{{ host_network_bridges }}"

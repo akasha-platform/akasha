@@ -7,3 +7,7 @@
   ansible.builtin.systemd_service:
     name: "{{ host_network_libvirt_service }}"
     state: restarted
+
+- name: Reload the NetworkManager configuration
+  ansible.builtin.command: nmcli general reload conf
+  changed_when: true
