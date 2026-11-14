@@ -45,6 +45,19 @@ ip link del mtutest0
 cat /sys/class/net/br-tun/mtu               # expect 9000
 ```
 
+## Start a VM that uses the libvirt `default` network
+
+The role stops the `default` network and disables its autostart, but keeps it defined. A VM
+attached to it (`virsh domiflist <vm>` shows `network default`) does not start while the
+network is inactive:
+
+```bash
+sudo virsh net-start default
+sudo virsh start <vm>
+# when the VM is off again:
+sudo virsh net-destroy default
+```
+
 ## NetworkManager took a bridge
 
 - **Symptom:** `nmcli device` shows a lab bridge as `connected` or `connected (externally)`.
