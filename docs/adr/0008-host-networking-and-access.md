@@ -77,6 +77,28 @@ Ansible role `host_network` (`playbooks/host.yml`, tag `network`):
 * The host firewall (nftables input policy, NAT, campus drop) is step 4b; Tailscale subnet
   routing is step 4c.
 
+### Confirmation (step 4a)
+
+On 2026-11-14, `playbooks/host.yml --tags network` (role `host_network`, PR #26):
+
+* Read-only pre-check: monolithic `libvirtd` (modular daemons inactive); `linux2024` attached
+  to the libvirt `default` network (runbook: start that network before the VM); no file in
+  `/etc/NetworkManager/conf.d/`; a pre-existing `99-disable-ipv6.conf` with no effect (open
+  question B9).
+* Dry run (`--check --diff`) printed the three new files and the `firewall_backend` line;
+  `command` tasks are reported as skipped in check mode.
+* Real run `failed=0`, the four bridges created by `ifup`; second run `changed=0`.
+* On the host: the four bridges are `UP` with `NO-CARRIER` (no port yet); `br-transit` has
+  10.255.255.1/29 and both routes via 10.255.255.2 (`linkdown` until OPNsense exists);
+  NetworkManager reports the bridges as unmanaged and `eno1` as connected; MTU 1500/1500/9000/1500,
+  no IPv6 address, multicast snooping 0; `ip_forward=1`; `default` network inactive and not
+  autostarted; `firewall_backend = "nftables"`; libvirtd, NetworkManager and tailscaled
+  active; SSH over Tailscale kept.
+* `br-tun` stays at MTU 9000 after a tap joins and leaves it (runbook test).
+* The checks run with `LC_ALL=C` (ADR-0026): the host locale is French and `nmcli` prints
+  `non-géré` otherwise.
+* Not yet checked: the same state after a host reboot (open question A17).
+
 ### Consequences
 
 * Good, because the campus network is protected by an explicit drop rule.
