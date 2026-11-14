@@ -46,6 +46,9 @@ Done when: an empty PR passes every check; actions are SHA-pinned; `main` is pro
    (runbook `host-upgrade.md`).
 4. 🔄 Host bridges and nftables (campus LAN drop rule), Tailscale subnet routing, in three
    steps: 4a bridges + forwarding + libvirt backend, 4b nftables, 4c Tailscale.
+   * 4a ✅ 2026-11-14: role `host_network` (ADR-0008): `br-transit`, `br-mgmt`, `br-tun`
+     (MTU 9000), `br-ext` owned by ifupdown and unmanaged by NetworkManager, IPv4 forwarding,
+     libvirt nftables backend, `default` network stopped; idempotent.
 5. Memory headroom (KSM, zswap, free page reporting) and host monitoring (ADR-0016).
 6. OpenTofu L0 (first apply from the laptop; state location decided before this step;
    OpenTofu bumped to ≥ 1.13.9 first, see ADR-0022):

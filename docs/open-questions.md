@@ -23,6 +23,7 @@ item here.
 | A13 | Design and test restic on AWS S3 with Object Lock: bucket versioning, retention mode, which credential runs `forget/prune`, cost | Object Lock needs versioning; prune deletes objects; the "no-delete key" idea came from B2 | P1 |
 | A14 | OpenBao self-init (`initialize` stanza) behaviour with Shamir unseal | Self-init is documented mainly with auto-unseal | P1 |
 | A15 | Host checks after setup: cgroup2 `memory_recursiveprot` (for `MemoryLow=`), default QEMU `oom_score_adj`, `/sys/module/zswap/parameters/zpool`, `virsh dumpxml` shows the requested `cpu.mode` (provider issue #1344), OPNsense vtnet offload measured with iperf3 (FreeBSD bug 290773) | Each is an assumption of the host design | P1 |
+| A17 | After the next host reboot: the four lab bridges come back (`ip -br link show type bridge`), unmanaged by NetworkManager, no IPv6 on them, `ip_forward=1`, libvirt `default` network inactive | Checked only on the running host (ADR-0008 step 4a) | P1 |
 
 ## B. Decisions deliberately deferred
 
