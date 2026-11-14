@@ -1,0 +1,137 @@
+---
+# ADR-0008, P1 step 4a: lab bridges, IPv4 forwarding, libvirt firewall backend.
+# The uplink (NetworkManager) and the firewall rules (step 4b) are not touched here.
+
+- name: Install the ifupdown bridge helpers
+  ansible.builtin.apt:
+    name: bridge-utils
+    state: present
+
+- name: Keep NetworkManager away from the lab bridges
+  ansible.builtin.template:
+    src: 90-akasha-unmanaged.conf.j2
+    dest: /etc/NetworkManager/conf.d/90-akasha-unmanaged.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload the NetworkManager configuration
+
+- name: Apply the NetworkManager setting before any bridge exists
+  ansible.builtin.meta: flush_handlers
+
+- name: Configure IPv4 forwarding and disable IPv6 on the lab bridges
+  ansible.builtin.template:
+    src: 90-akasha-network.conf.j2
+    dest: /etc/sysctl.d/90-akasha-network.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Apply the akasha sysctl settings
+
+- name: Read the existing network interfaces
+  ansible.builtin.command: ip -o link show
+  register: host_network_links_before
+  changed_when: false
+  check_mode: false
+
+- name: Define the lab bridges
+  ansible.builtin.template:
+    src: akasha-bridges.j2
+    dest: /etc/network/interfaces.d/akasha-bridges
+    owner: root
+    group: root
+    mode: "0644"
+  register: host_network_bridges_file
+
+- name: Bring up the bridges that do not exist yet
+  ansible.builtin.command: ifup {{ item.name }}
+  loop: "{{ host_network_bridges }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: >-
+    (': ' ~ item.name ~ ':') not in host_network_links_before.stdout
+  changed_when: true
+
+- name: Warn when an existing bridge needs a manual restart
+  ansible.builtin.debug:
+    msg: >-
+      The bridge definitions changed while some bridges already existed. They are not
+      restarted automatically: `ifdown` deletes the bridge and detaches the VMs. Shut down
+      the VMs attached to it, then run `ifdown <bridge> && ifup <bridge>` (runbook
+      docs/runbooks/host-network.md).
+  when:
+    - host_network_bridges_file is changed
+    - host_network_bridges | map(attribute='name')
+      | select('in', host_network_links_before.stdout) | list | length > 0
+
+- name: Apply the sysctl settings now that the bridges exist
+  ansible.builtin.meta: flush_handlers
+
+# --- libvirt ---------------------------------------------------------------------------------
+
+- name: Read the state of the libvirt default network
+  ansible.builtin.command: virsh net-info default
+  register: host_network_default_net
+  changed_when: false
+  check_mode: false
+  failed_when: false
+
+- name: Stop the libvirt default network (its NAT must not sit in the lab path)
+  ansible.builtin.command: virsh net-destroy default
+  when: host_network_default_net.stdout is search('Active:\s+yes')
+  changed_when: true
+
+- name: Do not start the libvirt default network at boot (kept defined for linux2024)
+  ansible.builtin.command: virsh net-autostart default --disable
+  when: host_network_default_net.stdout is search('Autostart:\s+yes')
+  changed_when: true
+
+- name: Use the nftables firewall backend in libvirt
+  ansible.builtin.lineinfile:
+    path: /etc/libvirt/network.conf
+    regexp: '^#?\s*firewall_backend\s*='
+    line: firewall_backend = "nftables"
+    backup: true
+  notify: Restart libvirt
+
+- name: Restart libvirt with the new backend
+  ansible.builtin.meta: flush_handlers
+
+# --- Checks ----------------------------------------------------------------------------------
+
+- name: Read the bridges, forwarding and br_netfilter state
+  ansible.builtin.shell: |
+    set -o pipefail
+    for b in {{ host_network_bridges | map(attribute='name') | join(' ') }}; do
+      printf '%s mtu=%s ipv6=%s\n' "$b" "$(cat /sys/class/net/$b/mtu)" \
+        "$(ip -6 -o addr show dev $b | wc -l)"
+    done
+    echo "ip_forward=$(cat /proc/sys/net/ipv4/ip_forward)"
+    for b in {{ host_network_bridges | map(attribute='name') | join(' ') }}; do
+      printf '%s mcast_snooping=%s nm=%s\n' "$b" \
+        "$(cat /sys/class/net/$b/bridge/multicast_snooping)" \
+        "$(nmcli -g GENERAL.STATE device show $b | cut -d' ' -f2-)"
+    done
+    echo "br_netfilter=$(lsmod | grep -c '^br_netfilter ' || true)"
+  args:
+    executable: /bin/bash
+  register: host_network_state
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+
+- name: Check the bridges, forwarding and br_netfilter state
+  ansible.builtin.assert:
+    that:
+      - "('ip_forward=1') in host_network_state.stdout_lines"
+      - "('br_netfilter=0') in host_network_state.stdout_lines"
+      - >-
+        (item.name ~ ' mtu=' ~ item.mtu ~ ' ipv6=0') in host_network_state.stdout_lines
+      - >-
+        (item.name ~ ' mcast_snooping=0 nm=(unmanaged)') in host_network_state.stdout_lines
+    fail_msg: "{{ host_network_state.stdout_lines }}"
+    quiet: true
+  loop: "{{ host_network_bridges }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: not ansible_check_mode

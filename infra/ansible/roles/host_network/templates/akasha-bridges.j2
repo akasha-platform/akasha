@@ -1,0 +1,25 @@
+# {{ ansible_managed }}
+# Lab bridges (ADR-0008). The uplink stays with NetworkManager, which is told to leave
+# these bridges alone in /etc/NetworkManager/conf.d/90-akasha-unmanaged.conf (its ifupdown
+# plugin does not skip bridges named br*). `ifdown` deletes a bridge: stop the VMs first.
+# Multicast snooping is off: there is no IGMP querier in the lab, snooped groups would expire.
+{% for bridge in host_network_bridges %}
+
+auto {{ bridge.name }}
+{% if bridge.address is defined %}
+iface {{ bridge.name }} inet static
+    address {{ bridge.address }}
+{% else %}
+iface {{ bridge.name }} inet manual
+{% endif %}
+    mtu {{ bridge.mtu }}
+    bridge_ports none
+    bridge_stp off
+    bridge_fd 0
+    bridge_maxwait 0
+    up ip link set dev {{ bridge.name }} type bridge mcast_snooping 0
+{% for route in bridge.routes | default([]) %}
+    up ip route replace {{ route }} via {{ host_network_transit_gateway }} dev {{ bridge.name }}
+    down ip route del {{ route }} via {{ host_network_transit_gateway }} dev {{ bridge.name }} || true
+{% endfor %}
+{% endfor %}

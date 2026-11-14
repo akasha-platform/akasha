@@ -1,0 +1,17 @@
+---
+argument_specs:
+  main:
+    short_description: Lab bridges, IPv4 forwarding and libvirt firewall backend of the L0 host (ADR-0008)
+    options:
+      host_network_bridges:
+        type: list
+        elements: dict
+        description:
+          - Bridges managed by ifupdown, each with V(name), V(mtu), optional V(address) (CIDR)
+            and optional V(routes) (CIDRs routed via O(host_network_transit_gateway)).
+      host_network_transit_gateway:
+        type: str
+        description: OPNsense WAN address on br-transit, next hop of the lab networks.
+      host_network_libvirt_service:
+        type: str
+        description: systemd unit of the libvirt daemon that reads network.conf.

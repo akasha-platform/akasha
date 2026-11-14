@@ -1,0 +1,5 @@
+# {{ ansible_managed }}
+# The lab bridges belong to ifupdown (ADR-0008). Devices listed here are strictly unmanaged
+# and cannot be taken over through the NetworkManager API (NetworkManager.conf(5)).
+[keyfile]
+unmanaged-devices={{ host_network_bridges | map(attribute='name') | map('regex_replace', '^', 'interface-name:') | join(';') }}

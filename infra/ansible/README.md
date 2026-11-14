@@ -7,7 +7,7 @@ ansible.cfg
 collections/requirements.yml   pinned collections, incl. transitive ones (installed copy is git-ignored)
 inventories/lab/hosts.yml      hosts by SSH alias (no address committed)
 playbooks/                     facts.yml (read-only); host.yml (P1), bastion.yml, core.yml (P1), k3s.yml (P4)
-roles/                         host_storage (P1); later bridges + nftables, memory headroom, OpenBao, versitygw, …
+roles/                         host_storage, host_network (P1); later nftables, memory headroom, OpenBao, versitygw, …
 ```
 
 ```bash

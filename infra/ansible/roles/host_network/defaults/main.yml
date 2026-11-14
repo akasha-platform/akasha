@@ -1,0 +1,19 @@
+---
+# Lab bridges of ADR-0008. Only br-transit carries a host address; the lab networks are
+# reached through OPNsense (10.255.255.2) once it exists (P1 step 6).
+host_network_bridges:
+  - name: br-transit
+    mtu: 1500
+    address: 10.255.255.1/29
+    routes:
+      - 10.10.0.0/24
+      - 10.20.0.0/24
+  - name: br-mgmt
+    mtu: 1500
+  - name: br-tun
+    mtu: 9000
+  - name: br-ext
+    mtu: 1500
+host_network_transit_gateway: 10.255.255.2
+# libvirt daemon that reads /etc/libvirt/network.conf (monolithic libvirtd on this host).
+host_network_libvirt_service: libvirtd
