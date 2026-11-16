@@ -1,0 +1,36 @@
+---
+argument_specs:
+  main:
+    short_description: Lab firewall and NAT of the L0 host, scoped to the lab bridges (ADR-0008, ADR-0027)
+    options:
+      host_firewall_uplink:
+        type: str
+        description: Uplink interface (NAT egress); must be the interface of the default route.
+      host_firewall_lab_interfaces:
+        type: list
+        elements: str
+        description: Lab bridges; only packets entering or leaving them are matched.
+      host_firewall_transit_interface:
+        type: str
+        description: The only lab bridge allowed to route through the host (edge router WAN).
+      host_firewall_transit_address:
+        type: str
+        description: Host address on the transit bridge; the lab may ping it and nothing else.
+      host_firewall_lab_nets:
+        type: list
+        elements: str
+        description: Lab source ranges (anti-spoofing and NAT).
+      host_firewall_tailnet_to_lab:
+        type: list
+        elements: str
+        description: Lab ranges reachable from tailscale0.
+      host_firewall_blocked_nets:
+        type: list
+        elements: str
+        description: Destinations the lab never reaches through the uplink (RFC 6890 ranges).
+      host_firewall_campus_nets:
+        type: list
+        elements: str
+        description:
+          - Public prefixes of the campus network, also blocked. Never committed; pass them at
+            run time from a private file.

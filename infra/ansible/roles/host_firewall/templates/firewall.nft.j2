@@ -1,0 +1,72 @@
+# {{ ansible_managed }}
+# Lab firewall and NAT (ADR-0008), scoped to akasha's bridges (ADR-0027). Only packets that
+# enter or leave a lab bridge are matched; every other packet meets `policy accept` here and
+# is decided by the host's other tables (Tailscale, libvirt, iptables-nft) as before.
+# Loading this file replaces the table atomically (one transaction).
+{% set lab_ifaces = host_firewall_lab_interfaces | map('to_json') | join(', ') %}
+{% set uplink = host_firewall_uplink | to_json %}
+{% set transit = host_firewall_transit_interface | to_json %}
+
+table inet akasha
+delete table inet akasha
+
+table inet akasha {
+	set lab_nets {
+		type ipv4_addr
+		flags interval
+		elements = { {{ host_firewall_lab_nets | join(', ') }} }
+	}
+
+	set blocked_nets {
+		type ipv4_addr
+		flags interval
+		auto-merge
+		elements = { {{ (host_firewall_blocked_nets + host_firewall_campus_nets) | join(', ') }} }
+	}
+
+	# --- Lab → host: only ping of the transit address ----------------------------------
+	chain input {
+		type filter hook input priority filter; policy accept;
+		iifname { {{ lab_ifaces }} } jump lab_to_host
+	}
+
+	chain lab_to_host {
+		ct state established,related accept
+		iifname {{ transit }} ip saddr @lab_nets ip daddr {{ host_firewall_transit_address }} icmp type echo-request accept
+		counter drop
+	}
+
+	# --- Routed lab traffic ---------------------------------------------------------------
+	chain forward {
+		type filter hook forward priority filter; policy accept;
+		iifname { {{ lab_ifaces }} } jump from_lab
+		oifname { {{ lab_ifaces }} } jump to_lab
+	}
+
+	chain from_lab {
+		# INVALID packets have no conntrack entry, so they would leave without NAT.
+		ct state invalid counter drop
+		meta nfproto ipv6 counter drop
+		# Only the edge router routes through the host.
+		iifname != {{ transit }} counter drop
+		ip saddr != @lab_nets counter drop
+		ct state established,related accept
+		oifname {{ uplink }} ip daddr @blocked_nets counter drop
+		oifname {{ uplink }} accept
+		counter drop
+	}
+
+	chain to_lab {
+		meta nfproto ipv6 counter drop
+		oifname != {{ transit }} counter drop
+		ct state established,related accept
+		iifname "tailscale0" ip daddr { {{ host_firewall_tailnet_to_lab | join(', ') }} } accept
+		counter drop
+	}
+
+	# --- NAT: the lab reaches the Internet with the host's uplink address ---------------
+	chain postrouting {
+		type nat hook postrouting priority srcnat; policy accept;
+		oifname {{ uplink }} ip saddr @lab_nets counter masquerade
+	}
+}

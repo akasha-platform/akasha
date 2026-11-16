@@ -1,0 +1,114 @@
+---
+# ADR-0008, P1 step 4b: lab firewall and NAT, scoped to the lab bridges (ADR-0027).
+# The host's own traffic (SSH, NFS, desktop, Tailscale, libvirt's virbr0) is never matched.
+
+- name: Check that the uplink is the interface of the default route
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['default_ipv4']['interface'] | default('') == host_firewall_uplink
+      - host_firewall_transit_interface in host_firewall_lab_interfaces
+    fail_msg: >-
+      Default route via {{ ansible_facts['default_ipv4']['interface'] | default('none') }}, expected
+      {{ host_firewall_uplink }}; the transit bridge must be one of the lab interfaces.
+    quiet: true
+
+- name: Create the akasha configuration directory
+  ansible.builtin.file:
+    path: /etc/akasha
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+# `validate:` does not run in check mode: check the rendered rules with the host's nft and
+# kernel in a temporary file, so the dry run already proves the syntax.
+- name: Check the rendered rules in a dry run
+  when: ansible_check_mode
+  check_mode: false
+  block:
+    - name: Create a temporary file for the rendered rules
+      ansible.builtin.tempfile:
+        suffix: .nft
+      register: host_firewall_tmp
+
+    - name: Render the rules into the temporary file
+      ansible.builtin.template:
+        src: firewall.nft.j2
+        dest: "{{ host_firewall_tmp.path }}"
+        mode: "0600"
+
+    - name: Check the rules with nft
+      ansible.builtin.command: /usr/sbin/nft -c -f {{ host_firewall_tmp.path }}
+      changed_when: false
+  always:
+    - name: Remove the temporary file
+      ansible.builtin.file:
+        path: "{{ host_firewall_tmp.path }}"
+        state: absent
+      when: host_firewall_tmp.path is defined
+
+- name: Write the lab firewall rules (checked by nft before the file is replaced)
+  ansible.builtin.template:
+    src: firewall.nft.j2
+    dest: /etc/akasha/firewall.nft
+    owner: root
+    group: root
+    mode: "0644"
+    validate: /usr/sbin/nft -c -f %s
+  notify: Reload the akasha firewall
+
+- name: Install the unit that loads the rules before the network comes up
+  ansible.builtin.copy:
+    src: akasha-firewall.service
+    dest: /etc/systemd/system/akasha-firewall.service
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Enable and start the akasha firewall
+  ansible.builtin.systemd_service:
+    name: akasha-firewall.service
+    enabled: true
+    state: started
+    daemon_reload: true
+  # In check mode the unit file is not written, so systemd does not know the unit yet.
+  ignore_errors: "{{ ansible_check_mode }}"
+
+- name: Apply a changed rule file now
+  ansible.builtin.meta: flush_handlers
+
+# --- Checks ----------------------------------------------------------------------------------
+
+- name: Read the loaded table and the forwarding state of the lab bridges
+  ansible.builtin.shell: |
+    set -o pipefail
+    systemctl is-active akasha-firewall.service | sed 's/^/unit=/'
+    systemctl is-enabled akasha-firewall.service | sed 's/^/enabled=/'
+    nft list table inet akasha | awk '$1 == "chain" { print "chain=" $2 }'
+    for b in {{ host_firewall_lab_interfaces | join(' ') }}; do
+      echo "$b forwarding=$(cat /proc/sys/net/ipv4/conf/$b/forwarding)"
+    done
+  args:
+    executable: /bin/bash
+  register: host_firewall_state
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+
+- name: Check the table, the unit and that only the transit bridge forwards
+  ansible.builtin.assert:
+    that:
+      - "'unit=active' in host_firewall_state.stdout_lines"
+      - "'enabled=enabled' in host_firewall_state.stdout_lines"
+      - >-
+        ['input', 'lab_to_host', 'forward', 'from_lab', 'to_lab', 'postrouting']
+        | map('regex_replace', '^', 'chain=') | difference(host_firewall_state.stdout_lines)
+        | length == 0
+      - >-
+        host_firewall_lab_interfaces | map('regex_replace', '$', ' forwarding=0')
+        | reject('match', host_firewall_transit_interface ~ ' ')
+        | difference(host_firewall_state.stdout_lines) | length == 0
+      - (host_firewall_transit_interface ~ ' forwarding=1') in host_firewall_state.stdout_lines
+    fail_msg: "{{ host_firewall_state.stdout_lines }}"
+    quiet: true
+  when: not ansible_check_mode

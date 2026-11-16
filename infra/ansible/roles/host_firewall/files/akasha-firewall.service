@@ -1,0 +1,23 @@
+# Managed by Ansible (role host_firewall, ADR-0008, ADR-0027).
+# Loads the lab firewall (nft table inet akasha) before the network comes up, like Debian's
+# nftables.service, but touches only its own table: no `flush ruleset`, no ExecStop.
+# Remove the rules with `nft delete table inet akasha` (runbook host-firewall.md).
+[Unit]
+Description=akasha lab firewall (nft table inet akasha)
+Documentation=https://github.com/akasha-platform/akasha/blob/main/docs/runbooks/host-firewall.md
+DefaultDependencies=no
+Wants=network-pre.target
+Before=network-pre.target shutdown.target
+Conflicts=shutdown.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# A oneshot has no start timeout by default; NetworkManager, networking and tailscaled wait
+# for network-pre.target, so never let a stuck nft delay them for long.
+TimeoutStartSec=30s
+ExecStart=/usr/sbin/nft -f /etc/akasha/firewall.nft
+ExecReload=/usr/sbin/nft -f /etc/akasha/firewall.nft
+
+[Install]
+WantedBy=sysinit.target
