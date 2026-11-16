@@ -15,9 +15,18 @@ and Kubernetes platform, built on one school-provided physical host.
 
 ## How the owner wants to work
 
-- Implement **one étape at a time**. Present the plan of the étape (goal, why,
-  exact actions, verification, rollback), wait for approval, execute, verify,
-  then ask for validation before starting the next étape. Never bundle étapes.
+- Implement **one étape at a time**. Present the plan of the étape in this order: goal, why,
+  exact actions, **blast radius**, **what can go wrong**, verification, rollback (ADR-0027).
+  Wait for approval, execute, verify, then ask for validation before starting the next étape.
+  Never bundle étapes.
+- **Blast radius**: one row per action — action · touches · owner of it · what else depends
+  on it · effect if it fails · rollback. A row not owned by akasha is a question for the owner.
+- **What can go wrong**: unverified assumptions (tagged INFERRED) and failure modes
+  (fail-open/fail-closed, lockout, effect on other services). Check a tool's behaviour in its
+  docs or source before stating it as fact.
+- Plans that change the network, disks, firewall or boot of `insa`, and every irreversible
+  action, get an **independent review** by a subagent first: give it the plan and the code,
+  not your reasoning or conclusions; show its findings to the owner with the plan.
 - Ask clarifying questions whenever context is ambiguous instead of assuming.
   Use multiple-choice questions. Conversation language: Vietnamese.
 - Research seriously before deciding: official docs and source code first,
@@ -30,6 +39,15 @@ and Kubernetes platform, built on one school-provided physical host.
   (read-only unless the étape says otherwise), then verify the pasted output — and anything
   checkable independently (e.g. GitHub API) — before moving on.
 - Every decision that changes the design gets an ADR (MADR 4.0) in `docs/adr/`.
+
+## akasha is a guest on `insa` (ADR-0027)
+
+`insa` is lent by the school; it also runs the school's desktop, a campus NFS mount, possibly
+the school's IT management, and the owner's VM `linux2024`. akasha touches only what it owns:
+the nft table `inet akasha`, units `akasha-*`, files named `akasha`, bridges `br-*`,
+`vg_akasha`, `/var/lib/libvirt/akasha`, and the lab's libvirt domains. Never change host-wide
+policy or anything of the school or of `linux2024`; firewall rules match `br-*` or lab
+ranges only; akasha opens no listening service on `eno1`. Anything else is the owner's call.
 
 ## Public-repo hygiene (this repository is PUBLIC)
 
