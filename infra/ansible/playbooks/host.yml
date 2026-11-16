@@ -14,3 +14,5 @@
       tags: [storage]
     - role: host_network
       tags: [network]
+    - role: host_firewall
+      tags: [firewall]

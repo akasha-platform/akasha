@@ -21,5 +21,7 @@ One runbook per alert or known failure mode, written when the failure mode is in
   partition table, undo the layout, grow `lv_images`
 * [host-network.md](host-network.md) — lab bridges: check, missing bridge, change a bridge
   safely, overlay MTU, NetworkManager taking a bridge
+* [host-firewall.md](host-firewall.md) — lab firewall and NAT: run with the private campus
+  prefixes, check after reboot, what removes the rules, test with a fake lab VM, roll back
 * [host-upgrade.md](host-upgrade.md) — upgrade `insa` (Debian point releases) and reboot safely
   over Tailscale; stale package lists

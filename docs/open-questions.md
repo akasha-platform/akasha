@@ -37,6 +37,7 @@ item here.
 | B6 | Add `net01` (dedicated network node) | only if ≥ 1.5 GB spare after A2 | P7 |
 | B8 | Root disks of K3s VMs; metadata delivery | Cinder boot-from-volume (no disk copy on live migration, uses the 120 G Cinder LV) · local ephemeral on the computes · config drive (blocks block migration) vs metadata service | P3/P4 |
 | B9 | Host-wide IPv6 on `insa`: a pre-existing `/etc/sysctl.d/99-disable-ipv6.conf` (not from akasha) holds `sysctl -w …` shell lines, which `systemd-sysctl` cannot parse, so IPv6 stays on (checked 2026-11-14); the lab bridges have IPv6 off either way (ADR-0008) | leave as is · delete the file · disable IPv6 host-wide in valid syntax (affects Tailscale IPv6 and `::1`) | P1 |
+| B10 | Edge router of the lab: the owner chose (2026-11-16) to replace OPNsense (official minimum 3 GB) with a lighter router so that the host keeps ≥ 3 GB of RAM free (VMs ≈ 25 GiB instead of 27.95 GB); needs research and an ADR | candidates to research (e.g. a Debian VM with nftables + Unbound) | P1 (before step 6) |
 
 ## C. Questions never discussed yet
 
@@ -45,7 +46,7 @@ item here.
 | C1 | Should the NovaShop demo be reachable from the Internet (e.g. a tunnel) for the portfolio, or only through Tailscale? | P6 |
 | C2 | Is there a real domain name (for public TLS / DNS-01), or only `akasha.internal`? | P5 |
 | C3 | Where do alerts go (Alertmanager receiver: email, Discord, …)? Retention targets for metrics and logs? | P5/P7 |
-| C4 | Upstream NTP source for the host (campus server or public pool)? | P1 |
+| C4 | Time source of the host and of the lab router: from the campus, NTP (UDP 123) to public servers is blocked while DNS (UDP 53) and HTTPS work (checked 2026-11-16) — campus NTP server (needs an exception in the lab firewall), the host serving time to the lab, or another way | P1 (before step 6) |
 | C6 | Acceptable reboot window for host kernel updates (unattended upgrades never reboot automatically) | P1 |
 | C7 | AWS account, free-tier terms and expected monthly cost for off-site backups | P1 |
 

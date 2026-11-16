@@ -99,6 +99,40 @@ On 2026-11-14, `playbooks/host.yml --tags network` (role `host_network`, PR #26)
   `non-géré` otherwise.
 * Not yet checked: the same state after a host reboot (open question A17).
 
+### Implementation (P1 step 4b)
+
+Ansible role `host_firewall` (`playbooks/host.yml`, tag `firewall`), designed under
+[ADR-0027](0027-guest-on-the-school-host.md) and reviewed twice by an independent agent:
+
+* **Scope:** the nftables table `inet akasha` (`/etc/akasha/firewall.nft`) matches only packets
+  that enter or leave the four lab bridges (named explicitly, not `br-*`, which Docker also
+  uses). Its base chains have `policy accept`, so the host's own traffic (SSH, NFS, desktop,
+  Tailscale, libvirt's `virbr0`) meets no akasha rule. The default-deny `input` chain of
+  research/04 was **not adopted**: it would have changed the school's machine (lockout risk,
+  NFS, IT access), chosen by the owner on 2026-11-15.
+* **Rules:** the lab may only ping the transit address of the host; only `br-transit` may
+  route; sources outside the lab ranges are dropped; routed lab traffic leaves through `eno1`
+  only towards public destinations (RFC 6890 special ranges and the campus's public prefixes,
+  given at run time from a private file, are dropped); `ct state invalid` is dropped first
+  (such packets would leave without NAT); IPv6 is dropped; tailnet → 10.10/24 and 10.20/24 is
+  allowed; lab sources are masqueraded on `eno1`.
+* **Second layer:** `net.ipv4.conf.<bridge>.forwarding = 0` (and `accept_redirects = 0`) on
+  `br-mgmt`, `br-tun` and `br-ext` (role `host_network`): the kernel drops routed packets from
+  these bridges before netfilter.
+* **Unit** `akasha-firewall.service`: loads the file before `network-pre.target` like Debian's
+  `nftables.service`, but never flushes the ruleset and has no `ExecStop`; `TimeoutStartSec=30s`
+  so a stuck `nft` cannot hold back NetworkManager, networking and tailscaled. Reload replaces
+  the table atomically.
+* **Residual risk accepted by the owner** (simple version, no coupling of the bridges or
+  libvirt to the firewall): if the table is missing (load failure at boot, `nft flush
+  ruleset`, enabling Debian's `nftables.service`), `br-transit` routes without filter or NAT.
+  The runbook checks the table after every reboot, and the lab router will not autostart
+  before that check (step 6).
+* Egress from the campus (checked 2026-11-16): public DNS (UDP 53) and HTTPS work; NTP (UDP 123)
+  to public servers is blocked — the lab's time source is open question C4.
+* For step 4c: Tailscale masquerades tailnet → lab flows (`ts-postrouting`), so the lab router
+  sees the source 10.255.255.1.
+
 ### Consequences
 
 * Good, because the campus network is protected by an explicit drop rule.
