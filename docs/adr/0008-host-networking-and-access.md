@@ -133,6 +133,28 @@ Ansible role `host_firewall` (`playbooks/host.yml`, tag `firewall`), designed un
 * For step 4c: Tailscale masquerades tailnet → lab flows (`ts-postrouting`), so the lab router
   sees the source 10.255.255.1.
 
+### Confirmation (step 4b)
+
+On 2026-11-16, `playbooks/host.yml --tags network,firewall` with the campus's public /24 from
+the private file:
+
+* Read-only pre-check: nft 1.1.3; leftover libvirt chains `LIBVIRT_FWX`/`LIBVIRT_FWI` empty;
+  `rp_filter` all=0, default=2; the campus NFS server and gateway are in private ranges; the
+  campus's public egress address belongs to its own RENATER /24 (whois), blocked from the lab.
+* Two independent reviews of the plan before coding; the dry run checked the rendered rules
+  with the host's `nft -c`.
+* Real run `failed=0`; second run `changed=0`.
+* Host traffic unchanged: same failed units before and after, NFS still mounted, Tailscale,
+  NetworkManager and the firewall unit active, SSH over Tailscale kept.
+* Fake lab VM (network namespace on `br-transit`): TCP 443 to the Internet works and is
+  masqueraded; ping of the transit address works; the campus gateway, the campus public /24,
+  the host's uplink address and the host's SSH (uplink and transit addresses) are blocked, with
+  the `blocked_nets` and `lab_to_host` drop counters increasing. A namespace on `br-mgmt` using
+  the host as router is dropped by the kernel (`IpInAddrErrors`), before netfilter.
+* The campus also blocks ICMP to the Internet (the host itself cannot ping 1.1.1.1 or 8.8.8.8):
+  lab diagnostics must use TCP, not ping.
+* Not yet checked: the table after a host reboot (open question A17).
+
 ### Consequences
 
 * Good, because the campus network is protected by an explicit drop rule.

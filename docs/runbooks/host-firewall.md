@@ -64,9 +64,9 @@ ip -n akt1 addr add 10.255.255.3/29 dev akt1-n
 ip -n akt1 link set lo up; ip -n akt1 link set akt1-n up
 ip -n akt1 route add default via 10.255.255.1
 
+# The campus blocks ICMP to the Internet (the host cannot ping 1.1.1.1 either): test NAT with TCP.
 nft list table inet akasha > /tmp/akt-before
-ip netns exec akt1 ping -c2 -W2 1.1.1.1                              # works (NAT)
-ip netns exec akt1 timeout 5 bash -c '</dev/tcp/1.1.1.1/443' && echo tcp443 ok
+ip netns exec akt1 timeout 5 bash -c '</dev/tcp/1.1.1.1/443' && echo tcp443 ok   # works (NAT)
 ip netns exec akt1 ping -c2 -W2 10.255.255.1                         # works
 ip netns exec akt1 ping -c2 -W2 "$gw"                                # fails
 ip netns exec akt1 ping -c2 -W2 "$hostip"                            # fails
@@ -85,7 +85,7 @@ ip -n akt2 link set lo up; ip -n akt2 link set akt2-n up
 ip -n akt2 route add default via 10.10.0.1 dev akt2-n onlink
 ip -n akt2 neigh replace 10.10.0.1 lladdr "$(cat /sys/class/net/br-mgmt/address)" dev akt2-n
 nstat -n                                   # reset the deltas
-ip netns exec akt2 ping -c2 -W2 1.1.1.1    # fails
+ip netns exec akt2 timeout 5 bash -c '</dev/tcp/1.1.1.1/443'   # fails
 nstat IpInAddrErrors                       # grew: dropped by forwarding=0, before netfilter
 
 # Clean up
