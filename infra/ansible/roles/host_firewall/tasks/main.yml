@@ -5,10 +5,10 @@
 - name: Check that the uplink is the interface of the default route
   ansible.builtin.assert:
     that:
-      - ansible_default_ipv4.interface == host_firewall_uplink
+      - ansible_facts['default_ipv4']['interface'] | default('') == host_firewall_uplink
       - host_firewall_transit_interface in host_firewall_lab_interfaces
     fail_msg: >-
-      Default route via {{ ansible_default_ipv4.interface | default('none') }}, expected
+      Default route via {{ ansible_facts['default_ipv4']['interface'] | default('none') }}, expected
       {{ host_firewall_uplink }}; the transit bridge must be one of the lab interfaces.
     quiet: true
 

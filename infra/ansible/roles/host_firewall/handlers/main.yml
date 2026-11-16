@@ -3,3 +3,5 @@
   ansible.builtin.systemd_service:
     name: akasha-firewall.service
     state: reloaded
+  # In check mode on the first run the unit file does not exist yet.
+  ignore_errors: "{{ ansible_check_mode }}"
