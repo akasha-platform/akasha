@@ -26,6 +26,8 @@ uv run ansible-playbook playbooks/host.yml -K --tags network,firewall -e @~/akas
 systemctl is-active akasha-firewall          # active
 nft list table inet akasha | head -3         # table inet akasha {
 cat /proc/sys/net/ipv4/conf/br-{transit,mgmt,tun,ext}/forwarding   # 1 0 0 0
+nft list chain inet akasha forward | grep 'oifname != "br-transit"'   # the guard rule
+for n in 10.10.0.0/24 10.20.0.0/24 10.255.255.0/29; do ip route show exact $n; done   # dev br-transit
 ```
 
 If the table is missing, `br-transit` routes the lab **without filter and without NAT**: do not
@@ -46,6 +48,7 @@ start lab VMs; run `systemctl restart akasha-firewall` and read `journalctl -u a
 ```bash
 nft list table inet akasha          # counters on every drop and on the masquerade rule
 nft list chain inet akasha from_lab
+nft list chain inet akasha forward  # guard: routed packets to a lab range not leaving via br-transit
 ```
 
 ## Test with a fake lab VM
@@ -92,6 +95,25 @@ nstat IpInAddrErrors                       # grew: dropped by forwarding=0, befo
 # Clean up
 ip link del akt1-h; ip link del akt2-h; ip netns del akt1; ip netns del akt2
 rm -f /tmp/akt-before /tmp/akt-after
+```
+
+## Test the guard rule (step 4d)
+
+A laptop connection to a lab address is routed into a dummy interface instead of
+`br-transit`. The dummy interface discards everything, so nothing reaches `eno1` even if the
+rule were missing; IPv6 is turned off on it so that the host's own packets do not count.
+
+```bash
+ip link add akasha-guard type dummy
+sysctl -qw net.ipv6.conf.akasha-guard.disable_ipv6=1
+ip link set akasha-guard up
+ip route add 10.10.0.200/32 dev akasha-guard
+cat /sys/class/net/akasha-guard/statistics/tx_packets          # note it
+nft list chain inet akasha forward | grep 'oifname != "br-transit"'   # note the counter
+# laptop: curl -m5 http://10.10.0.200:8080/   (times out)
+cat /sys/class/net/akasha-guard/statistics/tx_packets          # unchanged
+nft list chain inet akasha forward | grep 'oifname != "br-transit"'   # grew (about 5 SYNs)
+ip link del akasha-guard                                       # also removes the route
 ```
 
 ## Roll back
