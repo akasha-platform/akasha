@@ -62,7 +62,7 @@ Secrets already synced into Kubernetes stay in etcd, so running workloads surviv
 **Stays outside OpenBao.** These must be recoverable when OpenBao itself is down:
 - Shamir key shares and recovery procedure;
 - the offline root CA key;
-- the **pbkdf2 passphrase** for the OpenTofu bootstrap stack that creates the `core` VM (that stack cannot encrypt its state with OpenBao); kept as a GitHub Actions secret plus an offline copy;
+- the **pbkdf2 passphrase** for the OpenTofu bootstrap stack that creates the `core` VM (that stack cannot encrypt its state with OpenBao); kept in the owner's password manager plus an offline copy (not a GitHub Actions secret: CI never applies L0, ADR-0031);
 - the **Tailscale CI identity** (workload-identity / OAuth client used by `tailscale/github-action`);
 - the **Tailscale admin credentials** (tailnet owner account);
 - the restic password and off-site S3 credentials;

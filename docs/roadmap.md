@@ -71,7 +71,7 @@ Done when: an empty PR passes every check; actions are SHA-pinned; `main` is pro
      one after the step-6 RAM gate, from measurements.
    * Host monitoring (node-exporter) waits until a Prometheus exists (P5); until then
      measurements are read-only commands over SSH.
-6. OpenTofu L0 (first apply from the laptop; state location decided before this step;
+6. OpenTofu L0 (first apply from the laptop; state in a dedicated AWS S3 bucket, ADR-0031;
    OpenTofu bumped to ≥ 1.13.9 first, see ADR-0022):
    base image, edge router (Debian, ADR-0028/ADR-0029), bastion, core (OpenBao + versitygw),
    headless VMs sized by ADR-0030; RAM gate (ADR-0030) before going further.
