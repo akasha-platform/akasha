@@ -23,5 +23,8 @@ One runbook per alert or known failure mode, written when the failure mode is in
   safely, overlay MTU, NetworkManager taking a bridge
 * [host-firewall.md](host-firewall.md) — lab firewall and NAT: run with the private campus
   prefixes, check after reboot, what removes the rules, test with a fake lab VM, roll back
+* [host-tailscale.md](host-tailscale.md) — Tailscale subnet routes to the lab: what is set,
+  tailnet policy template, check, test with a fake lab router, overlapping local network, roll
+  back
 * [host-upgrade.md](host-upgrade.md) — upgrade `insa` (Debian point releases) and reboot safely
   over Tailscale; stale package lists
