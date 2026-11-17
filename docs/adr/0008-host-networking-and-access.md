@@ -206,8 +206,43 @@ On 2026-11-17:
   `br-transit` is up; without them, tailnet packets to the lab follow the default route out of
   `eno1` into the campus network, masqueraded by Tailscale, and no akasha rule matches them.
   The owner chose (2026-11-17) to close it with a host firewall rule that drops lab-range
-  destinations leaving through any interface other than `br-transit` (follow-up step). Node
-  key expiry of `insa` is open question C8.
+  destinations leaving through any interface other than `br-transit` (step 4d). Node key
+  expiry of `insa` is open question C8.
+
+### Implementation (P1 step 4d)
+
+Role `host_firewall`, plan reviewed by an independent agent before execution:
+
+* First rule of the `forward` chain: `ip daddr @lab_nets oifname != "br-transit" counter drop`.
+  Routed packets to a lab range (10.10/24, 10.20/24, 10.255.255.0/29) may only leave through
+  `br-transit`, whatever the routing table says. It matches the interface name, so it also
+  holds when `br-transit` does not exist; a drop is final across base chains, so Tailscale's
+  `ts-forward` accept cannot bypass it. Replies to the lab are de-masqueraded before the
+  forward hook and leave through `br-transit`, so they are not affected.
+* The role checks that every lab range has a main-table route via `br-transit` (the ranges and
+  the routes live in two roles) and that the guard rule is loaded.
+* Residual risk accepted by the owner: the host's own processes (output hook) are not matched,
+  and nothing protects the lab ranges while the akasha table is not loaded (as in step 4b).
+
+### Confirmation (step 4d)
+
+On 2026-11-17:
+
+* Pre-check: on `insa`, Tailscale accepts no routes and uses no exit node, table 52 holds no lab
+  range, `ip rule` shows only the default and Tailscale's rules; the three lab routes go via
+  `br-transit` (`linkdown`: no lab VM yet).
+* Dry run with the host's `nft -c`: only the guard rule and comments change. Real run
+  `failed=0`, second run `changed=0`.
+* Control before the change (role not yet merged): a laptop connection to 10.10.0.200, routed
+  by a test /32 route into a dummy interface, entered that interface: the leak path is real
+  (the dummy interface discards packets; nothing went out of `eno1`).
+* After the change, same test with IPv6 off on the dummy interface: the guard counter grew by
+  5 (the SYN retries of a 5 s `curl`) and nothing was transmitted into the dummy interface.
+* Regressions: laptop → fake lab router at 10.10.0.1 and 10.20.0.1 works (client 10.255.255.1),
+  lab → laptop blocked; lab → Internet TCP 443 works and is masqueraded; the guard counter did
+  not move during these tests. Host unchanged: no failed unit, NFS mounted, Tailscale,
+  NetworkManager and the firewall unit active.
+* To check later: the guard counter after normal use (it should only count tests).
 
 ### Consequences
 

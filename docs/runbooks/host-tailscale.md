@@ -105,9 +105,10 @@ The control plane can switch Tailscale to its nftables mode (the log then says s
 table instead (`nft list ruleset | grep -B2 -A8 ts-postrouting`).
 
 If a lab route is missing (for example `br-transit` failed at boot), packets from the tailnet
-to that range follow the default route out of `eno1`, into the campus network. Until the host
-firewall drops them (follow-up of step 4c), turn the routes off first:
-`tailscale set --advertise-routes=`, then fix the bridge (runbook `host-network.md`).
+to that range would follow the default route out of `eno1`, into the campus network. The host
+firewall drops them instead (guard rule of step 4d, counter in
+`nft list chain inet akasha forward`); fix the bridge (runbook `host-network.md`). If the
+akasha table is not loaded either, turn the routes off first: `tailscale set --advertise-routes=`.
 
 On the laptop:
 
