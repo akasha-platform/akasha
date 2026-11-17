@@ -64,7 +64,7 @@ Done when: an empty PR passes every check; actions are SHA-pinned; `main` is pro
 5. Memory headroom (KSM, zswap, free page reporting) and host monitoring (ADR-0016).
 6. OpenTofu L0 (first apply from the laptop; state location decided before this step;
    OpenTofu bumped to ≥ 1.13.9 first, see ADR-0022):
-   base image, OPNsense, bastion, core (OpenBao + versitygw).
+   base image, edge router (Debian, ADR-0028/ADR-0029), bastion, core (OpenBao + versitygw).
 7. OpenBao initialisation (Shamir; self-init test A14), in-lab S3 conditional-write test (A3),
    restic to AWS S3 with Object Lock (design + test A13), host checks (A15).
 

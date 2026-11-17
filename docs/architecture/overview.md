@@ -38,7 +38,7 @@ L4 Platform   Argo CD · Traefik + Gateway API · cert-manager · External Secre
 L3 K8s        K3s: 1 server + 2 workers + 1 CI node, on Nova VMs
 L2 Resources  OpenStack projects, users, app credentials, networks, images, flavors (OpenTofu)
 L1 OpenStack  Kolla-Ansible 2026.1 · 1 controller + 2 computes · ML2/OVN · Octavia (OVN provider)
-L0 Host       libvirt/KVM VMs (OpenTofu) · Linux bridges · nftables · OPNsense · bastion · core
+L0 Host       libvirt/KVM VMs (OpenTofu) · Linux bridges · nftables · edge router · bastion · core
 ```
 
 ## 3. L0 — host and VMs
@@ -48,7 +48,7 @@ Proxmox layer, so Kubernetes VMs run at nesting level 2 ([ADR-0005](../adr/0005-
 
 | VM | Role | vCPU (pinned) | RAM | Disk |
 |---|---|---|---|---|
-| opnsense | Edge router/firewall, DNS (Unbound), NTP | 2 → E-cores | 3 GB | 16 G |
+| router | Edge router/firewall (nftables, no NAT), DNS (Unbound), NTP (chrony, UTC over HTTPS); Debian 13 ([ADR-0028](../adr/0028-lab-edge-router-debian.md), [ADR-0029](../adr/0029-lab-time-source.md)) | 1 → E-core | 0.5 GB | 8 G |
 | bastion | Runs OpenTofu/Ansible/Kolla; single SSH entry point for CI (via Tailscale) | 1 → E-cores | 1 GB | 20 G |
 | core | OpenBao (secrets, PKI, SSH CA, JWT auth) + versitygw (in-lab S3) | 1 → E-cores | 0.75 GB | 20 G + 30 G data |
 | os-ctl01 | OpenStack control plane, API VIP (HAProxy/keepalived), Cinder LVM, OVN gateway | 4 → P-cores | 8 GB | 60 G + 120 G raw LV |
@@ -56,15 +56,17 @@ Proxmox layer, so Kubernetes VMs run at nesting level 2 ([ADR-0005](../adr/0005-
 | os-cmp02 | Nova compute + OVN gateway chassis (AZ b) | 6 → P-cores | ~7.6 GB | 100 G |
 | host | Debian, libvirt, QEMU overhead of 6 VMs, Tailscale | E-cores | ~3 GB | — |
 
-**RAM is ~100% committed** (≈31 GB). Headroom techniques (KSM, free page reporting,
+**RAM was ~100% committed** (≈31 GB with a 3 GB OPNsense); the 0.5 GB router of ADR-0028
+frees about 2.5 GB. The owner requires ≥ 3 GB of the host to stay free; the budget is being
+revised (open question B11). Headroom techniques (KSM, free page reporting,
 zswap) are a safety buffer, not capacity ([ADR-0016](../adr/0016-host-memory-headroom.md)).
 
 ### Networks (Linux bridges on the host)
 
 | Bridge | CIDR | MTU | Purpose |
 |---|---|---|---|
-| br-transit | 10.255.255.0/29 | 1500 | Host ↔ OPNsense WAN. The host is the only NAT to the uplink and drops lab → campus LAN |
-| br-mgmt | 10.10.0.0/24 | 1500 | Management + OpenStack APIs: OPNsense .1, bastion .10, ctl .11, core .12, computes .21/.22, internal VIP .100, external VIP .101 (one-vs-two VIPs open) |
+| br-transit | 10.255.255.0/29 | 1500 | Host ↔ edge router WAN. The host is the only NAT to the uplink and drops lab → campus LAN |
+| br-mgmt | 10.10.0.0/24 | 1500 | Management + OpenStack APIs: router .1, bastion .10, ctl .11, core .12, computes .21/.22, internal VIP .100, external VIP .101 (one-vs-two VIPs open) |
 | br-tun | 10.30.0.0/24 | 9000 | Geneve overlay between controller and computes |
 | br-ext | 10.20.0.0/24 | 1500 | Provider/floating-IP network (FIP pool .100–.250), unaddressed NICs on ctl + computes |
 
