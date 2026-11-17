@@ -61,7 +61,16 @@ Done when: an empty PR passes every check; actions are SHA-pinned; `main` is pro
      a lab range that would leave through any interface other than `br-transit` (e.g. tailnet
      packets to the lab when the `br-transit` routes are missing would otherwise reach the
      campus network); checked with a dummy interface, regressions of 4b and 4c pass.
-5. Memory headroom (KSM, zswap, free page reporting) and host monitoring (ADR-0016).
+5. Memory headroom and host monitoring (ADR-0016), reordered by the owner on 2026-11-17:
+   * 5a ✅ 2026-11-17: read-only host checks (kernel features, KSM and zswap off, swappiness
+     60, swap unused, memory pressure near zero, `machine.slice` without limits, libvirtd
+     socket-activated, no hook, no exporter).
+   * The akasha-only parts (free page reporting, headless VMs, a `machine-akasha.slice` for the
+     lab's VMs) are built in step 6.
+   * The host-wide parts (KSM, zswap, swappiness, OOM order, `MemoryLow=`) are decided one by
+     one after the step-6 RAM gate, from measurements.
+   * Host monitoring (node-exporter) waits until a Prometheus exists (P5); until then
+     measurements are read-only commands over SSH.
 6. OpenTofu L0 (first apply from the laptop; state location decided before this step;
    OpenTofu bumped to ≥ 1.13.9 first, see ADR-0022):
    base image, edge router (Debian, ADR-0028/ADR-0029), bastion, core (OpenBao + versitygw),
