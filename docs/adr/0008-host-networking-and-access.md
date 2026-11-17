@@ -155,6 +155,45 @@ the private file:
   lab diagnostics must use TCP, not ping.
 * Not yet checked: the table after a host reboot (open question A17).
 
+### Implementation (P1 step 4c)
+
+Done by hand from the runbook [host-tailscale.md](../runbooks/host-tailscale.md), not by
+Ansible: Tailscale on `insa` is the owner's only remote access path and belongs to the owner
+(ADR-0027), the admin-console steps are manual anyway, and the host side is one idempotent
+command. Plan reviewed by an independent agent before execution.
+
+* `insa` advertises 10.10.0.0/24 and 10.20.0.0/24; SNAT stays on (Tailscale's default), so the
+  lab router sees the source 10.255.255.1 and needs no route back to the tailnet. Tailscale
+  keeps its iptables mode and adds no netfilter rule for this: its existing `ts-forward` mark
+  and `ts-postrouting` masquerade apply, and the akasha chain `to_lab` (step 4b) accepts
+  `tailscale0` → the two routes.
+* The routes are approved by hand in the admin console (no `autoApprovers`).
+* The tailnet policy replaces the default allow-all grant with two grants: the owner's devices
+  reach each other (`autogroup:member` → `autogroup:self`), and only the laptop reaches the two
+  lab routes. Policy tests (accept and deny) run on every save. The real policy holds Tailscale
+  addresses and the owner's login and is kept outside the repository; the runbook has a
+  template with placeholders.
+* Only the laptop (Linux) runs `--accept-routes`. Route discovery is not limited by the policy:
+  other OSes accept routes by default, so "Use Tailscale subnets" is turned off on phones; the
+  policy denies them the lab either way.
+
+### Confirmation (step 4c)
+
+On 2026-11-17:
+
+* Pre-check: no tagged device in the tailnet; IPv6 forwarding off on `insa`; tailscaled in
+  iptables mode; the laptop's local network does not overlap the lab ranges.
+* The new policy saved with its tests passing; SSH from the laptop to `insa` worked after
+  every step.
+* `ts-forward` and `ts-postrouting` identical before and after `--advertise-routes`.
+* The packet filter `insa` receives from the control plane (`tailscale debug netmap`): the
+  owner's three devices → `insa`, and only the laptop → 10.10.0.0/24, 10.20.0.0/24.
+* The laptop has both routes in table 52 via `tailscale0`; its Internet traffic still leaves
+  through its local gateway.
+* Fake lab router (network namespace on `br-transit` with 10.10.0.1 and 10.20.0.1): HTTP from
+  the laptop to both addresses works, with the client address 10.255.255.1; a connection from
+  the lab to the laptop's Tailscale address is dropped by `from_lab` (counter 0 → 5).
+
 ### Consequences
 
 * Good, because the campus network is protected by an explicit drop rule.
