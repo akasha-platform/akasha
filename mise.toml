@@ -10,7 +10,8 @@ locked_verify_provenance = true     # re-verify signatures/attestations on every
 disable_backends = ["asdf", "vfox"] # never run third-party plugin scripts
 
 [tools]
-"aqua:opentofu/opentofu"        = "1.13.2"  # bump to >=1.13.9 (state-persistence fix) before the first apply in P1
+"aqua:opentofu/opentofu"        = "1.13.9"  # >= 1.13.9: local-state persistence fix (opentofu#4811), ADR-0031
+"aqua:aws/aws-cli"              = "2.40.0"  # `aws login` needs >= 2.32; L0 state in S3 (ADR-0031)
 "aqua:terraform-linters/tflint" = "0.65.0"
 "aqua:aquasecurity/trivy"       = "0.76.1"  # installed as a binary, never via trivy-action
 "aqua:gitleaks/gitleaks"        = "8.30.1"
