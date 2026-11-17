@@ -1,7 +1,8 @@
 # {{ ansible_managed }}
-# Lab firewall and NAT (ADR-0008), scoped to akasha's bridges (ADR-0027). Only packets that
-# enter or leave a lab bridge are matched; every other packet meets `policy accept` here and
-# is decided by the host's other tables (Tailscale, libvirt, iptables-nft) as before.
+# Lab firewall and NAT (ADR-0008), scoped to what akasha owns (ADR-0027). Only packets that
+# enter or leave a lab bridge, or that are routed towards a lab range, are matched; every
+# other packet meets `policy accept` here and is decided by the host's other tables
+# (Tailscale, libvirt, iptables-nft) as before.
 # Loading this file replaces the table atomically (one transaction).
 {% set lab_ifaces = host_firewall_lab_interfaces | map('to_json') | join(', ') %}
 {% set uplink = host_firewall_uplink | to_json %}
@@ -39,6 +40,10 @@ table inet akasha {
 	# --- Routed lab traffic ---------------------------------------------------------------
 	chain forward {
 		type filter hook forward priority filter; policy accept;
+		# Lab ranges are reachable only through the edge router. Without the routes via
+		# br-transit (bridge down at boot, ifdown), routed packets to them (e.g. from the tailnet)
+		# would follow the default route into the campus network.
+		ip daddr @lab_nets oifname != {{ transit }} counter drop
 		iifname { {{ lab_ifaces }} } jump from_lab
 		oifname { {{ lab_ifaces }} } jump to_lab
 	}
