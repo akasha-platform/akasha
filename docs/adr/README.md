@@ -34,3 +34,4 @@ acceptance except to change its status (`superseded by ADR-NNNN`).
 | [0027](0027-guest-on-the-school-host.md) | akasha is a guest on the school host: minimal footprint and reviewed host changes | accepted |
 | [0028](0028-lab-edge-router-debian.md) | Lab edge router: a minimal Debian 13 VM instead of OPNsense | accepted |
 | [0029](0029-lab-time-source.md) | Lab time source: the edge router keeps UTC over HTTPS and serves NTP to the lab | accepted |
+| [0030](0030-ram-budget.md) | RAM budget: at least 3 GiB of the host stays free, by plan | accepted |

@@ -49,17 +49,17 @@ Proxmox layer, so Kubernetes VMs run at nesting level 2 ([ADR-0005](../adr/0005-
 | VM | Role | vCPU (pinned) | RAM | Disk |
 |---|---|---|---|---|
 | router | Edge router/firewall (nftables, no NAT), DNS (Unbound), NTP (chrony, UTC over HTTPS); Debian 13 ([ADR-0028](../adr/0028-lab-edge-router-debian.md), [ADR-0029](../adr/0029-lab-time-source.md)) | 1 → E-core | 0.5 GB | 8 G |
-| bastion | Runs OpenTofu/Ansible/Kolla; single SSH entry point for CI (via Tailscale) | 1 → E-cores | 1 GB | 20 G |
-| core | OpenBao (secrets, PKI, SSH CA, JWT auth) + versitygw (in-lab S3) | 1 → E-cores | 0.75 GB | 20 G + 30 G data |
-| os-ctl01 | OpenStack control plane, API VIP (HAProxy/keepalived), Cinder LVM, OVN gateway | 4 → P-cores | 8 GB | 60 G + 120 G raw LV |
-| os-cmp01 | Nova compute + OVN gateway chassis (AZ a) | 6 → P-cores | ~7.6 GB | 100 G |
-| os-cmp02 | Nova compute + OVN gateway chassis (AZ b) | 6 → P-cores | ~7.6 GB | 100 G |
-| host | Debian, libvirt, QEMU overhead of 6 VMs, Tailscale | E-cores | ~3 GB | — |
+| bastion | Runs OpenTofu/Ansible/Kolla; single SSH entry point for CI (via Tailscale) | 1 → E-cores | 0.75 GiB (768 MiB) + 1 GiB guest swap | 20 G |
+| core | OpenBao (secrets, PKI, SSH CA, JWT auth) + versitygw (in-lab S3) | 1 → E-cores | 0.6 GiB (614 MiB) | 20 G + 30 G data |
+| os-ctl01 | OpenStack control plane, API VIP (HAProxy/keepalived), Cinder LVM, OVN gateway | 4 → P-cores | 8 GiB | 60 G + 120 G raw LV |
+| os-cmp01 | Nova compute + OVN gateway chassis (AZ a) | 6 → P-cores | 7.6 GiB (7 782 MiB) | 100 G |
+| os-cmp02 | Nova compute + OVN gateway chassis (AZ b) | 6 → P-cores | 7.6 GiB (7 782 MiB) | 100 G |
+| host | Debian (school desktop), libvirt, QEMU overhead of 6 VMs, Tailscale | E-cores | 3 GiB planned (1.73 measured idle) | — |
 
-**RAM was ~100% committed** (≈31 GB with a 3 GB OPNsense); the 0.5 GB router of ADR-0028
-frees about 2.5 GB. The owner requires ≥ 3 GB of the host to stay free; the budget is being
-revised (open question B11). Headroom techniques (KSM, free page reporting,
-zswap) are a safety buffer, not capacity ([ADR-0016](../adr/0016-host-memory-headroom.md)).
+**RAM budget** ([ADR-0030](../adr/0030-ram-budget.md)): VMs 25.05 GiB + host's own use
+3 GiB (planned) leave 3.04 GiB of the host's 31.09 GiB free, the owner's minimum being
+3 GiB; all VMs are headless, and a measurement gate in step 6 confirms it. Headroom
+techniques (KSM, free page reporting, zswap) are a safety buffer, not capacity ([ADR-0016](../adr/0016-host-memory-headroom.md)).
 
 ### Networks (Linux bridges on the host)
 
