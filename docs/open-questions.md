@@ -23,7 +23,7 @@ item here.
 | A13 | Design and test restic on AWS S3 with Object Lock: bucket versioning, retention mode, which credential runs `forget/prune`, cost | Object Lock needs versioning; prune deletes objects; the "no-delete key" idea came from B2 | P1 |
 | A14 | OpenBao self-init (`initialize` stanza) behaviour with Shamir unseal | Self-init is documented mainly with auto-unseal | P1 |
 | A15 | Host checks after setup: cgroup2 `memory_recursiveprot` (for `MemoryLow=`), default QEMU `oom_score_adj`, `/sys/module/zswap/parameters/zpool`, `virsh dumpxml` shows the requested `cpu.mode` (provider issue #1344), OPNsense vtnet offload measured with iperf3 (FreeBSD bug 290773) | Each is an assumption of the host design | P1 |
-| A17 | After the next host reboot: the four lab bridges come back (`ip -br link show type bridge`), unmanaged by NetworkManager, no IPv6 on them, `ip_forward=1`, libvirt `default` network inactive, `akasha-firewall` active with table `inet akasha` loaded, `forwarding` 1/0/0/0 on the bridges, `tailscale debug prefs` still advertises both lab routes | Checked only on the running host (ADR-0008 step 4a) | P1 |
+| A17 | After the next host reboot: the four lab bridges come back (`ip -br link show type bridge`), unmanaged by NetworkManager, no IPv6 on them, `ip_forward=1`, libvirt `default` network inactive, `akasha-firewall` active with table `inet akasha` loaded, `forwarding` 1/0/0/0 on the bridges, `tailscale debug prefs` still advertises both lab routes, `ip route show 10.10.0.0/24` and `10.20.0.0/24` via 10.255.255.2 dev br-transit, tailscaled log says "default choosing iptables" | Checked only on the running host (ADR-0008 step 4a) | P1 |
 
 ## B. Decisions deliberately deferred
 
@@ -49,6 +49,7 @@ item here.
 | C4 | Time source of the host and of the lab router: from the campus, NTP (UDP 123) to public servers is blocked while DNS (UDP 53) and HTTPS work (checked 2026-11-16) — campus NTP server (needs an exception in the lab firewall), the host serving time to the lab, or another way | P1 (before step 6) |
 | C6 | Acceptable reboot window for host kernel updates (unattended upgrades never reboot automatically) | P1 |
 | C7 | AWS account, free-tier terms and expected monthly cost for off-site backups | P1 |
+| C8 | Node key expiry of `insa` in the tailnet (expires 2027-03-21, read on 2026-11-17): expiry drops `insa` from the tailnet and locks the owner out until a log-in on site; Tailscale advises disabling expiry on servers and subnet routers. Depends on when the semester (and the loan of `insa`) ends | P1 |
 
 ## D. Facts to re-check right before use
 
