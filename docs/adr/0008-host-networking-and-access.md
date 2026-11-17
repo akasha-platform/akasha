@@ -111,7 +111,10 @@ Ansible role `host_firewall` (`playbooks/host.yml`, tag `firewall`), designed un
   research/04 was **not adopted**: it would have changed the school's machine (lockout risk,
   NFS, IT access), chosen by the owner on 2026-11-15. Step 4d widens the scope to routed
   packets towards the lab ranges (still akasha's own ranges, ADR-0027): they may only leave
-  through `br-transit`.
+  through `br-transit`. Residual risk accepted by the owner (2026-11-17): the host's own
+  processes are not matched (output hook), so while the routes via `br-transit` are missing
+  they could still reach a lab range through `eno1`; nothing on the host talks to the lab
+  today (Ansible and OpenTofu run from the laptop). Revisit if a host service needs the lab.
 * **Rules:** the lab may only ping the transit address of the host; only `br-transit` may
   route; sources outside the lab ranges are dropped; routed lab traffic leaves through `eno1`
   only towards public destinations (RFC 6890 special ranges and the campus's public prefixes,
