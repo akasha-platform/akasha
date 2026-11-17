@@ -22,14 +22,16 @@ the campus LAN. OpenStack needs separate management, overlay and provider networ
   * `br-ext` 10.20.0.0/24 — provider / floating IPs, unaddressed NICs on ctl and computes
 * The host is the only NAT to the uplink (nftables masquerade) and drops lab → campus LAN.
 * OPNsense (3 GB, official minimum) is the lab edge: routing, firewall, Unbound DNS for
-  `akasha.internal` (ICANN-reserved), NTP for the lab.
+  `akasha.internal` (ICANN-reserved), NTP for the lab. **Superseded on 2026-11-17** by
+  [ADR-0028](0028-lab-edge-router-debian.md) (a 512 MB Debian router with the same role and
+  addresses) and [ADR-0029](0029-lab-time-source.md) (lab time over HTTPS on that router).
 * Remote access only through Tailscale; the host acts as subnet router for 10.10/24 and 10.20/24.
   The tailnet is the owner's personal tailnet: the owner approves the advertised routes and
   writes the ACLs (open question C5, answered on 2026-11-13).
 * No libvirt nwfilter on bridge ports used by OVN; `br_netfilter` kept off; libvirt's
   nftables backend selected explicitly (`firewall_backend`), and the libvirt `default` network
   is not autostarted.
-* Host addresses on `br-mgmt`: OPNsense .1, bastion .10, ctl .11, core .12, computes .21/.22.
+* Host addresses on `br-mgmt`: edge router .1 (OPNsense in the original design), bastion .10, ctl .11, core .12, computes .21/.22.
 
 The lab CIDRs, the `akasha.internal` zone and the 3 GB OPNsense sizing were confirmed
 explicitly by the owner on 2026-11-09.
