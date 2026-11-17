@@ -44,8 +44,9 @@ Done when: an empty PR passes every check; actions are SHA-pinned; `main` is pro
    `/var/lib/libvirt/akasha` + `lv_cinder` 120 GiB raw, ~37 GiB free; role `host_storage`
    idempotent; activation and mount checked after a reboot. Host upgraded to Debian 13.7
    (runbook `host-upgrade.md`).
-4. ✅ 2026-11-17 Host bridges and nftables (campus LAN drop rule), Tailscale subnet routing,
-   in three steps: 4a bridges + forwarding + libvirt backend, 4b nftables, 4c Tailscale.
+4. 🔄 Host bridges and nftables (campus LAN drop rule), Tailscale subnet routing, in four
+   steps: 4a bridges + forwarding + libvirt backend, 4b nftables, 4c Tailscale, 4d lab-range
+   drop rule.
    * 4a ✅ 2026-11-14: role `host_network` (ADR-0008): `br-transit`, `br-mgmt`, `br-tun`
      (MTU 9000), `br-ext` owned by ifupdown and unmanaged by NetworkManager, IPv4 forwarding,
      libvirt nftables backend, `default` network stopped; idempotent.
@@ -56,6 +57,9 @@ Done when: an empty PR passes every check; actions are SHA-pinned; `main` is pro
    * 4c ✅ 2026-11-17: `insa` advertises 10.10.0.0/24 and 10.20.0.0/24 (approved by hand, SNAT
      on); the tailnet policy lets only the owner's laptop reach them, the owner's devices still
      reach each other; checked with a fake lab router (runbook `host-tailscale.md`).
+   * 4d (follow-up of the 4c review): host firewall rule dropping lab-range destinations that
+     would leave through any interface other than `br-transit` (e.g. tailnet packets to the
+     lab when the `br-transit` routes are missing would otherwise reach the campus network).
 5. Memory headroom (KSM, zswap, free page reporting) and host monitoring (ADR-0016).
 6. OpenTofu L0 (first apply from the laptop; state location decided before this step;
    OpenTofu bumped to ≥ 1.13.9 first, see ADR-0022):

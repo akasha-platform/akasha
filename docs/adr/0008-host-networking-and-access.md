@@ -178,9 +178,12 @@ command. Plan reviewed by an independent agent before execution.
   lab routes. Policy tests (accept and deny) run on every save. The real policy holds Tailscale
   addresses and the owner's login and is kept outside the repository; the runbook has a
   template with placeholders.
-* Only the laptop (Linux) runs `--accept-routes`. Route discovery is not limited by the policy:
-  other OSes accept routes by default, so "Use Tailscale subnets" is turned off on phones; the
-  policy denies them the lab either way.
+* Only the laptop (Linux) runs `--accept-routes`; it is off by default on Linux. The policy
+  does not hide routes from other devices, and Windows, Android and iOS accept them by default,
+  so "Use Tailscale subnets" is to be turned off on any such device added later (none on
+  2026-11-17); the policy denies them the lab either way.
+* Tailnet clients all appear in the lab as 10.255.255.1 (SNAT): lab-side rules and logs cannot
+  tell them apart. Accepted while the laptop is the only client.
 
 ### Confirmation (step 4c)
 
@@ -198,6 +201,13 @@ On 2026-11-17:
 * Fake lab router (network namespace on `br-transit` with 10.10.0.1 and 10.20.0.1): HTTP from
   the laptop to both addresses works, with the client address 10.255.255.1; a connection from
   the lab to the laptop's Tailscale address is dropped by `from_lab` (counter 0 → 5).
+* Independent review after execution: the policy, SNAT, table 52 and the return path are as
+  intended. It found one gap: the host's routes to 10.10/24 and 10.20/24 exist only while
+  `br-transit` is up; without them, tailnet packets to the lab follow the default route out of
+  `eno1` into the campus network, masqueraded by Tailscale, and no akasha rule matches them.
+  The owner chose (2026-11-17) to close it with a host firewall rule that drops lab-range
+  destinations leaving through any interface other than `br-transit` (follow-up step). Node
+  key expiry of `insa` is open question C8.
 
 ### Consequences
 
