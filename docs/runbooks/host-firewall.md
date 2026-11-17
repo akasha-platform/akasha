@@ -3,8 +3,9 @@
 Design: [ADR-0008](../adr/0008-host-networking-and-access.md) (step 4b) and
 [ADR-0027](../adr/0027-guest-on-the-school-host.md). Managed by the Ansible role
 `host_firewall` (`infra/ansible/playbooks/host.yml`, tag `firewall`). Only packets entering or
-leaving `br-transit`, `br-mgmt`, `br-tun` and `br-ext` are matched; the host's own traffic is
-not. Commands run on `insa` as root.
+leaving `br-transit`, `br-mgmt`, `br-tun` and `br-ext`, and routed packets towards the lab
+ranges (they may only leave through `br-transit`, step 4d), are matched; the host's own traffic
+is not. Commands run on `insa` as root.
 
 ## Run the role
 

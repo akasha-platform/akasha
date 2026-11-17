@@ -1,6 +1,8 @@
 ---
-# ADR-0008, P1 step 4b: lab firewall and NAT, scoped to the lab bridges (ADR-0027).
-# The host's own traffic (SSH, NFS, desktop, Tailscale, libvirt's virbr0) is never matched.
+# ADR-0008, P1 steps 4b and 4d: lab firewall and NAT, scoped to the lab bridges and ranges
+# (ADR-0027). The host's own traffic (SSH, NFS, desktop, Tailscale, libvirt's virbr0) is never
+# matched; routed packets are matched only when they enter or leave a lab bridge or go to a
+# lab range.
 
 - name: Check that the uplink is the interface of the default route
   ansible.builtin.assert:
@@ -10,6 +12,32 @@
     fail_msg: >-
       Default route via {{ ansible_facts['default_ipv4']['interface'] | default('none') }}, expected
       {{ host_firewall_uplink }}; the transit bridge must be one of the lab interfaces.
+    quiet: true
+
+# The forward guard drops routed packets to a lab range unless they leave through the transit
+# bridge: a range without a route via that bridge (role host_network) would be unreachable.
+- name: Read the route of every lab range
+  ansible.builtin.shell: |
+    set -o pipefail
+    for net in {{ host_firewall_lab_nets | join(' ') }}; do
+      echo "$net dev=$(ip -4 route show exact "$net" table main \
+        | awk '{ for (i = 1; i < NF; i++) if ($i == "dev") { print $(i + 1); exit } }')"
+    done
+  args:
+    executable: /bin/bash
+  register: host_firewall_routes
+  changed_when: false
+  check_mode: false
+
+- name: Check that every lab range is routed via the transit bridge
+  ansible.builtin.assert:
+    that:
+      - >-
+        host_firewall_lab_nets | map('regex_replace', '$', ' dev=' ~ host_firewall_transit_interface)
+        | difference(host_firewall_routes.stdout_lines) | length == 0
+    fail_msg: >-
+      {{ host_firewall_routes.stdout_lines }}: every lab range needs a route via
+      {{ host_firewall_transit_interface }} (role host_network, bridge up).
     quiet: true
 
 - name: Create the akasha configuration directory
@@ -79,12 +107,15 @@
 
 # --- Checks ----------------------------------------------------------------------------------
 
-- name: Read the loaded table and the forwarding state of the lab bridges
+- name: Read the loaded table, the guard rule and the forwarding state of the lab bridges
   ansible.builtin.shell: |
     set -o pipefail
     systemctl is-active akasha-firewall.service | sed 's/^/unit=/'
     systemctl is-enabled akasha-firewall.service | sed 's/^/enabled=/'
     nft list table inet akasha | awk '$1 == "chain" { print "chain=" $2 }'
+    nft list chain inet akasha forward \
+      | grep -qF 'ip daddr @lab_nets oifname != "{{ host_firewall_transit_interface }}"' \
+      && echo guard=present
     for b in {{ host_firewall_lab_interfaces | join(' ') }}; do
       echo "$b forwarding=$(cat /proc/sys/net/ipv4/conf/$b/forwarding)"
     done
@@ -95,11 +126,12 @@
   check_mode: false
   when: not ansible_check_mode
 
-- name: Check the table, the unit and that only the transit bridge forwards
+- name: Check the table, the guard rule, the unit and that only the transit bridge forwards
   ansible.builtin.assert:
     that:
       - "'unit=active' in host_firewall_state.stdout_lines"
       - "'enabled=enabled' in host_firewall_state.stdout_lines"
+      - "'guard=present' in host_firewall_state.stdout_lines"
       - >-
         ['input', 'lab_to_host', 'forward', 'from_lab', 'to_lab', 'postrouting']
         | map('regex_replace', '^', 'chain=') | difference(host_firewall_state.stdout_lines)
