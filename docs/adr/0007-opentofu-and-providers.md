@@ -31,6 +31,8 @@ while keeping the same language and providers.
   creates the `core` VM that hosts that S3, so it cannot store its own state there: its first
   apply runs from the operator laptop, its state is encrypted with a `pbkdf2` passphrase kept
   outside OpenBao, and its final location is an open question (`docs/open-questions.md`).
+  **Decided on 2026-11-17** in [ADR-0031](0031-l0-state-in-aws-s3.md): a dedicated AWS S3
+  bucket with `use_lockfile` and versioning, the `pbkdf2` encryption kept.
 
 ### Consequences
 

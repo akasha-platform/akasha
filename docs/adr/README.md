@@ -35,3 +35,4 @@ acceptance except to change its status (`superseded by ADR-NNNN`).
 | [0028](0028-lab-edge-router-debian.md) | Lab edge router: a minimal Debian 13 VM instead of OPNsense | accepted |
 | [0029](0029-lab-time-source.md) | Lab time source: the edge router keeps UTC over HTTPS and serves NTP to the lab | accepted |
 | [0030](0030-ram-budget.md) | RAM budget: at least 3 GiB of the host stays free, by plan | accepted |
+| [0031](0031-l0-state-in-aws-s3.md) | L0 OpenTofu state in a dedicated AWS S3 bucket | accepted |

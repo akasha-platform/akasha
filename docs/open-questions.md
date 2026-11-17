@@ -28,6 +28,7 @@ item here.
 | A19 | Does the campus let TCP 80 out (Debian mirrors and other tools use `http://`)? Test from a lab namespace on `br-transit`: `curl -sI http://deb.debian.org` | Only DNS and HTTPS were tested (step 4b) | P1 (before step 6) |
 | A20 | Drift rate of the host clock: second offset measurement against an NTP-synced laptop (first: −18.0 s on 2026-11-17 09:48 UTC) | Shows how fast the host departs from UTC; the lab does not depend on it (ADR-0029) but `ptp_kvm` monitoring does | P1 |
 | A22 | libvirtd on `insa` is socket-activated (`libvirtd.service` inactive, `libvirtd.socket` active on 2026-11-17): after a host reboot, do domains marked autostart (the router) start without anything connecting to libvirt? | ADR-0028 boot order and the router's autostart depend on it | P1 (step 6) |
+| A23 | libvirt provider 0.9.9 and several laptops (ADR-0031): with `ignore_changes = [create]` on volumes built from content, a plan from a second laptop (or after `/tmp` is cleared) must not replace any volume nor stop any VM; a state-loss drill (import blocks) must end with a plan that destroys nothing; S3 lock: two laptops planning at once get one lock error | Without it, a routine plan can stop `core` | P1 (step 6) |
 
 ## B. Decisions deliberately deferred
 
@@ -35,7 +36,6 @@ item here.
 |---|---|---|---|
 | B1 | RAM cut-downs if K3s guests lack memory | shorter metrics/log retention · one PostgreSQL instance for prod · merge CI node into workers · defer/drop Octavia (NodePort) · replace Kyverno with native ValidatingAdmissionPolicy (~0.45 GB, loses image-signature checks) | after A2 (P4) |
 | B2 | Tenant MTU | 1442 (default, 1500 underlay) · ≈ 8942 (`path_mtu` 9000 on `br-tun`); pod MTU = tenant − 50 | P2 |
-| B3 | Location of the L0/bootstrap OpenTofu state (cannot live in the S3 it creates) | encrypted file in a private location · encrypted in Git · other | P1 (before first apply) |
 | B4 | One VIP or two (internal/external) for the OpenStack APIs | two VIPs need two certificates and an OPNsense rule | P2 |
 | B5 | Pin kolla-ansible by PyPI release (22.2.0) or by `stable/2026.1` commit SHA | | P2 |
 | B6 | Add `net01` (dedicated network node) | only if ≥ 1.5 GB spare after A2 | P7 |
