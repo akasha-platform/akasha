@@ -1,7 +1,7 @@
 ---
 argument_specs:
   main:
-    short_description: Lab firewall and NAT of the L0 host, scoped to the lab bridges (ADR-0008, ADR-0027)
+    short_description: Lab firewall and NAT of the L0 host, scoped to the lab bridges and ranges (ADR-0008, ADR-0027)
     options:
       host_firewall_uplink:
         type: str
@@ -9,7 +9,9 @@ argument_specs:
       host_firewall_lab_interfaces:
         type: list
         elements: str
-        description: Lab bridges; only packets entering or leaving them are matched.
+        description:
+          - Lab bridges; packets entering or leaving them are matched, and so are routed
+            packets towards host_firewall_lab_nets.
       host_firewall_transit_interface:
         type: str
         description: The only lab bridge allowed to route through the host (edge router WAN).
@@ -19,7 +21,10 @@ argument_specs:
       host_firewall_lab_nets:
         type: list
         elements: str
-        description: Lab source ranges (anti-spoofing and NAT).
+        description:
+          - Lab ranges. As sources, anti-spoofing and NAT. As destinations, routed packets may
+            only leave through the transit bridge. Every range must be routed via the transit
+            bridge by host_network (checked at run time).
       host_firewall_tailnet_to_lab:
         type: list
         elements: str

@@ -1,6 +1,7 @@
 ---
-# Lab firewall and NAT of ADR-0008, scoped to akasha's own bridges (ADR-0027): packets that do
-# not enter or leave one of these bridges are never matched.
+# Lab firewall and NAT of ADR-0008, scoped to akasha's own bridges and ranges (ADR-0027):
+# packets that neither enter nor leave one of these bridges nor are routed towards a lab range
+# are never matched.
 host_firewall_uplink: eno1
 host_firewall_lab_interfaces:
   - br-transit
@@ -10,6 +11,9 @@ host_firewall_lab_interfaces:
 # The only bridge the lab may route through: the edge router's WAN side.
 host_firewall_transit_interface: br-transit
 host_firewall_transit_address: 10.255.255.1
+# Lab ranges: allowed sources of routed lab traffic, and destinations that may only be reached
+# through the transit bridge. Keep in sync with the routes of host_network_bridges (role
+# host_network); the role checks that each range is routed via the transit bridge.
 host_firewall_lab_nets:
   - 10.10.0.0/24
   - 10.20.0.0/24
