@@ -8,14 +8,23 @@ with a passphrase kept in the desktop keyring (GNOME Keyring) and on paper.
 
 ## Once: create the passphrase
 
+In your own terminal, not inside an agent or a recorded session:
+
 ```bash
 cd ~/Documents/dev/Projets/akasha && eval "$(mise activate bash)"
-uv run python infra/opentofu/scripts/tofu_passphrase.py --init l0
+uv run --locked python infra/opentofu/scripts/tofu_passphrase.py --init l0
+# write the 8 groups on paper, then:
+clear; printf '\e[3J'
+uv run --locked python infra/opentofu/scripts/tofu_passphrase.py --verify l0   # type it back from paper
 ```
 
-It generates a 64-character passphrase, stores it in the keyring (service `akasha-opentofu`,
-user `l0`) and shows it once: write it on paper, keep the paper away from the laptop, then run
-`clear`. It refuses to replace an existing passphrase. `--check l0` tells whether it exists.
+`--init` generates a 64-character passphrase from letters and digits that are easy to read back
+(no 0/O, 1/l/I), stores it in GNOME Keyring (service `akasha-opentofu`, user `l0`) and shows it
+once. It refuses to replace an existing passphrase. `--check l0` tells whether it exists;
+`--restore l0` stores a paper copy again if the keyring lost it. The script only uses the
+desktop's Secret Service and gives up after 45 s (for example when the keyring is locked and
+its unlock prompt is not answered). Keep `TF_ENCRYPTION` unset: it would be merged into the
+stack's encryption configuration.
 
 Without this passphrase the state cannot be read: losing both the laptop's keyring and the
 paper means rebuilding the state by import (ADR-0031).
@@ -38,15 +47,19 @@ passphrase script through `mise exec`, so the pinned uv and the locked environme
 ## Checks of the first run (step 6a)
 
 ```bash
-. ~/akasha-private/aws-l0-state.env
-aws s3api get-object --bucket "$BUCKET" --key l0/terraform.tfstate /tmp/l0.state >/dev/null
-python3 -c "import json; print(sorted(json.load(open('/tmp/l0.state'))))"
-# ['encrypted_data', 'encryption_version', 'lineage', 'meta', 'serial'] — nothing in clear
-rm -f /tmp/l0.state
+. ~/akasha-private/aws-l0-state.env; s=$(umask 077; mktemp -p ~/akasha-private)
+aws s3api get-object --bucket "$BUCKET" --key l0/terraform.tfstate "$s" >/dev/null
+python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(sorted(d), sorted(d['meta']))" "$s"
+# ['encrypted_data', 'encryption_version', 'lineage', 'meta', 'serial'] ['l0-passphrase', 'l0-pbkdf2']
+rm -f "$s"
 ```
 
-Lock: in a second terminal, while a `tofu apply` (without a plan file) waits for its
-confirmation, `tofu plan` must stop with `Error acquiring the state lock`.
+Only `lineage` (the state's identifier), `serial` (its write counter) and the key-provider
+metadata (pbkdf2 salt and parameters) are in clear.
+
+Lock: in terminal 1 run `tofu console` (it holds the state lock until you leave it); in
+terminal 2, `tofu plan` must stop with `Error acquiring the state lock`. Leave the console
+with `exit`.
 
 ## Off-AWS copy after every apply
 
@@ -67,6 +80,13 @@ The OpenTofu registry has no GPG key for `dmacvicar/libvirt`, so `tofu init` pri
 `F6D3 7375 0D6F 5983 E706 34DC 0833 E38C 51E7 4D26`, published on the Terraform registry), and
 all 13 `zh:` hashes of `.terraform.lock.hcl` match that file. Repeat this check whenever the
 provider version changes.
+
+## Rotate the passphrase
+
+Add a second chain (`external "passphrase_v2"` calling the script with `l0-v2`, a `pbkdf2`
+and an `aes_gcm` method with new aliases), point `state` and `plan` at the new method with
+`fallback { method = method.aes_gcm.l0 }`, run `--init l0-v2`, then a plan and an apply: the
+state is re-encrypted with the new key. Then remove the old chain and its keyring entry.
 
 ## Roll back (step 6a: empty state)
 
