@@ -135,6 +135,9 @@ Ansible role `host_firewall` (`playbooks/host.yml`, tag `firewall`), designed un
   ruleset`, enabling Debian's `nftables.service`), `br-transit` routes without filter or NAT.
   The runbook checks the table after every reboot, and the lab router will not autostart
   before that check (step 6).
+* The campus prefixes have no default (fixed on 2026-11-18): until then an empty default let a
+  run without the private file load a table that no longer blocked the campus. The play now
+  stops before any change when they are missing, empty or not IPv4 prefixes.
 * Egress from the campus (checked 2026-11-16): public DNS (UDP 53) and HTTPS work; NTP (UDP 123)
   to public servers is blocked — the lab's time source is open question C4.
 * For step 4c: Tailscale masquerades tailnet → lab flows (`ts-postrouting`), so the lab router

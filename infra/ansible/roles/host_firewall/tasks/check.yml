@@ -1,0 +1,20 @@
+---
+# The campus prefixes come from a private file (`-e @~/akasha-private/host_firewall.yml`).
+# Without them the table would still load and the lab could reach the campus: stop instead.
+# Imported first by tasks/main.yml and by the play's pre_tasks (before any role changes).
+- name: Check that the campus prefixes were passed from the private file
+  ansible.builtin.assert:
+    that:
+      - host_firewall_campus_nets is defined
+      - host_firewall_campus_nets is sequence
+      - host_firewall_campus_nets is not string
+      - host_firewall_campus_nets is not mapping
+      - host_firewall_campus_nets | length > 0
+      - >-
+        host_firewall_campus_nets
+        | select('match', '^([0-9]{1,3}\\.){3}[0-9]{1,3}/([0-9]|[12][0-9]|3[0-2])$')
+        | list | length == host_firewall_campus_nets | length
+    fail_msg: >-
+      host_firewall_campus_nets must be a non-empty list of IPv4 prefixes: pass
+      -e @~/akasha-private/host_firewall.yml (docs/runbooks/host-firewall.md).
+    quiet: true

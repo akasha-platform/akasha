@@ -10,7 +10,9 @@ is not. Commands run on `insa` as root.
 ## Run the role
 
 The campus's public prefixes are not in the repository. Keep them in a private file and pass
-it on every run (an empty list is the default):
+it on every run that applies the firewall. There is no default: without the file (or with an
+empty or malformed list) the play stops at its first task, before any role changes the host;
+runs limited to other tags (`--tags storage`, `--tags network`) do not need it:
 
 ```bash
 # ~/akasha-private/host_firewall.yml (laptop, never committed)

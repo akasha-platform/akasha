@@ -40,6 +40,8 @@ host_firewall_blocked_nets:
   - 203.0.113.0/24
   - 224.0.0.0/4
   - 240.0.0.0/4
-# Public prefixes of the campus network, blocked like the ranges above. Never committed:
-# pass them at run time, e.g. `-e @~/akasha-private/host_firewall.yml`.
-host_firewall_campus_nets: []
+# Public prefixes of the campus network, blocked like the ranges above. Never committed and
+# deliberately without a default: pass them at run time, e.g.
+# `-e @~/akasha-private/host_firewall.yml`. Without them the role stops (tasks/check.yml)
+# instead of loading a table that no longer blocks the campus.
+# host_firewall_campus_nets: [<prefix>/<len>, ...]
