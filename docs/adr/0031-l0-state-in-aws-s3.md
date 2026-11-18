@@ -57,8 +57,9 @@ details (also chosen by the owner: region, identity, manual creation):
 
 * **Bucket** in `eu-west-3` (Paris), used only for OpenTofu state, separate from the restic
   bucket. Versioning on; Block Public Access; a bucket policy that refuses non-TLS requests;
-  default encryption SSE-S3; lifecycle: noncurrent versions kept 180 days (at most 100), expired
-  delete markers removed (lock files create many versions). Created **by hand from a CLI
+  default encryption SSE-S3; lifecycle: a noncurrent version is removed only when it is older
+  than 180 days and not among the 100 newest; expired delete markers removed (lock files create
+  many versions). Created **by hand from a CLI
   runbook** that the owner runs once; its output is checked before use.
 * **Backend**: `s3` with `use_lockfile = true`, key `l0/terraform.tfstate`. The bucket name,
   region and account ID live in a partial backend configuration file outside the repository
@@ -79,7 +80,8 @@ details (also chosen by the owner: region, identity, manual creation):
   `s3:ListBucket` on the bucket (without a prefix condition: the first `init` reads a missing
   key), `s3:GetObject` and `s3:PutObject` on the state key, `s3:GetObject`, `s3:PutObject`
   and `s3:DeleteObject` on `<key>.tflock`. No `DeleteObjectVersion`, so it cannot erase
-  history; restoring an old version is done with the account's administrator identity.
+  history; restoring an old version is done with the administrator IAM user `akasha-admin`
+  (MFA), created so that the root user is no longer used (owner's choice of 2026-11-18).
 * **Off-AWS copy**: after every L0 apply, the raw encrypted state object is copied to a medium
   outside AWS (applies are rare), so losing the AWS account does not lose the state. The
   account itself gets root MFA, alternate contacts and a billing alarm.

@@ -21,6 +21,8 @@ One runbook per alert or known failure mode, written when the failure mode is in
   partition table, undo the layout, grow `lv_images`
 * [host-network.md](host-network.md) — lab bridges: check, missing bridge, change a bridge
   safely, overlay MTU, NetworkManager taking a bridge
+* [aws-l0-state.md](aws-l0-state.md) — AWS bucket and IAM users for the L0 OpenTofu state:
+  administrator user, bucket, least-privilege user, read-back, checks, roll back
 * [host-firewall.md](host-firewall.md) — lab firewall and NAT: run with the private campus
   prefixes, check after reboot, what removes the rules, test with a fake lab VM, roll back
 * [host-tailscale.md](host-tailscale.md) — Tailscale subnet routes to the lab: what is set,
