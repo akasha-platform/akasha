@@ -23,6 +23,11 @@ The state is sensitive: provider `dmacvicar/libvirt` 0.9.9 stores cloud-init `us
 it unencrypted (VERIFIED: `internal/provider/cloudinit_disk_resource.go` at v0.9.9). The
 repository is public: no state, bucket name or account ID is committed.
 
+Update 2026-11-18: the owner now works from **one laptop** only. The decision stands: the
+lock still protects against two terminals applying at once, the bucket and its versions
+survive the loss of that laptop, and a second machine can be added later with `aws login` and
+a copy of the private files.
+
 ## Decision Drivers
 
 * Locking across several machines.

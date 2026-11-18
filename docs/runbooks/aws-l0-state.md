@@ -126,7 +126,9 @@ aws logout --profile akasha-admin; unset AWS_PROFILE
 ls ~/.aws/login/cache 2>/dev/null                            # no akasha-admin session left
 ```
 
-## 6. Each laptop: sign in as `akasha-l0`
+## 6. On the laptop: sign in as `akasha-l0`
+
+The owner works from one laptop; repeat this on any machine added later.
 
 ```bash
 aws login --profile akasha-l0 --region eu-west-3             # browser: akasha-l0 + MFA
@@ -189,5 +191,5 @@ aws iam delete-policy --policy-arn "arn:aws:iam::$ACCOUNT:policy/akasha-l0-state
 rm -rf "$w"; aws logout --profile akasha-admin
 ```
 
-On each laptop: `aws logout --profile akasha-l0`. `akasha-admin` is kept (it is the account's
+On the laptop: `aws logout --profile akasha-l0`. `akasha-admin` is kept (it is the account's
 administrator, not part of the L0 state).
