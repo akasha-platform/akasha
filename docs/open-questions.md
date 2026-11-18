@@ -28,7 +28,7 @@ item here.
 | A19 | Does the campus let TCP 80 out (Debian mirrors and other tools use `http://`)? Test from a lab namespace on `br-transit`: `curl -sI http://deb.debian.org` | Only DNS and HTTPS were tested (step 4b) | P1 (before step 6) |
 | A20 | Drift rate of the host clock: second offset measurement against an NTP-synced laptop (first: −18.0 s on 2026-11-17 09:48 UTC) | Shows how fast the host departs from UTC; the lab does not depend on it (ADR-0029) but `ptp_kvm` monitoring does | P1 |
 | A22 | libvirtd on `insa` is socket-activated (`libvirtd.service` inactive, `libvirtd.socket` active on 2026-11-17): after a host reboot, do domains marked autostart (the router) start without anything connecting to libvirt? | ADR-0028 boot order and the router's autostart depend on it | P1 (step 6) |
-| A23 | libvirt provider 0.9.9 and several laptops (ADR-0031): with `ignore_changes = [create]` on volumes built from content, a plan from a second laptop (or after `/tmp` is cleared) must not replace any volume nor stop any VM; a state-loss drill (import blocks) must end with a plan that destroys nothing; S3 lock: two laptops planning at once get one lock error | Without it, a routine plan can stop `core` | P1 (step 6) |
+| A23 | libvirt provider 0.9.9 and the local temp directory (ADR-0031): with `ignore_changes = [create]` on volumes built from content, a plan after `/tmp` is cleared (reboot) or from another machine must not replace any volume nor stop any VM; a state-loss drill (import blocks) must end with a plan that destroys nothing; S3 lock: two terminals planning at once get one lock error | Without it, a routine plan can stop `core` | P1 (step 6) |
 
 ## B. Decisions deliberately deferred
 
