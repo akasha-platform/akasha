@@ -92,7 +92,10 @@ repos:
 
       - id: tflint
         name: tflint
-        entry: mise exec -- tflint --recursive
+        # Only the repository's OpenTofu code: a plain --recursive also lints third-party .tf files
+        # of installed Ansible collections (git-ignored). With --recursive, tflint resolves
+        # --config per module directory, hence the absolute path.
+        entry: bash -c 'mise exec -- tflint --chdir=infra/opentofu --recursive --config="$PWD/.tflint.hcl"'
         language: system
         files: \.(tf|tofu)$
         pass_filenames: false
