@@ -21,7 +21,10 @@ The campus NFS share may not be used.
 
 * In-lab S3: **versitygw** on the `core` VM (stateless gateway over a directory on its data
   disk). Garage was rejected: its documentation states conditional writes are impossible, so
-  OpenTofu `use_lockfile` cannot work. SeaweedFS is the fallback.
+  OpenTofu `use_lockfile` cannot work. SeaweedFS is the fallback. Since 2026-11-18 no OpenTofu
+  state lives here ([ADR-0031](0031-l0-state-in-aws-s3.md),
+  [ADR-0032](0032-ci-states-in-aws-s3.md)): versitygw keeps K3s etcd snapshots and the
+  CloudNativePG and OpenBao backups, and the conditional-write test is no longer needed.
 * Off-site: **restic** (encrypted, deduplicated) to **AWS S3 Standard with Object Lock** —
   the owner's choice. Research had recommended Backblaze B2 (Object Lock and per-key
   capabilities allowing a restic key without delete rights); AWS was preferred instead.
@@ -39,5 +42,5 @@ The campus NFS share may not be used.
 
 ### Confirmation
 
-Before use: two concurrent `If-None-Match: *` writes must yield exactly one 412 (A3);
+Before use (the conditional-write test A3 was dropped on 2026-11-18, ADR-0032):
 barman-cloud and K3s etcd-s3 uploads must succeed (A4); a restore drill must pass (A12).

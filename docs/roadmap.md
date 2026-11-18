@@ -75,7 +75,7 @@ Done when: an empty PR passes every check; actions are SHA-pinned; `main` is pro
    OpenTofu bumped to ≥ 1.13.9 first, see ADR-0022):
    base image, edge router (Debian, ADR-0028/ADR-0029), bastion, core (OpenBao + versitygw),
    headless VMs sized by ADR-0030; RAM gate (ADR-0030) before going further.
-7. OpenBao initialisation (Shamir; self-init test A14), in-lab S3 conditional-write test (A3),
+7. OpenBao initialisation (Shamir; self-init test A14),
    restic to AWS S3 with Object Lock (design + test A13), host checks (A15).
 
 Done when: the L0 stack rebuilds from zero, lab traffic cannot reach the campus LAN, the

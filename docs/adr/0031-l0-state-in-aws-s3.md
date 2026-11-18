@@ -14,8 +14,9 @@ stack creates every lab VM on `insa`, `core` included, so its state cannot live 
 `core` serves: a broken `core` would take with it the only state able to repair it (open
 question B3).
 
-Facts from the owner (2026-11-17): only the owner applies L0, never CI (CI handles L1 and
-above through the bastion that L0 creates); the owner works from **several laptops**, so the
+Facts from the owner (2026-11-17): only the owner applies L0, never CI (CI handles the layers
+above, through the bastion that L0 creates: L2 and L3 since L1 was merged into L0 by
+[ADR-0032](0032-ci-states-in-aws-s3.md)); the owner works from **several laptops**, so the
 state must be shared and locked; the owner already has an AWS account (also chosen for the
 off-site restic backups, ADR-0012).
 

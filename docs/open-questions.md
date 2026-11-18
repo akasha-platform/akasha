@@ -10,11 +10,10 @@ item here.
 |---|---|---|---|
 | A1 | Cold boot of all VMs (`virsh destroy`) — does single-node Galera restart alone or need `kolla-ansible mariadb-recovery`? | Kolla design note and Galera docs disagree | P2 |
 | A2 | Real memory use of `os-ctl01` and per-compute overhead (`docker stats`, `free`, `virsh dommemstat`); bastion memory during `kolla-ansible deploy` (lower `forks` if needed) | Controller may need more than 8 GB; sets `reserved_host_memory_mb`; 1 GB bastion is ESTIMATED | P2 |
-| A3 | versitygw: two concurrent `If-None-Match: *` writes → exactly one HTTP 412 | OpenTofu `use_lockfile` depends on it | P1 |
 | A4 | barman-cloud (CloudNativePG) and K3s `etcd-s3` uploads to versitygw | Inferred compatibility | P4–P5 |
 | A5 | `kolla-readpwd` / `kolla-writepwd` against OpenBao KV v2 | Written for HashiCorp Vault | P2 |
 | A6 | cert-manager Vault issuer against OpenBao | Not documented by cert-manager | P5 |
-| A7 | OpenTofu `openbao` key provider against OpenBao 2.7 | Documented against Vault 1.14 | P1/P3 |
+| A7 | OpenTofu `openbao` key provider against OpenBao 2.7 (Transit keys for the L2 and L3 states, ADR-0032) | Documented against Vault 1.14 | P3 |
 | A8 | External Secrets Operator Vault provider against OpenBao (JWT auth) | Tested upstream only with old versions | P5 |
 | A9 | Free page reporting end to end (K3s VM → compute → host) | Inferred only | P1/P4 |
 | A10 | KSM A/B: profit, ksmd CPU, Galera/RabbitMQ/etcd latency with KSM on vs off | No published nested benchmark | P7 |

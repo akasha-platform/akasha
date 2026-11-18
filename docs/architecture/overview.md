@@ -115,9 +115,12 @@ and platform services). Cut-downs, if needed, are chosen after measurement from 
 - App changes: build on ARC (push/tag only), sign with cosign, attest, push to GHCR,
   open a PR in `akasha-gitops`; Argo CD syncs.
 - Secrets: OpenBao (Shamir unseal by hand after each host reboot). Root CA offline.
-- Data and backups: OpenTofu state (L1–L3), K3s etcd snapshots, CloudNativePG backups and
-  OpenBao raft snapshots go to the in-lab S3 (versitygw on `core`); restic copies the critical
-  data off-site to AWS S3 Standard with Object Lock. VM disks are rebuilt from code.
+- OpenTofu states: L0 (all VMs on the host, applied by the owner) in one AWS S3 bucket
+  (ADR-0031); L2 and L3 (applied by CI, which runs `tofu` on the bastion) in a second one
+  (ADR-0032); all encrypted client-side and locked with `use_lockfile`.
+- Data and backups: K3s etcd snapshots, CloudNativePG backups and OpenBao raft snapshots go
+  to the in-lab S3 (versitygw on `core`); restic copies the critical data off-site to AWS S3
+  Standard with Object Lock. VM disks are rebuilt from code.
 
 ## 7. Production north star (not built here)
 
