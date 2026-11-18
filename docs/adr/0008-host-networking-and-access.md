@@ -138,8 +138,8 @@ Ansible role `host_firewall` (`playbooks/host.yml`, tag `firewall`), designed un
 * The campus prefixes have no default (fixed on 2026-11-18): until then an empty default let a
   run without the private file load a table that no longer blocked the campus. The play now
   stops before any change when they are missing, empty or not IPv4 prefixes.
-* Egress from the campus (checked 2026-11-16): public DNS (UDP 53) and HTTPS work; NTP (UDP 123)
-  to public servers is blocked — the lab's time source is open question C4.
+* Egress from the campus (checked 2026-11-16, HTTP on 2026-11-18): public DNS (UDP 53), HTTP
+  and HTTPS work; NTP (UDP 123) to public servers is blocked — the lab's time source is open question C4.
 * For step 4c: Tailscale masquerades tailnet → lab flows (`ts-postrouting`), so the lab router
   sees the source 10.255.255.1.
 
