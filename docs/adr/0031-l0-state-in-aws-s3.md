@@ -106,6 +106,30 @@ Before the first L0 apply (step 6): the runbook's output checked; `tofu init` ag
 key works with the narrow policy; two laptops planning at once get one lock error; the
 encrypted object in S3 is not readable without the passphrase.
 
+### Implementation (2026-11-18)
+
+Done by the owner from [the runbook](../runbooks/aws-l0-state.md), reviewed independently
+beforehand (no blocker; six should-fix items applied):
+
+* Root used once in the console: root MFA and no root access key checked, alternate contacts,
+  a 1 USD monthly budget alert, and the administrator user `akasha-admin` created with MFA
+  assigned before console access; root then signed out.
+* As `akasha-admin`: the bucket was created and read back: versioning enabled, the four Block
+  Public Access settings true, `BucketOwnerEnforced`, SSE-S3 (AWS also blocks SSE-C by
+  default), the TLS-only policy, the lifecycle rule (180 days, 100 newest versions kept,
+  expired delete markers removed, incomplete uploads aborted after 7 days). `akasha-l0` has
+  exactly the two policies, one MFA device, no access key, and no forced password reset.
+  `aws logout` removed the cached session; it reports that access tokens already issued stay
+  valid for at most 15 minutes.
+* As `akasha-l0` (`aws login`), before any state exists: deleting an object version is
+  denied, the lock object can be written and released, an empty state key reads as
+  not found (so `tofu init` works with the narrow policy), and any other key is denied. The
+  private partial backend configuration exists (mode 600).
+
+Still to confirm in step 6 (open question A23): `tofu init` and a plan with the encrypted
+state, a lock conflict between two laptops, and the encrypted object being unreadable without
+the passphrase.
+
 ## More Information
 
 Findings of the independent review that concern the libvirt provider, whatever the backend,
