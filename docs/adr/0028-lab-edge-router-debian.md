@@ -118,8 +118,10 @@ OPNsense" chain is also replaced, by ADR-0029).
 
 ## More Information
 
-* Open question A19: whether the campus lets TCP 80 out (Debian mirrors and other tools use
-  `http://`); only DNS and HTTPS were tested in step 4b.
+* Open question A19, answered on 2026-11-18: the campus lets TCP 80 out. From a test
+  namespace on `br-transit` (NAT through the host), `http://deb.debian.org`,
+  `http://security.debian.org` and `http://cloud.debian.org/images/cloud/` all answered 200,
+  like the HTTPS control; lab VMs can use the Debian mirrors as they are.
 * Research and independent review notes of 2026-11-17 are summarised above; the full
   comparison included idle-RAM estimates (ESTIMATED) that the confirmation replaces with
   measurements.
