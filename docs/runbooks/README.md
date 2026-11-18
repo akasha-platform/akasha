@@ -17,6 +17,8 @@ One runbook per alert or known failure mode, written when the failure mode is in
 
 ## Index
 
+* [opentofu-l0.md](opentofu-l0.md) — OpenTofu L0 stack: passphrase in the keyring, init/plan/apply,
+  checks of the encrypted state and the lock, off-AWS copy, provider supply chain, roll back
 * [host-storage.md](host-storage.md) — host LVM storage: images volume not mounted, restore the
   partition table, undo the layout, grow `lv_images`
 * [host-network.md](host-network.md) — lab bridges: check, missing bridge, change a bridge

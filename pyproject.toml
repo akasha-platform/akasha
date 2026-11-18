@@ -17,6 +17,8 @@ dev = [
   "pre-commit",
   # generic hygiene hooks, locked here (with ruamel.yaml) instead of a pip install by pre-commit
   "pre-commit-hooks>=6,<7",
+  # OpenTofu state passphrase from the desktop keyring (infra/opentofu/scripts, ADR-0031)
+  "keyring>=25.7,<26",
 ]
 
 [tool.uv]
