@@ -154,3 +154,17 @@ and are carried into the step-6 design (open question A23):
   the private files.
 * 2026-11-18: L1 is merged into L0 ([ADR-0032](0032-ci-states-in-aws-s3.md)); CI applies only
   L2 and L3, whose states live in a second bucket.
+* 2026-11-18 (step 6a, independent review): the passphrase lives in the desktop's GNOME Keyring
+  (owner's choice) plus a paper copy, read through a script that pins the Secret Service
+  backend; this replaces "a password manager" above. Residual risk accepted by the owner: once
+  the keyring is unlocked at login, any process of the owner's user (an editor extension, a
+  package script, an AI agent on the laptop) can read the passphrase without a prompt, and the
+  `aws login` session is on the same laptop, so a compromised session holds both factors. The
+  two factors still protect against a leak of only one of them. KeePassXC with "confirm access"
+  can replace GNOME Keyring later without changing the script.
+* 2026-11-18: correction: the encrypted envelope keeps `lineage` and `serial` in clear, besides
+  the key-provider metadata (now stored under `encrypted_metadata_alias` names); measured on a
+  test state. Neither is sensitive.
+* 2026-11-18: CI can never decrypt the L0 state, so the CI layers (L2, L3) must not read it
+  through `terraform_remote_state`; what they need from L0 is looked up in OpenStack or passed
+  as non-secret configuration.
