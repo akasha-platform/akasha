@@ -1,7 +1,9 @@
 # Architecture Decision Records
 
-Format: [MADR 4.0](https://github.com/adr/madr). One decision per file, never edited after
-acceptance except to change its status (`superseded by ADR-NNNN`).
+Format: [MADR 4.0](https://github.com/adr/madr). One decision per file. After acceptance the
+decision itself is never rewritten: a change of decision is a new ADR, and the old one gets
+its status changed or a dated note pointing to the new one. Only dated sections may be added:
+`Implementation (<date>)`, `Confirmation`, and an `Updates` list (owner's rule of 2026-11-18).
 
 | ADR | Title | Status |
 |---|---|---|
@@ -36,3 +38,4 @@ acceptance except to change its status (`superseded by ADR-NNNN`).
 | [0029](0029-lab-time-source.md) | Lab time source: the edge router keeps UTC over HTTPS and serves NTP to the lab | accepted |
 | [0030](0030-ram-budget.md) | RAM budget: at least 3 GiB of the host stays free, by plan | accepted |
 | [0031](0031-l0-state-in-aws-s3.md) | L0 OpenTofu state in a dedicated AWS S3 bucket | accepted |
+| [0032](0032-ci-states-in-aws-s3.md) | CI-applied OpenTofu states in AWS S3, applied from the bastion | accepted |

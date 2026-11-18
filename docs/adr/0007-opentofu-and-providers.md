@@ -39,3 +39,10 @@ while keeping the same language and providers.
 * Good, because secrets in state are encrypted at rest.
 * Bad, because OpenTofu's OpenBao key provider is documented against Vault 1.14 semantics and
   must be verified with OpenBao 2.7.
+
+## Updates
+
+* 2026-11-18: the layer and state parts are superseded by
+  [ADR-0032](0032-ci-states-in-aws-s3.md): L1 is merged into L0; the L2 and L3 states live in
+  a second AWS S3 bucket, applied by CI from the bastion; no state lives in versitygw. The L0
+  state is in AWS S3 ([ADR-0031](0031-l0-state-in-aws-s3.md)).

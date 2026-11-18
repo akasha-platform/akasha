@@ -41,3 +41,11 @@ The campus NFS share may not be used.
 
 Before use: two concurrent `If-None-Match: *` writes must yield exactly one 412 (A3);
 barman-cloud and K3s etcd-s3 uploads must succeed (A4); a restore drill must pass (A12).
+
+## Updates
+
+* 2026-11-18: no OpenTofu state lives in versitygw any more
+  ([ADR-0031](0031-l0-state-in-aws-s3.md), [ADR-0032](0032-ci-states-in-aws-s3.md)). versitygw
+  keeps K3s etcd snapshots and the CloudNativePG and OpenBao backups; the conditional-write
+  test (A3) is dropped, and "state locking" no longer applies to the in-lab S3. Garage's
+  rejection reason (no conditional writes) no longer matters, but versitygw stays.

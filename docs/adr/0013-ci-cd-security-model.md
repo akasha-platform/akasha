@@ -40,3 +40,11 @@ public repositories": a fork PR can rewrite `runs-on`.
 ## More Information
 
 [research/06-cicd-supply-chain.md](../research/06-cicd-supply-chain.md)
+
+## Updates
+
+* 2026-11-18: OpenTofu for L2 and L3 runs **on the bastion** behind a forced-command wrapper;
+  the GitHub-hosted runner only triggers it and carries the logs
+  ([ADR-0032](0032-ci-states-in-aws-s3.md)). L1 is merged into L0, which only the owner
+  applies. How CI runs Ansible and Kolla through the bastion is decided when CI reaches them
+  (P2–P3).

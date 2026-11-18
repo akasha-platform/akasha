@@ -23,11 +23,6 @@ The state is sensitive: provider `dmacvicar/libvirt` 0.9.9 stores cloud-init `us
 it unencrypted (VERIFIED: `internal/provider/cloudinit_disk_resource.go` at v0.9.9). The
 repository is public: no state, bucket name or account ID is committed.
 
-Update 2026-11-18: the owner now works from **one laptop** only. The decision stands: the
-lock still protects against two terminals applying at once, the bucket and its versions
-survive the loss of that laptop, and a second machine can be added later with `aws login` and
-a copy of the private files.
-
 ## Decision Drivers
 
 * Locking across several machines.
@@ -150,3 +145,12 @@ and are carried into the step-6 design (open question A23):
 * After a lost state, `import` of volumes leaves `create` empty and plans replacements
   (VERIFIED: `volume_resource.go` `ImportState`); the same `ignore_changes` applies, and a
   recovery drill must end with a plan that destroys nothing.
+
+## Updates
+
+* 2026-11-18: the owner now works from **one laptop** only. The decision stands: the lock still
+  protects against two terminals applying at once, the bucket and its versions survive the
+  loss of that laptop, and a second machine can be added later with `aws login` and a copy of
+  the private files.
+* 2026-11-18: L1 is merged into L0 ([ADR-0032](0032-ci-states-in-aws-s3.md)); CI applies only
+  L2 and L3, whose states live in a second bucket.
