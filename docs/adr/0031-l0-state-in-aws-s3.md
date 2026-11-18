@@ -14,20 +14,14 @@ stack creates every lab VM on `insa`, `core` included, so its state cannot live 
 `core` serves: a broken `core` would take with it the only state able to repair it (open
 question B3).
 
-Facts from the owner (2026-11-17): only the owner applies L0, never CI (CI handles the layers
-above, through the bastion that L0 creates: L2 and L3 since L1 was merged into L0 by
-[ADR-0032](0032-ci-states-in-aws-s3.md)); the owner works from **several laptops**, so the
+Facts from the owner (2026-11-17): only the owner applies L0, never CI (CI handles L1 and
+above through the bastion that L0 creates); the owner works from **several laptops**, so the
 state must be shared and locked; the owner already has an AWS account (also chosen for the
 off-site restic backups, ADR-0012).
 
 The state is sensitive: provider `dmacvicar/libvirt` 0.9.9 stores cloud-init `user_data` in
 it unencrypted (VERIFIED: `internal/provider/cloudinit_disk_resource.go` at v0.9.9). The
 repository is public: no state, bucket name or account ID is committed.
-
-Update 2026-11-18: the owner now works from **one laptop** only. The decision stands: the
-lock still protects against two terminals applying at once, the bucket and its versions
-survive the loss of that laptop, and a second machine can be added later with `aws login` and
-a copy of the private files.
 
 ## Decision Drivers
 
@@ -151,3 +145,12 @@ and are carried into the step-6 design (open question A23):
 * After a lost state, `import` of volumes leaves `create` empty and plans replacements
   (VERIFIED: `volume_resource.go` `ImportState`); the same `ignore_changes` applies, and a
   recovery drill must end with a plan that destroys nothing.
+
+## Updates
+
+* 2026-11-18: the owner now works from **one laptop** only. The decision stands: the lock still
+  protects against two terminals applying at once, the bucket and its versions survive the
+  loss of that laptop, and a second machine can be added later with `aws login` and a copy of
+  the private files.
+* 2026-11-18: L1 is merged into L0 ([ADR-0032](0032-ci-states-in-aws-s3.md)); CI applies only
+  L2 and L3, whose states live in a second bucket.

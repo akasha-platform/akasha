@@ -106,6 +106,8 @@ Kolla 2026.1 removed Swift, and MinIO's community edition was archived on 2026-0
 
 ### OpenTofu S3 backend for a non-AWS endpoint
 
+> Superseded on 2026-11-18: no OpenTofu state lives in versitygw; L0 is in AWS S3 (ADR-0031), L2 and L3 in a second AWS bucket (ADR-0032). Kept as research history.
+
 Settings documented by HashiCorp for S3-compatible stores (non-AWS support is "best effort"); OpenTofu's backend has the same options. **VERIFIED**: https://developer.hashicorp.com/terraform/language/backend/s3
 
 ```hcl
@@ -128,7 +130,7 @@ terraform {
 
 `dynamodb_table` locking is deprecated in favour of `use_lockfile`. All argument names above also exist in OpenTofu's S3 backend, which implements `use_lockfile` as native S3 locking via conditional writes (`If-None-Match`); OpenTofu recommends enabling bucket versioning and a lifecycle rule, because locking adds object writes. **VERIFIED**: https://opentofu.org/docs/language/settings/backends/s3/ . Applies are also serialised with a GitHub Actions `concurrency` group (see [06](06-cicd-supply-chain.md)).
 
-### Where the bootstrap state lives — OPEN
+### Where the bootstrap state lives — answered by ADR-0031 (2026-11-17)
 
 The L0 stack that creates `core` (and therefore versitygw) and the bastion cannot store its state in the in-lab S3. The first apply runs from the operator laptop. The state is encrypted with OpenTofu's `pbkdf2` key provider (passphrase kept as a GitHub secret plus an offline copy). Where that encrypted state file lives (local file backed up with restic, a separate private store, …) is **not decided yet**. **INFERRED**
 

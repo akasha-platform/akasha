@@ -27,9 +27,7 @@ while keeping the same language and providers.
 * `terraform-provider-openstack/openstack` `~> 3.4` with the port-based pattern
   (security groups on ports, `openstack_networking_floatingip_associate_v2`).
 * One state per layer (L0 host, L1 OpenStack VMs, L2 OpenStack resources, L3 K8s).
-  L1–L3 states live in the in-lab S3 (versitygw) with lockfile locking (**superseded on
-  2026-11-18 by [ADR-0032](0032-ci-states-in-aws-s3.md)**: L1 merged into L0, L2 and L3 in a
-  second AWS S3 bucket, applied by CI from the bastion). The L0/bootstrap stack
+  L1–L3 states live in the in-lab S3 (versitygw) with lockfile locking. The L0/bootstrap stack
   creates the `core` VM that hosts that S3, so it cannot store its own state there: its first
   apply runs from the operator laptop, its state is encrypted with a `pbkdf2` passphrase kept
   outside OpenBao, and its final location is an open question (`docs/open-questions.md`).
@@ -41,3 +39,10 @@ while keeping the same language and providers.
 * Good, because secrets in state are encrypted at rest.
 * Bad, because OpenTofu's OpenBao key provider is documented against Vault 1.14 semantics and
   must be verified with OpenBao 2.7.
+
+## Updates
+
+* 2026-11-18: the layer and state parts are superseded by
+  [ADR-0032](0032-ci-states-in-aws-s3.md): L1 is merged into L0; the L2 and L3 states live in
+  a second AWS S3 bucket, applied by CI from the bastion; no state lives in versitygw. The L0
+  state is in AWS S3 ([ADR-0031](0031-l0-state-in-aws-s3.md)).

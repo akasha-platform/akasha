@@ -1,7 +1,9 @@
 # Architecture Decision Records
 
-Format: [MADR 4.0](https://github.com/adr/madr). One decision per file, never edited after
-acceptance except to change its status (`superseded by ADR-NNNN`).
+Format: [MADR 4.0](https://github.com/adr/madr). One decision per file. After acceptance the
+decision itself is never rewritten: a change of decision is a new ADR, and the old one gets
+its status changed or a dated note pointing to the new one. Only dated sections may be added:
+`Implementation (<date>)`, `Confirmation`, and an `Updates` list (owner's rule of 2026-11-18).
 
 | ADR | Title | Status |
 |---|---|---|

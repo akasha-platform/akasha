@@ -19,9 +19,6 @@ public repositories": a fork PR can rewrite `runs-on`.
   SSH). `plan` only on pull requests from branches of this repository — fork PRs get no OIDC
   identity and never reach Tailscale; the identity is bound to the repository and to the
   protected environment. `apply` after merge through that environment.
-  OpenTofu for L2 and L3 runs **on the bastion** behind a forced-command wrapper; the runner
-  only triggers it and carries the logs, and its short-lived OIDC tokens give the AWS state
-  roles and OpenBao access ([ADR-0032](0032-ci-states-in-aws-s3.md), 2026-11-18).
 * **Application builds**: ARC runner scale sets (0.15.x) inside K3s, only for `push`/tag
   events, ephemeral runners, dedicated namespace and tainted node, no service-account token,
   egress NetworkPolicy (blocks node subnet and the metadata endpoint 169.254.169.254).
@@ -43,3 +40,11 @@ public repositories": a fork PR can rewrite `runs-on`.
 ## More Information
 
 [research/06-cicd-supply-chain.md](../research/06-cicd-supply-chain.md)
+
+## Updates
+
+* 2026-11-18: OpenTofu for L2 and L3 runs **on the bastion** behind a forced-command wrapper;
+  the GitHub-hosted runner only triggers it and carries the logs
+  ([ADR-0032](0032-ci-states-in-aws-s3.md)). L1 is merged into L0, which only the owner
+  applies. How CI runs Ansible and Kolla through the bastion is decided when CI reaches them
+  (P2–P3).
