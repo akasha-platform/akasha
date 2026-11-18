@@ -1,6 +1,6 @@
 ---
-# L0 host configuration (P1). Always dry-run first:
-#   uv run ansible-playbook playbooks/host.yml -K --check --diff
+# L0 host configuration (P1). Always dry-run first; the firewall needs the private file:
+#   uv run ansible-playbook playbooks/host.yml -K --check --diff -e @~/akasha-private/host_firewall.yml
 - name: Configure the L0 host
   hosts: l0_hosts
   become: true
@@ -9,6 +9,13 @@
   environment:
     LC_ALL: C
     LANGUAGE: C
+  pre_tasks:
+    # Stop before any role changes the host when the firewall's private input is missing.
+    - name: Check the private input of the host firewall
+      ansible.builtin.import_role:
+        name: host_firewall
+        tasks_from: check
+      tags: [firewall]
   roles:
     - role: host_storage
       tags: [storage]

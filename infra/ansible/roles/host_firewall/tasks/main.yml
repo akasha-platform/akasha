@@ -4,6 +4,9 @@
 # matched; routed packets are matched only when they enter or leave a lab bridge or go to a
 # lab range.
 
+- name: Check the private input
+  ansible.builtin.import_tasks: check.yml
+
 - name: Check that the uplink is the interface of the default route
   ansible.builtin.assert:
     that:

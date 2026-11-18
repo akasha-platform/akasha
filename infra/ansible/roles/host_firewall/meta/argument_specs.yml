@@ -37,5 +37,14 @@ argument_specs:
         type: list
         elements: str
         description:
-          - Public prefixes of the campus network, also blocked. Never committed; pass them at
-            run time from a private file.
+          - Public prefixes of the campus network, also blocked. Never committed and without a
+            default; pass them at run time from a private file. tasks/check.yml stops the play
+            when they are missing, empty or not IPv4 prefixes.
+  check:
+    short_description: Check the private input of the role before anything changes
+    options:
+      host_firewall_campus_nets:
+        type: list
+        elements: str
+        description:
+          - Public prefixes of the campus network (see the main entry point).
