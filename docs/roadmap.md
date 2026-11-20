@@ -71,10 +71,17 @@ Done when: an empty PR passes every check; actions are SHA-pinned; `main` is pro
      one after the step-6 RAM gate, from measurements.
    * Host monitoring (node-exporter) waits until a Prometheus exists (P5); until then
      measurements are read-only commands over SSH.
-6. OpenTofu L0 (first apply from the laptop; state in a dedicated AWS S3 bucket, ADR-0031;
-   OpenTofu bumped to ≥ 1.13.9 first, see ADR-0022):
-   base image, edge router (Debian, ADR-0028/ADR-0029), bastion, core (OpenBao + versitygw),
-   headless VMs sized by ADR-0030; RAM gate (ADR-0030) before going further.
+6. 🔄 OpenTofu L0 (applied from the laptop; state in a dedicated AWS S3 bucket, ADR-0031),
+   in four steps:
+   * 6a ✅ 2026-11-20: stack skeleton `infra/opentofu/live/l0-host` (OpenTofu 1.13.9, provider
+     libvirt 0.9.9 with hashes checked against its signed release), partial S3 backend, state
+     and plans encrypted (pbkdf2 chained to the passphrase in GNOME Keyring); empty apply,
+     encrypted object checked in S3, lock checked, off-AWS copy (runbook `opentofu-l0.md`).
+   * 6b: VM module (headless, sizes in MiB, free page reporting, cloud-init without secrets,
+     `ignore_changes` of open question A23), Debian 13 base image, the edge router VM and its
+     Ansible role (ADR-0028, ADR-0029).
+   * 6c: bastion and core (OpenBao + versitygw).
+   * 6d: OpenStack controller and computes, then the RAM gate (ADR-0030).
 7. OpenBao initialisation (Shamir; self-init test A14),
    restic to AWS S3 with Object Lock (design + test A13), host checks (A15).
 

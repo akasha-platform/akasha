@@ -168,3 +168,8 @@ and are carried into the step-6 design (open question A23):
 * 2026-11-18: CI can never decrypt the L0 state, so the CI layers (L2, L3) must not read it
   through `terraform_remote_state`; what they need from L0 is looked up in OpenStack or passed
   as non-secret configuration.
+* 2026-11-20 (step 6a): confirmed with the real bucket: `tofu init` with the narrow
+  `akasha-l0` policy and the private partial backend configuration, an empty plan and apply,
+  the object in S3 holding only `encrypted_data`, `encryption_version`, `lineage`, `meta`
+  (`l0-passphrase`, `l0-pbkdf2`) and `serial`; a second terminal got `Error acquiring the state
+  lock` while `tofu console` held it; an off-AWS copy of the encrypted object was made.
