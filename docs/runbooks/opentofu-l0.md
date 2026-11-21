@@ -66,8 +66,13 @@ virsh -c qemu:///system dumpxml router | less
 virsh -c qemu:///system console router          # leave with Ctrl+]
 ```
 
-**After a host reboot** the VMs stay off (ADR-0033): run the checks of `host-firewall.md`
-("Check after every reboot"), then `virsh -c qemu:///system start router`, then the other VMs.
+**After a host reboot** the VMs stay off (ADR-0033): check that `lv_images` is mounted
+(`findmnt /var/lib/libvirt/akasha`; without it the pool `akasha` cannot start, by design), run
+the checks of `host-firewall.md` ("Check after every reboot"), then
+`virsh -c qemu:///system start router`, then the other VMs.
+
+**Destroying the whole stack** on purpose: the base images carry `prevent_destroy`; remove that
+line in `images.tf` first. `tofu destroy -target=module.router` removes only the router.
 
 **A23 drill** (provider 0.9.9 keeps the cloud-init ISO in the laptop's temp directory): delete
 `${TMPDIR:-/tmp}/terraform-provider-libvirt-cloudinit/`, run `tofu plan`: it may recreate the

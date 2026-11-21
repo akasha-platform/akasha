@@ -21,6 +21,10 @@ resource "libvirt_volume" "debian13" {
 
   lifecycle {
     ignore_changes = [create] # uploaded once; the local copy may be gone later (A23)
+    # Overlays depend on this volume, and the provider deletes a replaced volume first
+    # (issue #1374): refuse any plan that destroys it. Remove this line only to destroy the
+    # whole stack on purpose (docs/runbooks/opentofu-l0.md).
+    prevent_destroy = true
 
     precondition {
       condition     = !fileexists(local.debian13) || filesha512(local.debian13) == local.images.debian13.sha512

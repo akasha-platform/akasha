@@ -58,8 +58,14 @@ def main() -> None:
         tmp = Path(partial.name)
     try:
         print(f"downloading {pin['url']} ({pin['size']} bytes)")
+        # TLS is verified by default; a redirect to another URL (the mirror) is followed, which is
+        # fine because integrity comes from the pinned SHA-512, not from the transport.
+        received = 0
         with urllib.request.urlopen(pin["url"], timeout=60) as response, tmp.open("wb") as out:
             while chunk := response.read(CHUNK):
+                received += len(chunk)
+                if received > pin["size"]:
+                    fail("the download is larger than the pinned size: stopped and deleted")
                 out.write(chunk)
         if not check(tmp, pin):
             fail("size or SHA-512 does NOT match the pin: download deleted")

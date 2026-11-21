@@ -34,19 +34,24 @@ owner's choices are recorded below.
 * **Connection**: `qemu+sshcmd://insa/system`, the system `ssh` client, so `~/.ssh/config`
   keeps insa's address out of the repository (VERIFIED: provider `docs/transports.md`; `qemu+ssh`
   ignores it). The owner's user is in the `libvirt` group on `insa`, so nothing changes there.
-* **Storage**: pool `akasha` on `/var/lib/libvirt/akasha` (ADR-0009), defined by OpenTofu with
-  `build = false` and `destroy.delete = false`: destroying the stack never removes the directory.
-  Each VM has a thin qcow2 overlay on a shared base image, plus a cloud-init seed ISO.
+* **Storage**: pool `akasha` in the subdirectory `/var/lib/libvirt/akasha/pool` of the
+  `lv_images` mount (ADR-0009), created once by OpenTofu (`build = true`), never deleted
+  (`destroy.delete = false`). Not the mount point itself: if `lv_images` is not mounted after a
+  reboot, `pool/` is missing and the pool cannot start, instead of libvirt writing VM disks onto
+  the school's root file system (independent review, owner's choice of 2026-11-21). Each VM has
+  a thin qcow2 overlay on a shared base image, plus a cloud-init seed ISO.
 * **Images**: pinned in `infra/opentofu/live/l0-host/images.json` (file name, URL, size,
   SHA-512). Debian does not sign its cloud images (VERIFIED: https://cloud.debian.org/images/cloud/,
   no `SHA512SUMS.sign`); the SHA-512 is copied from `SHA512SUMS` over HTTPS when pinning, and
   `scripts/fetch_image.py` downloads the image to the laptop (Debian redirects to a mirror) and
   keeps it only if size and SHA-512 match; OpenTofu uploads that checked local file and refuses a
   cached file that does not match. Releases follow the 6-day cooldown. **A base image is never
-  changed in place**: a new release is a new entry and a new volume.
+  changed in place**: a new release is a new entry and a new volume; base volumes carry
+  `prevent_destroy` (owner's choice of 2026-11-21), since overlays depend on them.
 * **Domains**: memory in MiB, vCPUs pinned (emulator threads too) to the cores ADR-0030 gives
   them (`16-27`, the E-cores, for the small VMs), `host-passthrough` CPU, q35 with BIOS boot,
-  ACPI for a graceful shutdown, `on_crash = restart`. **Headless**: one serial console
+  ACPI for a graceful shutdown, `on_crash = restart` with an ISA panic device (x86 has none by
+  default), a virtio RNG fed by the host's `/dev/urandom`. **Headless**: one serial console
   (`virsh console`), no graphics, video, sound or USB controller. virtio disk and NICs; NICs on
   the host bridges with fixed MAC addresses, matched by MAC and renamed in cloud-init's
   network-config, so their order does not matter. Free page reporting on the balloon (ADR-0016).

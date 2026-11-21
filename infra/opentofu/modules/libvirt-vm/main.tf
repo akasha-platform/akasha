@@ -110,6 +110,12 @@ resource "libvirt_domain" "this" {
     serials     = [{ target = { port = 0 } }]
     controllers = [{ type = "usb", model = "none" }]
 
+    # Lets on_crash act on a guest kernel panic (x86 gets no panic device by default).
+    panics = [{ model = "isa" }]
+
+    # Entropy from the host for the guest's early boot (key generation).
+    rngs = [{ model = "virtio", backend = { random = "/dev/urandom" } }]
+
     mem_balloon = {
       model               = "virtio"
       free_page_reporting = "on"
