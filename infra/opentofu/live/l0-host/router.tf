@@ -2,6 +2,11 @@
 # without NAT. Its firewall, DNS and time are configured by Ansible (playbooks/router.yml);
 # until then IPv4 forwarding stays off (kernel default), so it routes nothing.
 locals {
+  # QEMU's user on insa: libvirt-qemu (fixed uid 64055 in Debian) and its group kvm (gid 993,
+  # read on insa with getent on 2026-11-21).
+  qemu_uid = 64055
+  qemu_gid = 993
+
   router_nics = {
     wan  = { bridge = "br-transit", mac = "52:54:00:ff:ff:02", address = "10.255.255.2/29" }
     mgmt = { bridge = "br-mgmt", mac = "52:54:00:0a:00:01", address = "10.10.0.1/24" }
@@ -19,6 +24,8 @@ module "router" {
   disk_gib         = 8
   pool             = libvirt_pool.akasha.name
   base_volume_path = libvirt_volume.debian13.path
+  qemu_uid         = local.qemu_uid
+  qemu_gid         = local.qemu_gid
 
   interfaces = [
     for name in ["wan", "mgmt", "ext"] : {

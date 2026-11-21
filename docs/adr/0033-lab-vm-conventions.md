@@ -39,7 +39,11 @@ owner's choices are recorded below.
   (`destroy.delete = false`). Not the mount point itself: if `lv_images` is not mounted after a
   reboot, `pool/` is missing and the pool cannot start, instead of libvirt writing VM disks onto
   the school's root file system (independent review, owner's choice of 2026-11-21). Each VM has
-  a thin qcow2 overlay on a shared base image, plus a cloud-init seed ISO.
+  a thin qcow2 overlay on a shared base image, plus a cloud-init seed ISO. Volume permissions
+  are set explicitly, since the provider creates volumes 0600 root:root that QEMU cannot open
+  (provider issue #1379, met on the first apply of 2026-11-21): base images 0644 (public
+  content), each overlay 0600 owned by `libvirt-qemu:kvm` (it holds the VM's data and host
+  keys).
 * **Images**: pinned in `infra/opentofu/live/l0-host/images.json` (file name, URL, size,
   SHA-512). Debian does not sign its cloud images (VERIFIED: https://cloud.debian.org/images/cloud/,
   no `SHA512SUMS.sign`); the SHA-512 is copied from `SHA512SUMS` over HTTPS when pinning, and

@@ -21,6 +21,14 @@ resource "libvirt_volume" "root" {
 
   target = {
     format = { type = "qcow2" }
+    # Created 0600 root:root by default, which QEMU cannot open (provider issue #1379). The
+    # overlay holds the VM's data, its SSH host keys included: private to QEMU's user, never
+    # readable by other users of the school's host.
+    permissions = {
+      owner = tostring(var.qemu_uid)
+      group = tostring(var.qemu_gid)
+      mode  = "0600"
+    }
   }
 
   backing_store = {
