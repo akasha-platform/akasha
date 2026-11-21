@@ -1,0 +1,10 @@
+#cloud-config
+# No secret here: user-data is stored in the OpenTofu state and in a local ISO (ADR-0033).
+hostname: ${hostname}
+fqdn: ${hostname}.akasha.internal
+manage_etc_hosts: true
+ssh_pwauth: false
+disable_root: true
+ssh_genkeytypes: [ed25519]
+ssh_authorized_keys:
+  - ${ssh_key}

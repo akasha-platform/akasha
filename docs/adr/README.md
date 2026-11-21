@@ -39,3 +39,4 @@ its status changed or a dated note pointing to the new one. Only dated sections 
 | [0030](0030-ram-budget.md) | RAM budget: at least 3 GiB of the host stays free, by plan | accepted |
 | [0031](0031-l0-state-in-aws-s3.md) | L0 OpenTofu state in a dedicated AWS S3 bucket | accepted |
 | [0032](0032-ci-states-in-aws-s3.md) | CI-applied OpenTofu states in AWS S3, applied from the bastion | accepted |
+| [0033](0033-lab-vm-conventions.md) | Conventions for the lab's VMs on `insa` | accepted |

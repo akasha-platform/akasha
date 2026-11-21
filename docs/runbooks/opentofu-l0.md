@@ -44,6 +44,40 @@ tofu apply l0.plan
 The plan file is encrypted too (`enforced`), and `*.plan` is git-ignored. OpenTofu calls the
 passphrase script through `mise exec`, so the pinned uv and the locked environment are used.
 
+## Base images
+
+Before an apply that creates a VM, fetch and check the pinned images (ADR-0033):
+
+```bash
+uv run --locked python infra/opentofu/scripts/fetch_image.py debian13
+```
+
+The image is kept in `~/.cache/akasha/images/` only if its size and SHA-512 match
+`infra/opentofu/live/l0-host/images.json`; OpenTofu refuses a cached file that does not match.
+
+## VMs (step 6b on)
+
+After every apply, a second `tofu plan` must show **no change**: any domain change restarts
+the VM. Look at a VM from `insa` (the owner is in the `libvirt` group):
+
+```bash
+virsh -c qemu:///system list --all
+virsh -c qemu:///system dumpxml router | less
+virsh -c qemu:///system console router          # leave with Ctrl+]
+```
+
+**After a host reboot** the VMs stay off (ADR-0033): check that `lv_images` is mounted
+(`findmnt /var/lib/libvirt/akasha`; without it the pool `akasha` cannot start, by design), run
+the checks of `host-firewall.md` ("Check after every reboot"), then
+`virsh -c qemu:///system start router`, then the other VMs.
+
+**Destroying the whole stack** on purpose: the base images carry `prevent_destroy`; remove that
+line in `images.tf` first. `tofu destroy -target=module.router` removes only the router.
+
+**A23 drill** (provider 0.9.9 keeps the cloud-init ISO in the laptop's temp directory): delete
+`${TMPDIR:-/tmp}/terraform-provider-libvirt-cloudinit/`, run `tofu plan`: it may recreate the
+`libvirt_cloudinit_disk` (local only) but must not replace a volume nor update a domain.
+
 ## Checks of the first run (step 6a)
 
 ```bash
