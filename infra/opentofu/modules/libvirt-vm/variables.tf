@@ -1,0 +1,59 @@
+variable "name" {
+  description = "Domain name, also the hostname and the cloud-init instance-id (never change it: cloud-init would run again)."
+  type        = string
+}
+
+variable "memory_mib" {
+  description = "RAM in MiB (ADR-0030)."
+  type        = number
+}
+
+variable "vcpus" {
+  description = "Number of vCPUs."
+  type        = number
+}
+
+variable "cpu_set" {
+  description = "Host CPUs the vCPUs and the emulator threads are pinned to, e.g. \"16-27\" for the E-cores."
+  type        = string
+}
+
+variable "disk_gib" {
+  description = "Size of the thin root disk in GiB (a qcow2 overlay on the base image)."
+  type        = number
+}
+
+variable "pool" {
+  description = "Storage pool for the root disk and the cloud-init seed."
+  type        = string
+}
+
+variable "base_volume_path" {
+  description = "Path of the base image volume on the host (backing store of the root disk)."
+  type        = string
+}
+
+variable "interfaces" {
+  description = "NICs in order: host bridge, fixed MAC (matched by cloud-init's network-config), optional MTU."
+  type = list(object({
+    bridge = string
+    mac    = string
+    mtu    = optional(number)
+  }))
+}
+
+variable "user_data" {
+  description = "cloud-init user-data. Never put a secret here: it is stored in the OpenTofu state and in a local ISO."
+  type        = string
+}
+
+variable "network_config" {
+  description = "cloud-init network-config version 2."
+  type        = string
+}
+
+variable "partition" {
+  description = "cgroup partition of the domain (machine-akasha.slice, ADR-0033)."
+  type        = string
+  default     = "/machine/akasha"
+}
