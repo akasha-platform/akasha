@@ -43,7 +43,11 @@ owner's choices are recorded below.
   are set explicitly, since the provider creates volumes 0600 root:root that QEMU cannot open
   (provider issue #1379, met on the first apply of 2026-11-21): base images 0644 (public
   content), each overlay 0600 owned by `libvirt-qemu:kvm` (it holds the VM's data and host
-  keys).
+  keys). The domain declares each disk's backing image (`backing_store`): `virt-aa-helper`
+  would otherwise probe the overlay, which its AppArmor profile only allows under
+  `/var/lib/libvirt/images/`, silently leave the base image out of the VM's profile, and QEMU
+  could not open it (VERIFIED: libvirt 11.3.0 `src/security/virt-aa-helper.c` `get_files()`;
+  met on 2026-11-21). The fix stays in akasha's code: AppArmor on `insa` is not changed.
 * **Images**: pinned in `infra/opentofu/live/l0-host/images.json` (file name, URL, size,
   SHA-512). Debian does not sign its cloud images (VERIFIED: https://cloud.debian.org/images/cloud/,
   no `SHA512SUMS.sign`); the SHA-512 is copied from `SHA512SUMS` over HTTPS when pinning, and
