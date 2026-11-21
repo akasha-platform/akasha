@@ -96,6 +96,14 @@ resource "libvirt_domain" "this" {
         source = { volume = { pool = var.pool, volume = libvirt_volume.root.name } }
         target = { dev = "vda", bus = "virtio" }
         driver = { name = "qemu", type = "qcow2", discard = "unmap" }
+        # Declared, not probed: without it virt-aa-helper opens the overlay to find its backing
+        # file, which its AppArmor profile forbids outside /var/lib/libvirt/images/; the error is
+        # ignored, the base image is left out of the VM's profile and QEMU cannot open it
+        # (libvirt 11.3.0 src/security/virt-aa-helper.c get_files(); first apply, 2026-11-21).
+        backing_store = {
+          format = { type = "qcow2" }
+          source = { file = { file = var.base_volume_path } }
+        }
       },
       {
         device    = "cdrom"
