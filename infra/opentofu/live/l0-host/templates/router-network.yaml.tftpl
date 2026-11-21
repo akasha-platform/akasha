@@ -1,0 +1,18 @@
+# cloud-init network-config v2: interfaces matched by MAC and renamed, so the NIC order on
+# the host does not matter.
+version: 2
+ethernets:
+%{ for name, nic in nics ~}
+  ${name}:
+    match:
+      macaddress: "${nic.mac}"
+    set-name: ${name}
+    addresses: [${nic.address}]
+%{ if name == "wan" ~}
+    routes:
+      - to: default
+        via: 10.255.255.1
+    nameservers:
+      addresses: [1.1.1.1, 9.9.9.9] # until Unbound runs on the router (6b-3)
+%{ endif ~}
+%{ endfor ~}
