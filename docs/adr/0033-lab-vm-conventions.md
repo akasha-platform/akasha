@@ -47,7 +47,10 @@ owner's choices are recorded below.
   would otherwise probe the overlay, which its AppArmor profile only allows under
   `/var/lib/libvirt/images/`, silently leave the base image out of the VM's profile, and QEMU
   could not open it (VERIFIED: libvirt 11.3.0 `src/security/virt-aa-helper.c` `get_files()`;
-  met on 2026-11-21). The fix stays in akasha's code: AppArmor on `insa` is not changed.
+  met on 2026-11-21). Disks are also referenced by file path, not as pool volumes:
+  `virt-aa-helper` only adds local file, block and dir sources to the profile and skips
+  `volume` sources (`add_file_path()`, `virStorageSourceIsLocalStorage()`). The fix stays in
+  akasha's code: AppArmor on `insa` is not changed.
 * **Images**: pinned in `infra/opentofu/live/l0-host/images.json` (file name, URL, size,
   SHA-512). Debian does not sign its cloud images (VERIFIED: https://cloud.debian.org/images/cloud/,
   no `SHA512SUMS.sign`); the SHA-512 is copied from `SHA512SUMS` over HTTPS when pinning, and
