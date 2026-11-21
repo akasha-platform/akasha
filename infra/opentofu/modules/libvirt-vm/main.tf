@@ -93,7 +93,11 @@ resource "libvirt_domain" "this" {
   devices = {
     disks = [
       {
-        source = { volume = { pool = var.pool, volume = libvirt_volume.root.name } }
+        # Disks are referenced by file path, not as pool volumes: virt-aa-helper only adds
+        # local file/block/dir sources to the VM's AppArmor profile and skips `volume` sources
+        # (libvirt 11.3.0 add_file_path() + virStorageSourceIsLocalStorage()), so QEMU could
+        # not open a volume-type disk (third start failure, 2026-11-21).
+        source = { file = { file = libvirt_volume.root.path } }
         target = { dev = "vda", bus = "virtio" }
         driver = { name = "qemu", type = "qcow2", discard = "unmap" }
         # Declared, not probed: without it virt-aa-helper opens the overlay to find its backing
@@ -108,7 +112,7 @@ resource "libvirt_domain" "this" {
       {
         device    = "cdrom"
         read_only = true
-        source    = { volume = { pool = var.pool, volume = libvirt_volume.seed.name } }
+        source    = { file = { file = libvirt_volume.seed.path } }
         target    = { dev = "sda", bus = "sata" }
       },
     ]
