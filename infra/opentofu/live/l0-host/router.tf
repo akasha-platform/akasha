@@ -29,7 +29,7 @@ module "router" {
 
   user_data = templatefile("${path.module}/templates/user-data.yaml.tftpl", {
     hostname = "router"
-    ssh_key  = trimspace(file(pathexpand(var.ssh_public_key_file)))
+    ssh_key  = trimspace(var.ssh_public_key)
   })
 
   network_config = templatefile("${path.module}/templates/router-network.yaml.tftpl", {

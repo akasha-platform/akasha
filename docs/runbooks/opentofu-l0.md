@@ -35,6 +35,7 @@ paper means rebuilding the state by import (ADR-0031).
 cd ~/Documents/dev/Projets/akasha && eval "$(mise activate bash)"
 aws login --profile akasha-l0 --region eu-west-3       # when the session has expired
 export AWS_PROFILE=akasha-l0 AWS_REGION=eu-west-3
+export TF_VAR_ssh_public_key="$(cat ~/.ssh/id_ed25519.pub)"   # key allowed on the lab VMs
 cd infra/opentofu/live/l0-host
 tofu init -input=false -backend-config="$HOME/akasha-private/l0.s3.tfbackend"   # once per checkout
 tofu plan -out=l0.plan
