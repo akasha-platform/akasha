@@ -65,6 +65,7 @@ the VM. Look at a VM from `insa` (the owner is in the `libvirt` group):
 virsh -c qemu:///system list --all
 virsh -c qemu:///system dumpxml router | less
 virsh -c qemu:///system console router          # leave with Ctrl+]
+sudo tail -n 50 /var/log/libvirt/qemu/router-serial.log   # the whole console output (every boot)
 ```
 
 **After a host reboot** the VMs stay off (ADR-0033): check that `lv_images` is mounted

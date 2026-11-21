@@ -127,7 +127,12 @@ resource "libvirt_domain" "this" {
     ]
 
     # Headless: a serial console only (virsh console), no graphics, video, sound or USB.
-    serials     = [{ target = { port = 0 } }]
+    # The serial console is also written to a log on the host, so a boot can be read in full
+    # (the console itself only shows what happens while someone is attached).
+    serials = [{
+      target = { port = 0 }
+      log    = { file = "/var/log/libvirt/qemu/${var.name}-serial.log", append = "on" }
+    }]
     controllers = [{ type = "usb", model = "none" }]
 
     # Lets on_crash act on a guest kernel panic (x86 gets no panic device by default).
