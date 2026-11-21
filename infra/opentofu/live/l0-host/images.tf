@@ -13,6 +13,9 @@ resource "libvirt_volume" "debian13" {
 
   target = {
     format = { type = "qcow2" }
+    # The provider creates volumes 0600 root:root and QEMU (libvirt-qemu) then cannot open them
+    # (provider issue #1379). A base image is public Debian content: readable by all.
+    permissions = { mode = "0644" }
   }
 
   create = {

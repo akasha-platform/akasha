@@ -28,6 +28,16 @@ variable "pool" {
   type        = string
 }
 
+variable "qemu_uid" {
+  description = "uid of QEMU's user on the host (libvirt-qemu); owner of the VM's own disk."
+  type        = number
+}
+
+variable "qemu_gid" {
+  description = "gid of QEMU's group on the host (kvm)."
+  type        = number
+}
+
 variable "base_volume_path" {
   description = "Path of the base image volume on the host (backing store of the root disk)."
   type        = string
