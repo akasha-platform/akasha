@@ -2,10 +2,12 @@
 # without NAT. Its firewall, DNS and time are configured by Ansible (playbooks/router.yml);
 # until then IPv4 forwarding stays off (kernel default), so it routes nothing.
 locals {
-  # QEMU's user on insa: libvirt-qemu (fixed uid 64055 in Debian) and its group kvm (gid 993,
-  # read on insa with getent on 2026-11-21).
+  # Owner that libvirt gives a VM's disk while the VM runs: Debian builds libvirt with
+  # qemu_user and qemu_group libvirt-qemu (uid and gid 64055, read on insa with getent on
+  # 2026-11-22), and insa's qemu.conf does not override them. Declaring the same owner keeps
+  # plans empty while a VM runs (ADR-0033 Updates).
   qemu_uid = 64055
-  qemu_gid = 993
+  qemu_gid = 64055
 
   router_nics = {
     wan  = { bridge = "br-transit", mac = "52:54:00:ff:ff:02", address = "10.255.255.2/29" }

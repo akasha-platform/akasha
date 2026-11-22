@@ -24,7 +24,9 @@ resource "libvirt_volume" "root" {
     format = { type = "qcow2" }
     # Created 0600 root:root by default, which QEMU cannot open (provider issue #1379). The
     # overlay holds the VM's data, its SSH host keys included: private to QEMU's user, never
-    # readable by other users of the school's host.
+    # readable by other users of the school's host. Owner and group must be the ones libvirt
+    # sets while the VM runs (qemu.conf user and group): any difference is a plan diff that
+    # the provider cannot apply (volumes do not support update).
     permissions = {
       owner = tostring(var.qemu_uid)
       group = tostring(var.qemu_gid)

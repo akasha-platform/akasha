@@ -113,3 +113,12 @@ libvirt-guests `ON_BOOT=ignore`); Debian cloud images index.
   inside GRUB (Debian's `gfxterm`). "no graphics, video, sound or USB controller" above becomes
   "no graphics, sound or USB controller"; the Confirmation's "no graphics or video" becomes "no
   graphics".
+* 2026-11-22: each overlay is owned by `libvirt-qemu:libvirt-qemu` (64055:64055), not
+  `libvirt-qemu:kvm`. While a VM runs, libvirt's DAC driver gives its disks the `user` and
+  `group` of `qemu.conf`, which Debian sets at build time to `libvirt-qemu` for both (VERIFIED:
+  `debian/rules` of libvirt 11.3.0-3+deb13u3, `-Dqemu_group=libvirt-qemu`; `insa`'s
+  `qemu.conf` does not override them, checked on 2026-11-22). With `kvm` declared, every plan
+  taken while a VM ran showed an in-place update of its overlay, which the provider refuses
+  (`Update Not Supported`). libvirt does not restore the owner of read-only disks after a VM
+  stops (`security_dac.c`), so the base image and the seed ISO end up owned by `libvirt-qemu`
+  too; their configuration declares no owner, so this causes no diff.
