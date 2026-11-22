@@ -1,5 +1,6 @@
-# One headless KVM guest on insa (ADR-0033): thin qcow2 overlay on a base image, cloud-init
-# NoCloud seed, virtio NICs on host bridges, serial console only, free page reporting.
+# One headless KVM guest on insa (ADR-0033, ADR-0034): thin qcow2 overlay on a base image,
+# cloud-init NoCloud seed, virtio NICs on host bridges, serial console only (a VGA adapter
+# without any display), free page reporting.
 #
 # provider dmacvicar/libvirt 0.9.9 caveats handled here (open question A23):
 # - the cloud-init ISO lives in the laptop's temp directory; when it disappears the provider
@@ -126,13 +127,18 @@ resource "libvirt_domain" "this" {
       }
     ]
 
-    # Headless: a serial console only (virsh console), no graphics, video, sound or USB.
+    # Headless: a serial console only (virsh console), no graphics, sound or USB.
     # The serial console is also written to a log on the host, so a boot can be read in full
     # (the console itself only shows what happens while someone is attached).
     serials = [{
       target = { port = 0 }
       log    = { file = "/var/log/libvirt/qemu/${var.name}-serial.log", append = "on" }
     }]
+
+    # A VGA adapter but no `graphics`, so no display listener (ADR-0034): Debian's GRUB uses
+    # gfxterm and resets the guest in a loop when there is no video device at all.
+    videos = [{ model = { type = "vga" } }]
+
     controllers = [{ type = "usb", model = "none" }]
 
     # Lets on_crash act on a guest kernel panic (x86 gets no panic device by default).

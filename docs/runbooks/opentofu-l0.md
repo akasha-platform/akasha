@@ -68,6 +68,10 @@ virsh -c qemu:///system console router          # leave with Ctrl+]
 sudo tail -n 50 /var/log/libvirt/qemu/router-serial.log   # the whole console output (every boot)
 ```
 
+**A VM resets in a loop right after GRUB's `Booting 'Debian GNU/Linux'`**, with no
+`Loading Linux` line in its serial log: it has no video device (ADR-0034). Check
+`virsh -c qemu:///system dumpxml <vm> | grep -A2 '<video'`.
+
 **After a host reboot** the VMs stay off (ADR-0033): check that `lv_images` is mounted
 (`findmnt /var/lib/libvirt/akasha`; without it the pool `akasha` cannot start, by design), run
 the checks of `host-firewall.md` ("Check after every reboot"), then

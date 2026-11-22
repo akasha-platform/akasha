@@ -105,3 +105,11 @@ is empty; the A23 drill (delete the local cloud-init ISO directory, plan) replac
 Provider v0.9.9 source and issues #1344, #1368, #1374, #1378, #1379, #1383; libvirt 11.3.0
 `formatdomain` and storage code; Debian libvirt 11.3.0 packaging (libvirtd enabled,
 libvirt-guests `ON_BOOT=ignore`); Debian cloud images index.
+
+## Updates
+
+* 2026-11-22: every VM gets a VGA adapter, still without `graphics`
+  ([ADR-0034](0034-vga-adapter-on-lab-vms.md)): with no video device the router reset in a loop
+  inside GRUB (Debian's `gfxterm`). "no graphics, video, sound or USB controller" above becomes
+  "no graphics, sound or USB controller"; the Confirmation's "no graphics or video" becomes "no
+  graphics".
