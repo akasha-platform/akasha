@@ -79,7 +79,14 @@ Done when: an empty PR passes every check; actions are SHA-pinned; `main` is pro
      encrypted object checked in S3, lock checked, off-AWS copy (runbook `opentofu-l0.md`).
    * 6b: VM module (headless, sizes in MiB, free page reporting, cloud-init without secrets,
      `ignore_changes` of open question A23), Debian 13 base image, the edge router VM and its
-     Ansible role (ADR-0028, ADR-0029).
+     Ansible role (ADR-0028, ADR-0029):
+     * 6b-1 ✅ 2026-11-22: module `libvirt-vm`, pool `akasha`, checked Debian 13 base image and
+       the router VM (ADR-0033, ADR-0034); boots, reachable by SSH through the tailnet, host
+       key checked against the serial console, forwarding off, second plan empty, A23 drill
+       passed.
+     * 6b-2: Ansible access to the lab VMs and a common `vm_base` role.
+     * 6b-3: the router's roles: firewall, DNS (Unbound), time (ADR-0029), then forwarding on.
+     * 6b-4: reboot test, memory measurement of the router, rebuild from zero.
    * 6c: bastion and core (OpenBao + versitygw).
    * 6d: OpenStack controller and computes, then the RAM gate (ADR-0030).
 7. OpenBao initialisation (Shamir; self-init test A14),
