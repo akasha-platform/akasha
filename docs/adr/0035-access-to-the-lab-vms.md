@@ -104,6 +104,15 @@ Step 6b-2, on the router: a second run reports `changed=0`; `sshd -T` shows
 `passwd -S debian` shows `P`; an SSH login without a key is refused with
 `Permission denied (publickey)`; the owner logs in on the serial console with the password.
 
+### Implementation (2026-11-22)
+
+Applied to the router by PR #61. The dry run checked the drop-in with the router's own
+`sshd -t`; the first run changed the password and the drop-in and reloaded sshd, a second
+run reported `changed=0`. Confirmed on 2026-11-22: `sshd -T` shows `permitrootlogin no`,
+`passwordauthentication no` and `kbdinteractiveauthentication no`; `passwd -S debian` shows
+`P`; an SSH login without a key is refused with `Permission denied (publickey)`; the owner
+logged in as `debian` on the serial console with the password and logged out.
+
 ## More Information
 
 * ADR-0026 (Ansible conventions), ADR-0028 (router and console path), ADR-0033 (VM
