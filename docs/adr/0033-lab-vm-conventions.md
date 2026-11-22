@@ -100,6 +100,28 @@ pty serial, USB `none`, free page reporting, the MACs on the right bridges and t
 `/machine/akasha` partition; `systemctl status machine-akasha.slice` is active; a second plan
 is empty; the A23 drill (delete the local cloud-init ISO directory, plan) replaces nothing.
 
+### Implementation (2026-11-22)
+
+Step 6b-1 created the pool, the Debian base image and the router (PRs #53 to #59). Three
+provider and libvirt traps were met on the first applies and fixed in code (volume
+permissions, the declared `backing_store`, disks by file path; see Decision Outcome), plus two
+more recorded in the Updates below and in [ADR-0034](0034-vga-adapter-on-lab-vms.md) (a video
+device, the overlay's group). Each VM's serial console is also written to
+`/var/log/libvirt/qemu/<vm>-serial.log`, which is how the GRUB reset loop was found.
+
+Confirmed on 2026-11-22: `virsh dumpxml router` shows vCPU and emulator pinned to `16-27`,
+`host-passthrough`, no `graphics` element, a `vga` video device, a pty serial console with
+its log, USB controller `none`, free page reporting, the three MACs on `br-transit`,
+`br-mgmt` and `br-ext`, and the `/machine/akasha` partition; `machine-akasha.slice` is
+active. The router boots to a login prompt in 17 s; cloud-init (NoCloud) finishes with
+`status: done`, installs only the owner's key and generates only an ED25519 host key, whose
+fingerprint is the same on the serial console, through `ssh-keyscan` from `insa` and over
+SSH from the laptop through the tailnet. The interfaces are renamed by MAC (`wan`, `mgmt`,
+`ext`) with their addresses, IPv4 forwarding is 0, and no unit failed. A second plan shows no
+change. A23 drill: with the laptop's cloud-init ISO directory deleted, the plan only
+recreates `libvirt_cloudinit_disk` (local) and replaces nothing; applying it left a plan with
+no change.
+
 ## More Information
 
 Provider v0.9.9 source and issues #1344, #1368, #1374, #1378, #1379, #1383; libvirt 11.3.0

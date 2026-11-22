@@ -78,6 +78,14 @@ Step 6b-1: the router boots to a login prompt in its serial log, `virsh dumpxml`
 `vga` video model and no `graphics`, and a second plan shows no change. The memory cost is part
 of the step-6 RAM gate.
 
+### Implementation (2026-11-22)
+
+Applied by PR #58: the domain was updated in place, and `virsh dumpxml router` shows
+`<model type='vga' vram='16384' heads='1' primary='yes'/>` and no `graphics`. The router
+reaches `router login:` on its serial console and raised no `reboot` event over 20 s; a second
+plan shows no change. The host-side memory cost is still to be measured (step 6b-4 and the
+RAM gate).
+
 ## More Information
 
 * Debian bug #906263: https://lists.debian.org/debian-cloud/2018/08/msg00039.html
