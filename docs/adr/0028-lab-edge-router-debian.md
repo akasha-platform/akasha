@@ -125,3 +125,9 @@ OPNsense" chain is also replaced, by ADR-0029).
 * Research and independent review notes of 2026-11-17 are summarised above; the full
   comparison included idle-RAM estimates (ESTIMATED) that the confirmation replaces with
   measurements.
+
+## Updates
+
+* 2026-11-22: the console path above needs a password, since the cloud image locks them all.
+  The role `vm_base` gives `debian` a console-only password (SSH stays key-only, root refused),
+  [ADR-0035](0035-access-to-the-lab-vms.md).

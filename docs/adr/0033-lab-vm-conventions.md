@@ -144,3 +144,6 @@ libvirt-guests `ON_BOOT=ignore`); Debian cloud images index.
   (`Update Not Supported`). libvirt does not restore the owner of read-only disks after a VM
   stops (`security_dac.c`), so the base image and the seed ISO end up owned by `libvirt-qemu`
   too; their configuration declares no owner, so this causes no diff.
+* 2026-11-22: "password login off" above holds for SSH; the default user gets a password for the
+  serial console only, set by Ansible from a private file and never by cloud-init
+  ([ADR-0035](0035-access-to-the-lab-vms.md)).

@@ -1,0 +1,16 @@
+---
+# The console password hash comes from a private file (`-e @~/akasha-private/lab_vms.yml`).
+# Imported first by tasks/main.yml and by the play's pre_tasks (before any role changes).
+# A yescrypt hash is `$y$<params>$<salt>$<43 characters>`; `[$]` avoids escaping `$`.
+- name: Check that the console password hash was passed from the private file
+  ansible.builtin.assert:
+    that:
+      - vm_base_console_password_hash is defined
+      - vm_base_console_password_hash is string
+      - >-
+        vm_base_console_password_hash
+        is match('^[$]y[$][./A-Za-z0-9]+[$][./A-Za-z0-9]+[$][./A-Za-z0-9]{43}$')
+    fail_msg: >-
+      vm_base_console_password_hash must be a yescrypt hash (mkpasswd -m yescrypt): pass
+      -e @~/akasha-private/lab_vms.yml (docs/runbooks/lab-vms.md).
+    quiet: true

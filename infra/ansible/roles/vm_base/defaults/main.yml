@@ -1,0 +1,12 @@
+---
+# Common base of every lab VM (ADR-0035).
+
+# Default user of the Debian cloud image, created by cloud-init with the owner's SSH key and
+# passwordless sudo.
+vm_base_user: debian
+
+# yescrypt hash (`mkpasswd -m yescrypt`, starts with `$y$`) of the password that opens the
+# serial console of the lab VMs; SSH never accepts it. Never committed and deliberately
+# without a default: pass it at run time with `-e @~/akasha-private/lab_vms.yml`. Without it
+# the role stops (tasks/check.yml) before anything changes.
+# vm_base_console_password_hash: '$y$...'
