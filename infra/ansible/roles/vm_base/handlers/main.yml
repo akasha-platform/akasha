@@ -1,0 +1,7 @@
+---
+# Debian's ssh.service runs `sshd -t` before it sends SIGHUP: with a broken configuration the
+# reload fails and sshd keeps running with the previous one.
+- name: Reload sshd
+  ansible.builtin.systemd_service:
+    name: ssh.service
+    state: reloaded

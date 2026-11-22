@@ -41,3 +41,4 @@ its status changed or a dated note pointing to the new one. Only dated sections 
 | [0032](0032-ci-states-in-aws-s3.md) | CI-applied OpenTofu states in AWS S3, applied from the bastion | accepted |
 | [0033](0033-lab-vm-conventions.md) | Conventions for the lab's VMs on `insa` | accepted |
 | [0034](0034-vga-adapter-on-lab-vms.md) | A VGA adapter on every lab VM, still without a display | accepted |
+| [0035](0035-access-to-the-lab-vms.md) | Access to the lab's VMs: SSH keys, a console password and passwordless sudo | accepted |

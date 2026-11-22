@@ -1,0 +1,25 @@
+---
+argument_specs:
+  main:
+    short_description: Common base of the lab VMs (ADR-0035)
+    description:
+      - Checks the Debian cloud image defaults the lab relies on (passwordless sudo, UTC,
+        unattended upgrades, ssh.service), gives the default user a password for the serial
+        console, and makes SSH accept keys only and never root.
+    options:
+      vm_base_user:
+        type: str
+        description: Default user of the cloud image.
+      vm_base_console_password_hash:
+        type: str
+        description:
+          - yescrypt hash of the serial-console password. Never committed and without a
+            default; pass it at run time from a private file. tasks/check.yml stops the play
+            when it is missing or not a yescrypt hash.
+  check:
+    short_description: Check the private input of the role before anything changes
+    options:
+      vm_base_console_password_hash:
+        type: str
+        description:
+          - yescrypt hash of the serial-console password (see the main entry point).

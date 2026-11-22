@@ -1,0 +1,123 @@
+---
+# Common base of every lab VM (ADR-0035). The Debian cloud image already provides most of it:
+# check those defaults instead of managing them, so a different image stops the play. Then give
+# the default user a password for the serial console (the way in when SSH is broken, ADR-0028)
+# and make SSH accept keys only and never root, so that password never works over SSH.
+
+- name: Check the private input
+  ansible.builtin.import_tasks: check.yml
+
+- name: Check that the VM runs the image this role was written for
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] == 'Debian'
+      - ansible_facts['distribution_major_version'] == '13'
+    fail_msg: >-
+      {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}: vm_base
+      was written for the Debian 13 cloud image (ADR-0033).
+    quiet: true
+
+- name: Read the image defaults this role relies on
+  ansible.builtin.shell: |
+    if grep -qxF '{{ vm_base_user }} ALL=(ALL) NOPASSWD:ALL' /etc/sudoers.d/90-cloud-init-users; then
+      echo sudo=nopasswd
+    fi
+    echo "timezone=$(timedatectl show --property=Timezone --value)"
+    apt-config shell uu APT::Periodic::Unattended-Upgrade lists APT::Periodic::Update-Package-Lists
+    echo "uu_package=$(dpkg-query -W -f='${Status}' unattended-upgrades 2>/dev/null)"
+    echo "uu_timer=$(systemctl is-enabled apt-daily-upgrade.timer)"
+    echo "ssh=$(systemctl is-active ssh.service)"
+  args:
+    executable: /bin/bash
+  register: vm_base_image
+  changed_when: false
+  check_mode: false
+
+# Passwordless sudo is how Ansible becomes root without -K (ADR-0035). ssh.service must be the
+# running sshd: the reload handler would otherwise start it next to a socket-activated sshd.
+- name: Check passwordless sudo, UTC, unattended upgrades and ssh.service
+  ansible.builtin.assert:
+    that:
+      - "'sudo=nopasswd' in vm_base_image.stdout_lines"
+      - vm_base_image.stdout_lines | select('in', ['timezone=Etc/UTC', 'timezone=UTC']) | list | length == 1
+      - "\"uu='1'\" in vm_base_image.stdout_lines"
+      - "\"lists='1'\" in vm_base_image.stdout_lines"
+      - "'uu_package=install ok installed' in vm_base_image.stdout_lines"
+      - "'uu_timer=enabled' in vm_base_image.stdout_lines"
+      - "'ssh=active' in vm_base_image.stdout_lines"
+    fail_msg: "{{ vm_base_image.stdout_lines }}"
+    quiet: true
+
+# Set before sshd is touched, so the console is a way in should the SSH change go wrong.
+- name: Give the default user a password for the serial console
+  ansible.builtin.user:
+    name: "{{ vm_base_user }}"
+    password: "{{ vm_base_console_password_hash }}"
+    update_password: always
+  no_log: true
+
+# `validate:` does not run in check mode: check the file with the VM's sshd in a temporary
+# copy, so the dry run already proves the syntax.
+- name: Check the SSH drop-in in a dry run
+  when: ansible_check_mode
+  check_mode: false
+  block:
+    - name: Create a temporary file for the SSH drop-in
+      ansible.builtin.tempfile:
+        suffix: .conf
+      register: vm_base_tmp
+
+    - name: Copy the SSH drop-in into the temporary file
+      ansible.builtin.copy:
+        src: 10-akasha.conf
+        dest: "{{ vm_base_tmp.path }}"
+        mode: "0600"
+
+    - name: Check the SSH drop-in with sshd
+      ansible.builtin.command: /usr/sbin/sshd -t -f {{ vm_base_tmp.path }}
+      changed_when: false
+  always:
+    - name: Remove the temporary file
+      ansible.builtin.file:
+        path: "{{ vm_base_tmp.path }}"
+        state: absent
+      when: vm_base_tmp.path is defined
+
+- name: Make SSH accept keys only and never root (checked by sshd before the file is replaced)
+  ansible.builtin.copy:
+    src: 10-akasha.conf
+    dest: /etc/ssh/sshd_config.d/10-akasha.conf
+    owner: root
+    group: root
+    mode: "0644"
+    validate: /usr/sbin/sshd -t -f %s
+  notify: Reload sshd
+
+- name: Apply a changed SSH configuration now
+  ansible.builtin.meta: flush_handlers
+
+# --- Checks ----------------------------------------------------------------------------------
+
+# `sshd -T` prints the settings sshd uses once every file is read, drop-ins included.
+- name: Read the effective SSH settings and the state of the console password
+  ansible.builtin.shell: |
+    set -o pipefail
+    /usr/sbin/sshd -T | grep -E '^(permitrootlogin|passwordauthentication|kbdinteractiveauthentication) '
+    passwd -S {{ vm_base_user }} | awk '{ print "password=" $2 }'
+  args:
+    executable: /bin/bash
+  register: vm_base_state
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+
+- name: Check that SSH accepts keys only, never root, and that the console password is set
+  ansible.builtin.assert:
+    that:
+      - "'permitrootlogin no' in vm_base_state.stdout_lines"
+      - "'passwordauthentication no' in vm_base_state.stdout_lines"
+      - "'kbdinteractiveauthentication no' in vm_base_state.stdout_lines"
+      - "'password=P' in vm_base_state.stdout_lines"
+    fail_msg: "{{ vm_base_state.stdout_lines }}"
+    quiet: true
+  when: not ansible_check_mode

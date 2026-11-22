@@ -32,3 +32,5 @@ One runbook per alert or known failure mode, written when the failure mode is in
   back
 * [host-upgrade.md](host-upgrade.md) — upgrade `insa` (Debian point releases) and reboot safely
   over Tailscale; stale package lists
+* [lab-vms.md](lab-vms.md) — lab VMs: console password, Ansible runs, serial console, add a
+  VM (host key check), locked out of SSH, roll back `vm_base`

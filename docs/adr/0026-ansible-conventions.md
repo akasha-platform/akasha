@@ -65,3 +65,10 @@ Chosen option: "Ansible", laid out under `infra/ansible/`:
   returns `pong`; `playbooks/facts.yml` reports Debian 13.6, kernel 6.12.115, Python 3.13.5,
   28 CPU threads, 31839 MiB RAM and partitions `nvme0n1p1`–`p3` (matching the P1 inventory),
   with `changed=0`.
+
+## Updates
+
+* 2026-11-22: the lab's VMs follow [ADR-0035](0035-access-to-the-lab-vms.md). They are in the
+  inventory by their lab-internal address (group `lab_vms`, user `debian`), not by an SSH
+  alias, and their playbooks run without `-K` (passwordless sudo of the cloud image). `insa`
+  keeps its SSH alias and `-K`.
