@@ -84,7 +84,9 @@ Done when: an empty PR passes every check; actions are SHA-pinned; `main` is pro
        the router VM (ADR-0033, ADR-0034); boots, reachable by SSH through the tailnet, host
        key checked against the serial console, forwarding off, second plan empty, A23 drill
        passed.
-     * 6b-2: Ansible access to the lab VMs and a common `vm_base` role.
+     * 6b-2 ✅ 2026-11-22: Ansible reaches the lab VMs by their `br-mgmt` address without `-K`;
+       role `vm_base` (image defaults checked, console-only password, SSH keys only and no
+       root) applied to the router, second run `changed=0`, console login checked (ADR-0035).
      * 6b-3: the router's roles: firewall, DNS (Unbound), time (ADR-0029), then forwarding on.
      * 6b-4: reboot test, memory measurement of the router, rebuild from zero.
    * 6c: bastion and core (OpenBao + versitygw).

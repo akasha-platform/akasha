@@ -48,6 +48,14 @@ Log in as `debian` with the console password. The serial log on `insa`
 (`/var/log/libvirt/qemu/router-serial.log`) records the console's output, never the typed
 password (getty does not echo it).
 
+Leave with `Ctrl+]`, not Escape: Escape is sent to the VM as a login name (`^[`, then
+`Login incorrect`). If the terminal cannot send `Ctrl+]`, close the SSH session (Enter, `~`, `.`).
+
+`Une session de console active existe pour ce domaine` ("an active console session exists"):
+libvirt allows one console session per VM and another one is open, e.g. a virt-manager window
+or a forgotten `virsh console`. Close it, or take the console over with
+`virsh -c qemu:///system console --force router`.
+
 ## Check
 
 ```bash
