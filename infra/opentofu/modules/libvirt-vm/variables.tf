@@ -34,7 +34,7 @@ variable "qemu_uid" {
 }
 
 variable "qemu_gid" {
-  description = "gid of QEMU's group on the host (kvm)."
+  description = "gid of the group libvirt gives a running VM's disk (libvirt-qemu on Debian)."
   type        = number
 }
 
