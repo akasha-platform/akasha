@@ -113,3 +113,10 @@ Independent review of 2026-11-17 (draft and findings in the project's working no
 [research/03](../research/03-kolla-2026.1-findings.md),
 [research/05](../research/05-kubernetes-on-openstack.md),
 [research/08](../research/08-observability-and-host-memory.md), ADR-0016.
+
+## Updates
+
+* 2026-11-22: every VM gets a VGA adapter, still without any display
+  ([ADR-0034](0034-vga-adapter-on-lab-vms.md)): Debian's cloud images do not boot without a
+  video device. "No graphics or video device" above becomes "no graphics device"; the
+  adapter's memory is measured at the step-6 gate.
