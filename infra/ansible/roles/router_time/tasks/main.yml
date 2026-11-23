@@ -127,10 +127,12 @@
       - "'leap=Normal' in router_time_state.stdout_lines"
       - router_time_state.stdout_lines | select('match', 'selected=') | length == 1
       - >-
-        router_time_check_allowed | map('regex_replace', '^(.*)$', 'access \1 208 Access allowed')
+        router_time_check_allowed | map('regex_replace', '^', 'access ')
+        | map('regex_replace', '$', ' 208 Access allowed')
         | difference(router_time_state.stdout_lines) | length == 0
       - >-
-        router_time_check_refused | map('regex_replace', '^(.*)$', 'access \1 209 Access denied')
+        router_time_check_refused | map('regex_replace', '^', 'access ')
+        | map('regex_replace', '$', ' 209 Access denied')
         | difference(router_time_state.stdout_lines) | length == 0
     fail_msg: "{{ router_time_state.stdout_lines }}"
     quiet: true

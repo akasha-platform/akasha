@@ -118,8 +118,9 @@
       - "'root_key=present' in router_dns_state.stdout_lines"
       - >-
         router_dns_state.stdout_lines | select('match', 'listen=') | sort
-        == ((router_dns_listen | map('regex_replace', '^(.*)$', 'listen=tcp \1:53') | list)
-            + (router_dns_listen | map('regex_replace', '^(.*)$', 'listen=udp \1:53') | list)) | sort
+        == ((router_dns_listen | map('regex_replace', '^', 'listen=tcp ') | list)
+            + (router_dns_listen | map('regex_replace', '^', 'listen=udp ') | list))
+           | map('regex_replace', '$', ':53') | sort
       - >-
         router_dns_state.stdout_lines | select('match', 'name ok ') | length
         == router_dns_listen | length * router_dns_hosts | length
