@@ -1,0 +1,8 @@
+---
+# Command that checks a chrony file before it is used (`validate:` and the dry run). Debian's
+# AppArmor profile for /usr/sbin/chronyd lets it read only /etc/chrony, /run/chrony and a few
+# other paths, not Ansible's temporary files: copy the file into /run/chrony (the runtime
+# directory of the running chronyd), parse it with `chronyd -p`, then remove the copy.
+router_time_check_command: >-
+  /bin/sh -c 'f=/run/chrony/akasha-check.conf; install -m 0600 "$1" "$f"
+  && /usr/sbin/chronyd -p -f "$f"; rc=$?; rm -f "$f"; exit $rc' check

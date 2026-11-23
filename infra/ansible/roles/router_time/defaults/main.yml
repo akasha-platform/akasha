@@ -1,0 +1,27 @@
+---
+# Time of the lab on the edge router (ADR-0036): chrony follows UTC over NTP and serves it to
+# the lab's ranges.
+
+# NTP servers added to the Debian pool of the packaged chrony.conf. They must not smear leap
+# seconds: Debian's chrony.conf reads the leap-second list (`leapseclist`), which "must be
+# commented out when using time sources serving leap-smeared time" (so no time.google.com).
+# The PTB (Germany's national metrology institute) serves UTC from its atomic clocks.
+router_time_servers:
+  - ptbtime1.ptb.de
+  - ptbtime2.ptb.de
+
+# Lab ranges allowed to use the router as NTP server; chrony serves no other client.
+router_time_clients:
+  - 10.10.0.0/24
+  - 10.20.0.0/24
+
+# Addresses the checks ask chrony about (`chronyc accheck`): a VM on each lab range must be
+# allowed, the host on the transit network refused.
+router_time_check_allowed:
+  - 10.10.0.10
+  - 10.20.0.100
+router_time_check_refused:
+  - 10.255.255.1
+
+# The checks wait until chrony has synchronised: at most this many tries of 10 seconds.
+router_time_sync_tries: 18

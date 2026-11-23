@@ -34,3 +34,5 @@ One runbook per alert or known failure mode, written when the failure mode is in
   over Tailscale; stale package lists
 * [lab-vms.md](lab-vms.md) — lab VMs: console password, Ansible runs, serial console, add a
   VM (host key check), locked out of SSH, roll back `vm_base`
+* [router.md](router.md) — edge router DNS (Unbound) and time (chrony): run, check, DNS not
+  answering, add a name, lost time sources, roll back

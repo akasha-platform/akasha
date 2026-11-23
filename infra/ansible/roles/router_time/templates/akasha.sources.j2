@@ -1,0 +1,5 @@
+# {{ ansible_managed }}
+# NTP servers of the router besides the Debian pool of chrony.conf (ADR-0036, role router_time).
+{% for server in router_time_servers %}
+server {{ server }} iburst
+{% endfor %}

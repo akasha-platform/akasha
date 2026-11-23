@@ -1,0 +1,28 @@
+---
+argument_specs:
+  main:
+    short_description: Time of the lab on the edge router, with chrony over NTP (ADR-0036)
+    description:
+      - Installs chrony in place of systemd-timesyncd, adds NTP servers to the Debian pool,
+        serves time to the lab's ranges only (no `local` directive) and checks that the router
+        is synchronised.
+    options:
+      router_time_servers:
+        type: list
+        elements: str
+        description: NTP servers added to the Debian pool; none may smear leap seconds.
+      router_time_clients:
+        type: list
+        elements: str
+        description: Lab ranges allowed to use the router as NTP server.
+      router_time_check_allowed:
+        type: list
+        elements: str
+        description: Addresses `chronyc accheck` must report as allowed.
+      router_time_check_refused:
+        type: list
+        elements: str
+        description: Addresses `chronyc accheck` must report as denied.
+      router_time_sync_tries:
+        type: int
+        description: Tries of 10 s the checks wait for chrony to synchronise.

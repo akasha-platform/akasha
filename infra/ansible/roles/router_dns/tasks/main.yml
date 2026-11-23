@@ -1,0 +1,132 @@
+---
+# DNS of the lab on the edge router (ADR-0028, ADR-0036 for the measurements behind the
+# upstream choice). Debian's packaging already gives DNSSEC validation (dns-root-data, pulled in
+# as a recommended package) and unbound-control on a unix socket; this role adds one file.
+# The router itself keeps the resolvers cloud-init gave it, so a broken Unbound never stops
+# apt on the router.
+
+- name: Install Unbound and dig
+  ansible.builtin.apt:
+    name:
+      - unbound
+      - bind9-dnsutils
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+# On a VM without Unbound, a dry run has neither the package's directory nor its checker nor
+# its unit: the configuration can only be checked by the real run (`validate:` below).
+- name: Look for Unbound's configuration checker
+  ansible.builtin.stat:
+    path: /usr/sbin/unbound-checkconf
+  register: router_dns_checker
+
+- name: Configure Unbound
+  when: not ansible_check_mode or router_dns_checker.stat.exists
+  block:
+    # `validate:` does not run in check mode: check the rendered file with the VM's
+    # unbound-checkconf in a temporary file, so the dry run already proves the syntax.
+    - name: Check the rendered configuration in a dry run
+      when: ansible_check_mode
+      check_mode: false
+      block:
+        - name: Create a temporary file for the rendered configuration
+          ansible.builtin.tempfile:
+            suffix: .conf
+          register: router_dns_tmp
+
+        - name: Render the configuration into the temporary file
+          ansible.builtin.template:
+            src: akasha.conf.j2
+            dest: "{{ router_dns_tmp.path }}"
+            mode: "0644"
+
+        - name: Check the configuration with unbound-checkconf
+          ansible.builtin.command: /usr/sbin/unbound-checkconf {{ router_dns_tmp.path }}
+          changed_when: false
+      always:
+        - name: Remove the temporary file
+          ansible.builtin.file:
+            path: "{{ router_dns_tmp.path }}"
+            state: absent
+          when: router_dns_tmp.path is defined
+
+    - name: Write the lab's DNS configuration (checked by unbound-checkconf before it is written)
+      ansible.builtin.template:
+        src: akasha.conf.j2
+        dest: /etc/unbound/unbound.conf.d/akasha.conf
+        owner: root
+        group: root
+        mode: "0644"
+        validate: /usr/sbin/unbound-checkconf %s
+      notify: Restart Unbound
+
+    # The file alone is valid; this checks it together with Debian's other files.
+    - name: Check the whole Unbound configuration
+      ansible.builtin.command: /usr/sbin/unbound-checkconf
+      changed_when: false
+      check_mode: false
+
+    - name: Enable and start Unbound
+      ansible.builtin.systemd_service:
+        name: unbound.service
+        enabled: true
+        state: started
+
+- name: Apply a changed DNS configuration now
+  ansible.builtin.meta: flush_handlers
+
+# --- Checks ----------------------------------------------------------------------------------
+
+- name: Read Unbound's state, its sockets and its answers
+  ansible.builtin.shell: |
+    set -o pipefail
+    echo "unit=$(systemctl is-active unbound.service)"
+    echo "enabled=$(systemctl is-enabled unbound.service)"
+    echo "modules=$(/usr/sbin/unbound-checkconf -o module-config)"
+    test -s /var/lib/unbound/root.key && echo root_key=present
+    ss -Hlnutp | awk '/"unbound"/ { print "listen=" $1 " " $5 }' | sort -u
+    q() { dig +time=2 +tries=2 +short "$@" | paste -sd ' '; }
+    for server in {{ router_dns_listen | join(' ') }}; do
+    {% for host in router_dns_hosts %}
+      a=$(q @"$server" {{ host.name }}.{{ router_dns_zone }} A)
+      ptr=$(q @"$server" -x {{ host.address }})
+      if [ "$a" = "{{ host.address }}" ] && [ "$ptr" = "{{ host.name }}.{{ router_dns_zone }}." ]; then
+        echo "name ok $server {{ host.name }}"
+      else
+        echo "name bad $server {{ host.name }}: A=$a PTR=$ptr"
+      fi
+    {% endfor %}
+    done
+    dig +time=3 +tries=2 +dnssec @127.0.0.1 debian.org SOA | grep -qE '^;; flags:.* ad[ ;]' \
+      && echo dnssec=validated
+    dig +time=2 +tries=1 -b {{ router_dns_wan_address }} @{{ router_dns_hosts[0].address }} \
+      {{ router_dns_hosts[0].name }}.{{ router_dns_zone }} A | grep -qF 'status: REFUSED' && echo wan_source=refused
+  args:
+    executable: /bin/bash
+  register: router_dns_state
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+
+- name: Check that Unbound listens on the lab addresses only, serves the zone and validates DNSSEC
+  ansible.builtin.assert:
+    that:
+      - "'unit=active' in router_dns_state.stdout_lines"
+      - "'enabled=enabled' in router_dns_state.stdout_lines"
+      - "'modules=validator iterator' in router_dns_state.stdout_lines"
+      - "'root_key=present' in router_dns_state.stdout_lines"
+      - >-
+        router_dns_state.stdout_lines | select('match', 'listen=') | sort
+        == ((router_dns_listen | map('regex_replace', '^', 'listen=tcp ') | list)
+            + (router_dns_listen | map('regex_replace', '^', 'listen=udp ') | list))
+           | map('regex_replace', '$', ':53') | sort
+      - >-
+        router_dns_state.stdout_lines | select('match', 'name ok ') | length
+        == router_dns_listen | length * router_dns_hosts | length
+      - router_dns_state.stdout_lines | select('match', 'name bad ') | length == 0
+      - "'dnssec=validated' in router_dns_state.stdout_lines"
+      - "'wan_source=refused' in router_dns_state.stdout_lines"
+    fail_msg: "{{ router_dns_state.stdout_lines }}"
+    quiet: true
+  when: not ansible_check_mode

@@ -1,0 +1,7 @@
+# {{ ansible_managed }}
+# The router serves time to the lab's ranges only (ADR-0036, role router_time). No `local`
+# directive: when every source is lost, clients see the router's growing root distance instead
+# of a confident time.
+{% for net in router_time_clients %}
+allow {{ net }}
+{% endfor %}

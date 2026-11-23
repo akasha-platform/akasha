@@ -48,7 +48,7 @@ Proxmox layer, so Kubernetes VMs run at nesting level 2 ([ADR-0005](../adr/0005-
 
 | VM | Role | vCPU (pinned) | RAM | Disk |
 |---|---|---|---|---|
-| router | Edge router/firewall (nftables, no NAT), DNS (Unbound), NTP (chrony, UTC over HTTPS); Debian 13 ([ADR-0028](../adr/0028-lab-edge-router-debian.md), [ADR-0029](../adr/0029-lab-time-source.md)) | 1 → E-core | 0.5 GB | 8 G |
+| router | Edge router/firewall (nftables, no NAT), DNS (Unbound), NTP (chrony, UTC over NTP); Debian 13 ([ADR-0028](../adr/0028-lab-edge-router-debian.md), [ADR-0029](../adr/0029-lab-time-source.md), [ADR-0036](../adr/0036-router-time-over-ntp.md)) | 1 → E-core | 0.5 GB | 8 G |
 | bastion | Runs OpenTofu/Ansible/Kolla; single SSH entry point for CI (via Tailscale) | 1 → E-cores | 0.75 GiB (768 MiB) + 1 GiB guest swap | 20 G |
 | core | OpenBao (secrets, PKI, SSH CA, JWT auth) + versitygw (in-lab S3) | 1 → E-cores | 0.6 GiB (614 MiB) | 20 G + 30 G data |
 | os-ctl01 | OpenStack control plane, API VIP (HAProxy/keepalived), Cinder LVM, OVN gateway | 4 → P-cores | 8 GiB | 60 G + 120 G raw LV |
