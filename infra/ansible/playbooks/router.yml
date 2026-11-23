@@ -1,5 +1,6 @@
 ---
-# Edge router of the lab (ADR-0028, ADR-0035, ADR-0036): VM base, DNS (Unbound), time (chrony).
+# Edge router of the lab (ADR-0028, ADR-0035, ADR-0036, ADR-0037): VM base, DNS (Unbound), time
+# (chrony), then firewall and forwarding.
 # No -K: the VM's default user has passwordless sudo. Always dry-run first; vm_base needs the
 # private file:
 #   uv run ansible-playbook playbooks/router.yml --check --diff -e @~/akasha-private/lab_vms.yml
@@ -25,3 +26,5 @@
       tags: [dns]
     - role: router_time
       tags: [time]
+    - role: router_firewall
+      tags: [firewall]

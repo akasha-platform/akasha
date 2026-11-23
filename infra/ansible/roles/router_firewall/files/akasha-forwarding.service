@@ -1,0 +1,17 @@
+# Managed by akasha (Ansible role router_firewall, ADR-0037).
+# IPv4 forwarding of the edge router, on only while its firewall is loaded: when
+# nftables.service fails at boot this unit is not started, and stopping or restarting
+# nftables.service (which flushes the rules) stops or restarts it too.
+[Unit]
+Description=akasha: IPv4 forwarding of the edge router, after its firewall
+Requires=nftables.service
+After=nftables.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/sysctl -q -w net.ipv4.ip_forward=1
+ExecStop=/usr/sbin/sysctl -q -w net.ipv4.ip_forward=0
+
+[Install]
+WantedBy=multi-user.target

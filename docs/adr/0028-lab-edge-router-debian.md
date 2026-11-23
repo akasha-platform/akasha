@@ -142,3 +142,10 @@ OPNsense" chain is also replaced, by ADR-0029).
   * The router itself keeps the resolvers cloud-init gave it (1.1.1.1, 9.9.9.9), so a broken
     Unbound does not stop its own updates.
   * Time: chrony over NTP, [ADR-0036](0036-router-time-over-ntp.md), role `router_time`.
+* 2026-11-23: the firewall policy above is implemented by the role `router_firewall`, with
+  additions chosen by the owner and recorded in
+  [ADR-0037](0037-router-firewall-and-forwarding.md):
+  * `br-mgmt` → `br-ext` is also open;
+  * new rule sets load "commit confirmed";
+  * forwarding comes on only through a unit that requires the firewall;
+  * DNS and NTP are served only on the router's address on the client's network.
