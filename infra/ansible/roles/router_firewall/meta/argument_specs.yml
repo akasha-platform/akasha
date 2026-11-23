@@ -1,0 +1,40 @@
+---
+argument_specs:
+  main:
+    short_description: Firewall and fail-closed forwarding of the edge router (ADR-0028, ADR-0037)
+    description:
+      - Loads an nftables rule set that drops by default in input and forward, with a timed
+        rollback unless Ansible reaches the router again over a new SSH connection, loads it
+        at boot before the network, and turns IPv4 forwarding on through a unit that requires
+        the firewall.
+    options:
+      router_firewall_wan:
+        type: str
+        description: Interface on the transit network (towards insa).
+      router_firewall_mgmt:
+        type: str
+        description: Interface on br-mgmt.
+      router_firewall_ext:
+        type: str
+        description: Interface on br-ext.
+      router_firewall_mgmt_net:
+        type: str
+        description: Management network.
+      router_firewall_mgmt_address:
+        type: str
+        description: Router address on the management network.
+      router_firewall_ext_net:
+        type: str
+        description: Provider and floating-IP network.
+      router_firewall_ext_address:
+        type: str
+        description: Router address on the provider network.
+      router_firewall_tailnet_source:
+        type: str
+        description: Source address of tailnet and host traffic (the host's transit address).
+      router_firewall_rollback_seconds:
+        type: int
+        description: Seconds before a newly loaded rule set is rolled back unless confirmed.
+      router_firewall_log_rate:
+        type: int
+        description: Logged drops per minute and chain.

@@ -1,0 +1,25 @@
+---
+# Firewall and forwarding of the edge router (ADR-0028, ADR-0037). Interface names come from
+# the router's cloud-init network-config (matched by MAC address and renamed).
+
+router_firewall_wan: wan
+router_firewall_mgmt: mgmt
+router_firewall_ext: ext
+
+# Lab networks behind the router, and the router's address on each (DNS and NTP are served
+# only on the address of the interface the client is on).
+router_firewall_mgmt_net: 10.10.0.0/24
+router_firewall_mgmt_address: 10.10.0.1
+router_firewall_ext_net: 10.20.0.0/24
+router_firewall_ext_address: 10.20.0.1
+
+# Source of every connection from the tailnet and from insa itself: Tailscale on insa
+# masquerades tailnet → lab traffic to the host's transit address (ADR-0008, step 4c).
+router_firewall_tailnet_source: 10.255.255.1
+
+# Seconds after which a newly loaded rule set is rolled back unless Ansible reaches the router
+# again over a new SSH connection ("commit confirmed").
+router_firewall_rollback_seconds: 180
+
+# Logged drops per minute and chain (the rest are only counted).
+router_firewall_log_rate: 5

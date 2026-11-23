@@ -43,3 +43,4 @@ its status changed or a dated note pointing to the new one. Only dated sections 
 | [0034](0034-vga-adapter-on-lab-vms.md) | A VGA adapter on every lab VM, still without a display | accepted |
 | [0035](0035-access-to-the-lab-vms.md) | Access to the lab's VMs: SSH keys, a console password and passwordless sudo | accepted |
 | [0036](0036-router-time-over-ntp.md) | The edge router follows UTC over NTP with chrony and serves it to the lab | accepted |
+| [0037](0037-router-firewall-and-forwarding.md) | Firewall and forwarding of the edge router | accepted |

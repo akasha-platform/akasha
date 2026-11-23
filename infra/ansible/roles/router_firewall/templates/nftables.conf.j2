@@ -1,0 +1,63 @@
+# {{ ansible_managed }}
+# Firewall of the edge router (ADR-0028, ADR-0037, role router_firewall). The router is
+# akasha's own VM, so this file owns the whole rule set; loading it is one transaction.
+# Default drop in input and forward. No NAT: the host is the only NAT to the uplink.
+{% set wan = router_firewall_wan | to_json %}
+{% set mgmt = router_firewall_mgmt | to_json %}
+{% set ext = router_firewall_ext | to_json %}
+{% set lab_sources = [router_firewall_mgmt_net, router_firewall_ext_net, router_firewall_tailnet_source] | join(', ') %}
+
+flush ruleset
+
+table inet akasha {
+	chain prerouting {
+		type filter hook prerouting priority filter; policy accept;
+		iifname "lo" accept
+		# The lab has no IPv6: drop it before routing, for the router and for routed packets.
+		meta nfproto ipv6 counter drop
+		# Anti-spoofing: the source must be reachable back through the interface the packet
+		# came in on (strict reverse-path filter).
+		fib saddr . iif oif missing counter drop
+	}
+
+	chain input {
+		type filter hook input priority filter; policy drop;
+		iifname "lo" accept
+		ct state invalid counter drop
+		ct state established,related accept
+
+		ip saddr { {{ lab_sources }} } icmp type echo-request accept
+
+		# DNS (Unbound) and NTP (chrony), each network on the router's address on it.
+		iifname {{ mgmt }} ip saddr {{ router_firewall_mgmt_net }} ip daddr {{ router_firewall_mgmt_address }} meta l4proto { tcp, udp } th dport 53 accept
+		iifname {{ ext }} ip saddr {{ router_firewall_ext_net }} ip daddr {{ router_firewall_ext_address }} meta l4proto { tcp, udp } th dport 53 accept
+		iifname {{ mgmt }} ip saddr {{ router_firewall_mgmt_net }} ip daddr {{ router_firewall_mgmt_address }} udp dport 123 accept
+		iifname {{ ext }} ip saddr {{ router_firewall_ext_net }} ip daddr {{ router_firewall_ext_address }} udp dport 123 accept
+
+		# SSH: from the management network, and from the tailnet and insa (ADR-0028), so the
+		# router stays reachable when the bastion is down.
+		iifname {{ mgmt }} ip saddr {{ router_firewall_mgmt_net }} tcp dport 22 accept
+		iifname {{ wan }} ip saddr {{ router_firewall_tailnet_source }} tcp dport 22 accept
+
+		limit rate {{ router_firewall_log_rate }}/minute burst 10 packets log prefix "akasha drop input: "
+		counter drop
+	}
+
+	chain forward {
+		type filter hook forward priority filter; policy drop;
+		ct state invalid counter drop
+		ct state established,related accept
+
+		# Both lab networks reach the Internet (NAT on the host).
+		iifname {{ mgmt }} oifname {{ wan }} accept
+		iifname {{ ext }} oifname {{ wan }} accept
+		# The tailnet (masqueraded to the host's transit address) reaches both networks.
+		iifname {{ wan }} ip saddr {{ router_firewall_tailnet_source }} oifname { {{ mgmt }}, {{ ext }} } accept
+		# Management reaches the floating-IP network (bastion → instances, ADR-0037).
+		iifname {{ mgmt }} oifname {{ ext }} accept
+		# ext → mgmt stays closed until open question B4 (API VIPs) is decided.
+
+		limit rate {{ router_firewall_log_rate }}/minute burst 10 packets log prefix "akasha drop forward: "
+		counter drop
+	}
+}
