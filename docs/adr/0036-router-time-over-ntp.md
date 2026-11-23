@@ -126,6 +126,29 @@ over port 53 and validates DNSSEC itself.
 * Open question A18 for the rest of the chain: an L1 VM against the router, the `ptp_kvm`
   reading, behaviour without sources, and OVN DHCP.
 
+### Implementation (2026-11-23)
+
+Applied to the router from PR #65, together with the DNS role. Two defects of the first
+version, found on the router, were fixed in the same pull request:
+
+* the expected lists of the checks were built with `\1` in a Jinja string, which Jinja reads as
+  the character U+0001;
+* `validate:` failed closed because of chronyd's AppArmor profile (see below).
+
+The last real run reported `failed=0` with every check passed, and a second run reported
+`changed=0`.
+
+Confirmed on 2026-11-23 (`chronyc -n tracking` and `sources` on the router):
+
+* the router is 0.8 ms from NTP time, with leap status `Normal`;
+* six sources, all with reach 377: four from the Debian pool, and both PTB servers at
+  stratum 1. NTP to the PTB therefore passes the campus;
+* the frequency is 16.323 ppm slow, consistent with timesyncd's +16.658 ppm of 2026-11-22;
+* systemd-timesyncd is removed;
+* `chronyc accheck` allows both lab ranges and denies 10.255.255.1.
+
+Unbound and chrony together raised the router's used memory from 97 to 111 MiB (`free -m`).
+
 ## More Information
 
 * The probes (read-only Python, no extra package) were run on 2026-11-22 from `insa` and from
