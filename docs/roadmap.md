@@ -92,7 +92,13 @@ Done when: an empty PR passes every check; actions are SHA-pinned; `main` is pro
        Cloudflare, DNSSEC validated locally) and time (role `router_time`: chrony over NTP in
        place of timesyncd, serving the lab ranges, ADR-0036); every check passed, second run
        `changed=0`, router 0.8 ms from NTP time, +14 MiB used.
-     * 6b-3b: the router's firewall (nftables), then forwarding on.
+     * 6b-3b ✅ 2026-11-23: role `router_firewall` (ADR-0037).
+       * nftables with default drop, loaded commit confirmed; forwarding on only through a unit
+         that requires the firewall.
+       * Independent review: 2 blockers fixed before running.
+       * Second run `changed=0`.
+       * Fake clients on `br-mgmt` and `br-ext`: 14/14 cases as expected, spoofed source
+         dropped, drops logged.
      * 6b-4: reboot test, memory measurement of the router, rebuild from zero.
    * 6c: bastion and core (OpenBao + versitygw).
    * 6d: OpenStack controller and computes, then the RAM gate (ADR-0030).

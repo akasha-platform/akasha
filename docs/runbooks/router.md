@@ -247,7 +247,8 @@ EOF
 
 ```bash
 ssh debian@10.10.0.1 sudo nft list chain inet akasha prerouting | grep fib
-ssh debian@10.10.0.1 sudo journalctl -k -g 'akasha drop' -n 20   # the blocked cases above
+ssh debian@10.10.0.1 "sudo journalctl -k -g 'akasha drop' -n 20 --no-pager"   # the blocked cases above
+# (double quotes: ssh runs the command through the router's shell, which would split 'akasha drop')
 ```
 
 Every line printed by the script must start with `ok`. A `WRONG` line is a finding: keep the

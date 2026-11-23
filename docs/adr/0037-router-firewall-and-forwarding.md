@@ -163,6 +163,37 @@ implements the following.
 * Step 6b-4 (reboot): the rules load before the network, and forwarding comes on only after
   them.
 
+### Implementation (2026-11-23)
+
+Applied to the router from PR #66.
+
+* **The dry run** installed nothing and failed nothing.
+* **The first real run** went through the whole commit-confirmed sequence:
+  * the SSH source checked (10.255.255.1 on `wan`);
+  * the timer armed and the candidate loaded;
+  * a new SSH connection proven;
+  * the timer stopped, the boot file written and the fingerprint recorded;
+  * then nftables and forwarding enabled.
+
+  Every check passed.
+* **A second run** reported `changed=0`.
+* **On the router:**
+  * `nftables` and `akasha-forwarding` are active;
+  * `ip_forward=1`;
+  * `inet akasha` is the only table;
+  * no rollback timer is left.
+
+The fake-client test on `insa` (runbook `router.md`) printed `ok` for all 14 cases:
+* Internet access from both networks;
+* DNS and NTP on the router's own address only;
+* SSH from `mgmt` only;
+* `mgmt` → `ext` open, and `ext` → `mgmt` closed.
+
+The laptop reached both networks through the tailnet. Three spoofed SYNs from `br-ext` with
+source 10.10.0.99 raised the `fib` counter from 0 to 6, counting retransmissions. The kernel
+log showed an `akasha drop input` or `akasha drop forward` line for each blocked case. Every
+test object was removed.
+
 ## More Information
 
 * Before review, the rendered rule set was tested on 2026-11-23 in a Debian 13 container, with
