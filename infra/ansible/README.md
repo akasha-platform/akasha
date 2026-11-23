@@ -7,7 +7,7 @@ ansible.cfg
 collections/requirements.yml   pinned collections, incl. transitive ones (installed copy is git-ignored)
 inventories/lab/hosts.yml      insa by SSH alias (no address committed); lab VMs by lab address
 playbooks/                     facts.yml (read-only); host.yml, router.yml (P1); bastion.yml, core.yml (P1), k3s.yml (P4)
-roles/                         host_storage, host_network, host_firewall, vm_base (P1); later memory headroom, OpenBao, versitygw, …
+roles/                         host_storage, host_network, host_firewall, vm_base, router_dns, router_time (P1); later memory headroom, OpenBao, versitygw, …
 ```
 
 ```bash
@@ -28,8 +28,8 @@ uv run ansible-playbook playbooks/host.yml -K --check --diff
 uv run ansible-playbook playbooks/host.yml -K -e host_storage_confirm=nvme0n1
 ```
 
-Lab VMs (ADR-0035, runbook `docs/runbooks/lab-vms.md`): no `-K` (passwordless sudo); the
-console password hash comes from a private file:
+Lab VMs (ADR-0035, runbooks `docs/runbooks/lab-vms.md` and `docs/runbooks/router.md`): no
+`-K` (passwordless sudo); the console password hash comes from a private file:
 
 ```bash
 uv run ansible-playbook playbooks/router.yml --check --diff -e @~/akasha-private/lab_vms.yml

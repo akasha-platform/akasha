@@ -1,0 +1,47 @@
+---
+argument_specs:
+  main:
+    short_description: DNS of the lab on the edge router, with Unbound (ADR-0028)
+    description:
+      - Installs Unbound, serves the zone akasha.internal and its reverse records to the lab's
+        ranges only, and forwards every other name to public resolvers while validating DNSSEC
+        itself. The router's own resolver is left as cloud-init set it.
+    options:
+      router_dns_listen:
+        type: list
+        elements: str
+        description: Addresses Unbound listens on (localhost and the lab gateways, never the WAN).
+      router_dns_clients:
+        type: list
+        elements: str
+        description: Lab ranges allowed to query; every other source except localhost is refused.
+      router_dns_forwarders:
+        type: list
+        elements: str
+        description: Upstream resolvers for every name outside the local zones.
+      router_dns_zone:
+        type: str
+        description: Local zone of the lab.
+      router_dns_ttl:
+        type: int
+        description: TTL in seconds of the local records.
+      router_dns_hosts:
+        type: list
+        elements: dict
+        description:
+          - Names of the zone with their address; each also gets a reverse record. The first
+            entry is the router itself.
+        options:
+          name:
+            type: str
+            required: true
+          address:
+            type: str
+            required: true
+      router_dns_reverse_zones:
+        type: list
+        elements: str
+        description: Reverse zones served locally (without the trailing dot).
+      router_dns_wan_address:
+        type: str
+        description: Router address on the transit network; queries from it must be refused.

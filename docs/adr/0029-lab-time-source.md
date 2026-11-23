@@ -99,3 +99,11 @@ the NTP server by DHCP.
   and the system clock contradicts.
 * `docs/research/04-host-and-network.md` proposed "host chrony → OPNsense → chrony in every
   VM"; that chain would have changed the school's time service and is replaced by this ADR.
+
+## Updates
+
+* 2026-11-23: NTP from the campus works again since about 2026-11-18 (measurements of
+  2026-11-22 in [ADR-0036](0036-router-time-over-ntp.md)). The router part of this decision
+  (htpdate, chronyd `-x`, `local stratum 10`) is replaced by ADR-0036: chrony on the router
+  follows UTC over NTP and serves it to the lab, without `local`. The parts for the L1 VMs and
+  the OpenStack instances stay as decided here.

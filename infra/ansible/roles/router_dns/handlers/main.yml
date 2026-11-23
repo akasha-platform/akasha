@@ -1,0 +1,7 @@
+---
+# Unbound changes its listening addresses only on a restart, not on a reload (unbound.conf(5),
+# `interface`). The configuration was checked with unbound-checkconf before it was written.
+- name: Restart Unbound
+  ansible.builtin.systemd_service:
+    name: unbound.service
+    state: restarted

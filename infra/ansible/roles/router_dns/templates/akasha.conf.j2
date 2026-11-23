@@ -1,0 +1,34 @@
+# {{ ansible_managed }}
+# DNS of the lab (ADR-0028, role router_dns). Debian's other files in this directory keep
+# their defaults: DNSSEC validation with the root trust anchor in /var/lib/unbound/root.key,
+# and unbound-control on the unix socket /run/unbound.ctl.
+server:
+{% for address in router_dns_listen %}
+    interface: {{ address }}
+{% endfor %}
+    # Start even when an address is not up yet at boot (unbound.service only waits for
+    # network.target).
+    ip-freebind: yes
+    do-ip6: no
+{% for net in router_dns_clients %}
+    access-control: {{ net }} allow
+{% endfor %}
+    hide-identity: yes
+    hide-version: yes
+
+    local-zone: "{{ router_dns_zone }}." static
+{% for host in router_dns_hosts %}
+    local-data: "{{ host.name }}.{{ router_dns_zone }}. {{ router_dns_ttl }} IN A {{ host.address }}"
+{% endfor %}
+{% for zone in router_dns_reverse_zones %}
+    local-zone: "{{ zone }}." static
+{% endfor %}
+{% for host in router_dns_hosts %}
+    local-data-ptr: "{{ host.address }} {{ router_dns_ttl }} {{ host.name }}.{{ router_dns_zone }}."
+{% endfor %}
+
+forward-zone:
+    name: "."
+{% for address in router_dns_forwarders %}
+    forward-addr: {{ address }}
+{% endfor %}

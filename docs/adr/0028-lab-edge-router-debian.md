@@ -131,3 +131,14 @@ OPNsense" chain is also replaced, by ADR-0029).
 * 2026-11-22: the console path above needs a password, since the cloud image locks them all.
   The role `vm_base` gives `debian` a console-only password (SSH stays key-only, root refused),
   [ADR-0035](0035-access-to-the-lab-vms.md).
+* 2026-11-23: the router's DNS and time, chosen by the owner on 2026-11-22 after the egress
+  measurements recorded in [ADR-0036](0036-router-time-over-ntp.md):
+  * Unbound **forwards** every name outside its local zones to Google (8.8.8.8, 8.8.4.4) and
+    Cloudflare (1.1.1.1, 1.0.0.1) over plain port 53 and validates DNSSEC itself (Debian's
+    default trust anchor). The campus does not intercept port 53 and blocks DNS over TLS.
+    Unbound listens on 127.0.0.1, 10.10.0.1 and 10.20.0.1, never on the WAN address, and
+    answers 10.10.0.0/24 and 10.20.0.0/24 only. The zone `akasha.internal` names every planned
+    VM, with reverse records; VIP names wait for open question B4. Role `router_dns`.
+  * The router itself keeps the resolvers cloud-init gave it (1.1.1.1, 9.9.9.9), so a broken
+    Unbound does not stop its own updates.
+  * Time: chrony over NTP, [ADR-0036](0036-router-time-over-ntp.md), role `router_time`.

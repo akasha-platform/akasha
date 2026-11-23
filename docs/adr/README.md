@@ -35,10 +35,11 @@ its status changed or a dated note pointing to the new one. Only dated sections 
 | [0026](0026-ansible-conventions.md) | Ansible conventions for host configuration | accepted |
 | [0027](0027-guest-on-the-school-host.md) | akasha is a guest on the school host: minimal footprint and reviewed host changes | accepted |
 | [0028](0028-lab-edge-router-debian.md) | Lab edge router: a minimal Debian 13 VM instead of OPNsense | accepted |
-| [0029](0029-lab-time-source.md) | Lab time source: the edge router keeps UTC over HTTPS and serves NTP to the lab | accepted |
+| [0029](0029-lab-time-source.md) | Lab time source: the edge router keeps UTC over HTTPS and serves NTP to the lab | accepted (router part replaced by 0036) |
 | [0030](0030-ram-budget.md) | RAM budget: at least 3 GiB of the host stays free, by plan | accepted |
 | [0031](0031-l0-state-in-aws-s3.md) | L0 OpenTofu state in a dedicated AWS S3 bucket | accepted |
 | [0032](0032-ci-states-in-aws-s3.md) | CI-applied OpenTofu states in AWS S3, applied from the bastion | accepted |
 | [0033](0033-lab-vm-conventions.md) | Conventions for the lab's VMs on `insa` | accepted |
 | [0034](0034-vga-adapter-on-lab-vms.md) | A VGA adapter on every lab VM, still without a display | accepted |
 | [0035](0035-access-to-the-lab-vms.md) | Access to the lab's VMs: SSH keys, a console password and passwordless sudo | accepted |
+| [0036](0036-router-time-over-ntp.md) | The edge router follows UTC over NTP with chrony and serves it to the lab | accepted |

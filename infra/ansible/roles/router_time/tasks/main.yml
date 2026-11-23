@@ -1,0 +1,137 @@
+---
+# Time of the lab on the edge router (ADR-0036). chrony replaces systemd-timesyncd (both
+# provide `time-daemon` and conflict, so apt removes timesyncd), follows UTC over NTP and
+# serves it to the lab. The packaged chrony.conf is kept: Debian pool, `makestep 1 3`,
+# `rtcsync`, `leapseclist`, and the two directories this role writes into.
+
+- name: Install chrony (apt removes systemd-timesyncd)
+  ansible.builtin.apt:
+    name: chrony
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+# On a VM without chrony, a dry run has neither its directories nor chronyd nor its unit: the
+# files can only be checked by the real run (`validate:` below).
+- name: Look for chronyd
+  ansible.builtin.stat:
+    path: /usr/sbin/chronyd
+  register: router_time_chronyd
+
+- name: Configure chrony
+  when: not ansible_check_mode or router_time_chronyd.stat.exists
+  block:
+    # `validate:` does not run in check mode: check the rendered files with the VM's chronyd
+    # (`-p` parses the configuration, prints it and exits) in temporary files.
+    - name: Check the rendered files in a dry run
+      when: ansible_check_mode
+      check_mode: false
+      block:
+        - name: Create a temporary directory for the rendered files
+          ansible.builtin.tempfile:
+            state: directory
+          register: router_time_tmp
+
+        - name: Render the files into the temporary directory
+          ansible.builtin.template:
+            src: "{{ item }}.j2"
+            dest: "{{ router_time_tmp.path }}/{{ item }}"
+            mode: "0644"
+          loop:
+            - akasha.sources
+            - akasha.conf
+
+        - name: Check the files with chronyd
+          ansible.builtin.command: /usr/sbin/chronyd -p -f {{ router_time_tmp.path }}/{{ item }}
+          changed_when: false
+          loop:
+            - akasha.sources
+            - akasha.conf
+      always:
+        - name: Remove the temporary directory
+          ansible.builtin.file:
+            path: "{{ router_time_tmp.path }}"
+            state: absent
+          when: router_time_tmp.path is defined
+
+    - name: Write the router's extra NTP servers (checked by chronyd before the file is written)
+      ansible.builtin.template:
+        src: akasha.sources.j2
+        dest: /etc/chrony/sources.d/akasha.sources
+        owner: root
+        group: root
+        mode: "0644"
+        validate: /usr/sbin/chronyd -p -f %s
+      notify: Restart chrony
+
+    - name: Let the lab's ranges use the router as NTP server (checked by chronyd before the file is written)
+      ansible.builtin.template:
+        src: akasha.conf.j2
+        dest: /etc/chrony/conf.d/akasha.conf
+        owner: root
+        group: root
+        mode: "0644"
+        validate: /usr/sbin/chronyd -p -f %s
+      notify: Restart chrony
+
+    # The files alone are valid; this checks them together with Debian's chrony.conf.
+    - name: Check the whole chrony configuration
+      ansible.builtin.command: /usr/sbin/chronyd -p
+      changed_when: false
+      check_mode: false
+
+    - name: Enable and start chrony
+      ansible.builtin.systemd_service:
+        name: chrony.service
+        enabled: true
+        state: started
+
+- name: Apply a changed time configuration now
+  ansible.builtin.meta: flush_handlers
+
+# --- Checks ----------------------------------------------------------------------------------
+
+# `chronyc waitsync` returns once the clock is synchronised and its remaining correction is
+# below 0.1 s, trying every 10 s; a fresh start needs a few polls (`iburst`).
+- name: Read chrony's state, its sources and its access rules
+  ansible.builtin.shell: |
+    set -o pipefail
+    echo "unit=$(systemctl is-active chrony.service)"
+    echo "enabled=$(systemctl is-enabled chrony.service)"
+    echo "timesyncd=$(dpkg-query -W -f='${Status}' systemd-timesyncd 2>/dev/null || echo absent)"
+    chronyc waitsync {{ router_time_sync_tries }} 0.1 >/dev/null && echo sync=yes
+    echo "ntp_synchronized=$(timedatectl show --property=NTPSynchronized --value)"
+    chronyc -n tracking | awk -F' *: *' '$1 == "Leap status" { print "leap=" $2 }'
+    chronyc -n sources | awk '$1 ~ /^\^\*/ { print "selected=" $2 }'
+    {% for address in router_time_check_allowed %}
+    echo "access {{ address }} $(chronyc accheck {{ address }})"
+    {% endfor %}
+    {% for address in router_time_check_refused %}
+    echo "access {{ address }} $(chronyc accheck {{ address }})"
+    {% endfor %}
+  args:
+    executable: /bin/bash
+  register: router_time_state
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+
+- name: Check that chrony runs alone, is synchronised and serves the lab's ranges only
+  ansible.builtin.assert:
+    that:
+      - "'unit=active' in router_time_state.stdout_lines"
+      - "'enabled=enabled' in router_time_state.stdout_lines"
+      - "'timesyncd=install ok installed' not in router_time_state.stdout_lines"
+      - "'sync=yes' in router_time_state.stdout_lines"
+      - "'ntp_synchronized=yes' in router_time_state.stdout_lines"
+      - "'leap=Normal' in router_time_state.stdout_lines"
+      - router_time_state.stdout_lines | select('match', 'selected=') | length == 1
+      - >-
+        router_time_check_allowed | map('regex_replace', '^(.*)$', 'access \1 208 Access allowed')
+        | difference(router_time_state.stdout_lines) | length == 0
+      - >-
+        router_time_check_refused | map('regex_replace', '^(.*)$', 'access \1 209 Access denied')
+        | difference(router_time_state.stdout_lines) | length == 0
+    fail_msg: "{{ router_time_state.stdout_lines }}"
+    quiet: true
+  when: not ansible_check_mode

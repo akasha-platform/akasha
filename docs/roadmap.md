@@ -87,7 +87,9 @@ Done when: an empty PR passes every check; actions are SHA-pinned; `main` is pro
      * 6b-2 ✅ 2026-11-22: Ansible reaches the lab VMs by their `br-mgmt` address without `-K`;
        role `vm_base` (image defaults checked, console-only password, SSH keys only and no
        root) applied to the router, second run `changed=0`, console login checked (ADR-0035).
-     * 6b-3: the router's roles: firewall, DNS (Unbound), time (ADR-0029), then forwarding on.
+     * 6b-3a: the router's DNS (Unbound, zone `akasha.internal`) and time (chrony over NTP,
+       ADR-0036).
+     * 6b-3b: the router's firewall (nftables), then forwarding on.
      * 6b-4: reboot test, memory measurement of the router, rebuild from zero.
    * 6c: bastion and core (OpenBao + versitygw).
    * 6d: OpenStack controller and computes, then the RAM gate (ADR-0030).

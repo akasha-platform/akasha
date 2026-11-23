@@ -1,0 +1,51 @@
+---
+# DNS of the lab on the edge router (ADR-0028): Unbound answers the lab's ranges only, serves
+# the zone akasha.internal and forwards everything else, validating DNSSEC itself.
+
+# Addresses Unbound listens on: localhost and the router's gateway addresses on br-mgmt and
+# br-ext. Never the WAN address (10.255.255.2): no DNS service on the transit network.
+router_dns_listen:
+  - 127.0.0.1
+  - 10.10.0.1
+  - 10.20.0.1
+
+# Lab ranges allowed to query; every other source is refused (localhost is always allowed).
+router_dns_clients:
+  - 10.10.0.0/24
+  - 10.20.0.0/24
+
+# Upstream resolvers (two operators, two addresses each), chosen by the owner on 2026-11-22.
+# Plain DNS on port 53: DNS over TLS (TCP 853) is blocked by the campus (ADR-0036).
+router_dns_forwarders:
+  - 8.8.8.8
+  - 8.8.4.4
+  - 1.1.1.1
+  - 1.0.0.1
+
+router_dns_zone: akasha.internal
+router_dns_ttl: 300
+
+# Names of the planned VMs on br-mgmt (docs/architecture/overview.md), with their reverse
+# records. VIP names wait for open question B4 (P2). The first entry is the router itself: the
+# checks query its br-mgmt address.
+router_dns_hosts:
+  - name: router
+    address: 10.10.0.1
+  - name: bastion
+    address: 10.10.0.10
+  - name: os-ctl01
+    address: 10.10.0.11
+  - name: core
+    address: 10.10.0.12
+  - name: os-cmp01
+    address: 10.10.0.21
+  - name: os-cmp02
+    address: 10.10.0.22
+
+# Reverse zones served locally, so that no PTR query for a lab address leaves the lab.
+router_dns_reverse_zones:
+  - 0.10.10.in-addr.arpa
+  - 0.20.10.in-addr.arpa
+
+# Address of the router on the transit network: the checks query from it and expect REFUSED.
+router_dns_wan_address: 10.255.255.2
