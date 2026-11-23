@@ -22,7 +22,8 @@
   when: not ansible_check_mode or router_time_chronyd.stat.exists
   block:
     # `validate:` does not run in check mode: check the rendered files with the VM's chronyd
-    # (`-p` parses the configuration, prints it and exits) in temporary files.
+    # (`-p` parses the configuration, prints it and exits) in temporary files. chronyd reads
+    # them through a copy in /run/chrony (AppArmor, vars/main.yml).
     - name: Check the rendered files in a dry run
       when: ansible_check_mode
       check_mode: false
@@ -42,7 +43,7 @@
             - akasha.conf
 
         - name: Check the files with chronyd
-          ansible.builtin.command: /usr/sbin/chronyd -p -f {{ router_time_tmp.path }}/{{ item }}
+          ansible.builtin.command: "{{ router_time_check_command }} {{ router_time_tmp.path }}/{{ item }}"
           changed_when: false
           loop:
             - akasha.sources
@@ -61,7 +62,7 @@
         owner: root
         group: root
         mode: "0644"
-        validate: /usr/sbin/chronyd -p -f %s
+        validate: "{{ router_time_check_command }} %s"
       notify: Restart chrony
 
     - name: Let the lab's ranges use the router as NTP server (checked by chronyd before the file is written)
@@ -71,7 +72,7 @@
         owner: root
         group: root
         mode: "0644"
-        validate: /usr/sbin/chronyd -p -f %s
+        validate: "{{ router_time_check_command }} %s"
       notify: Restart chrony
 
     # The files alone are valid; this checks them together with Debian's chrony.conf.

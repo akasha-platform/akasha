@@ -132,5 +132,10 @@ over port 53 and validates DNSSEC itself.
   the router.
 * `chrony.conf(5)` 4.6: `allow`, `sourcedir`, `confdir`, `leapsecmode` (leap smear). `chronyd -p`
   parses the configuration and exits, so the role uses it to check files before writing them.
+* Debian confines `/usr/sbin/chronyd` with an AppArmor profile (chrony 4.6.1-3+deb13u2
+  `debian/usr.sbin.chronyd`) that lets it read `/etc/chrony` and `/run/chrony` but not
+  Ansible's temporary files, even as root. The role therefore checks a copy in `/run/chrony`
+  (found on the router on 2026-11-23: the first check failed closed with "Permission
+  denied").
 * Leap smear: https://developers.google.com/time/smear (Google's public NTP smears leap
   seconds).
