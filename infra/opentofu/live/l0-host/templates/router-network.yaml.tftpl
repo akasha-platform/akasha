@@ -13,6 +13,8 @@ ethernets:
       - to: default
         via: 10.255.255.1
     nameservers:
-      addresses: [1.1.1.1, 9.9.9.9] # until Unbound runs on the router (6b-3)
+      # The router resolves through public resolvers, not through its own Unbound, so apt and
+      # chrony keep working when Unbound is broken (ADR-0028 Updates, 2026-11-23).
+      addresses: [1.1.1.1, 9.9.9.9]
 %{ endif ~}
 %{ endfor ~}
