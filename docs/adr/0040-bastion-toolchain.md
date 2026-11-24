@@ -126,6 +126,18 @@ Step 6c-3, on the bastion:
 * as `akasha`, `cd ~/akasha/infra/ansible && mise exec -- uv run --locked ansible-playbook
   playbooks/router.yml --syntax-check` succeeds.
 
+### Implementation (2026-11-24)
+
+Applied to the bastion from PR #70.
+* **Runs.** The dry run passed. The first run reported `changed=19` (firewall loaded commit
+  confirmed, user, mise, checkout, tools, collections), with no GitHub rate limit, and a
+  second run reported `changed=0`.
+* **The checkout.** It is at `c26ccc4`, the head of `main` on GitHub (`git ls-remote`).
+* **Tools.** OpenTofu v1.13.9, uv 0.13.7 and ansible-core 2.20.10, as on the laptop.
+* **Access.** `akasha` is not allowed to run sudo, and SSH to the bastion is accepted from
+  10.10.0.10 and 10.255.255.1 only.
+* **Confirmation.** As `akasha`, the syntax check of `router.yml` succeeded.
+
 ## More Information
 
 * ADR-0022 (pinned toolchain), ADR-0026 (Ansible), ADR-0032 (CI through the bastion),
