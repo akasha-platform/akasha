@@ -141,7 +141,11 @@ Done when: an empty PR passes every check; actions are SHA-pinned; `main` is pro
        * Plan: 12 added, second plan empty.
        * Every node check passed, second run `changed=0`; nested virtualisation is available
          on the computes.
-     * 6d-2: the RAM gate (ADR-0030), measured over a working day.
+     * 6d-2 ✅ 2026-11-24: the RAM gate (ADR-0030 Updates) **passed**.
+       * With the three OpenStack nodes holding all their memory at once, `insa` kept at
+         least 3.56 GiB available, no swap-in.
+       * The formula with the measured QEMU overhead gives 3.54 GiB.
+       * The measurement was short, by the owner's choice: nobody uses the desktop.
 7. OpenBao initialisation (Shamir; self-init test A14),
    restic to AWS S3 with Object Lock (design + test A13), host checks (A15).
 
