@@ -103,6 +103,10 @@
     {
       description: 'Pinned release binaries: the PR is a reminder, the checksum is checked by hand (ADR-0042)',
       matchManagers: ['custom.regex'],
+      // Own branch and title: the CI's mise (`jdx/mise` in lint.yml) has the same name and
+      // would otherwise share this pull request, which cannot be merged as is.
+      additionalBranchPrefix: 'pinned-binary-',
+      commitMessageTopic: 'pinned release {{depName}}',
       prBodyNotes: [
         '**Do not merge as is.** Only the version changed. Check the release signature, then update `*_sha256` and `*_published_at` in the same file: runbook `docs/runbooks/core.md` (OpenBao) or `docs/runbooks/bastion.md` (mise). With a stale checksum the role refuses the download.',
       ],
