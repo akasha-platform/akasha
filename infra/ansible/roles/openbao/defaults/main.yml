@@ -3,6 +3,8 @@
 # official .deb and the release's publication time. To bump (runbook core.md): verify the
 # release's GPG-signed checksums.txt (key 66D1 5FDD 8728 7219 C8E1 5478 D200 CD70 2853 E6D0,
 # also published on https://openbao.org/docs/install/), then change the three values.
+# Renovate proposes new versions (ADR-0042).
+# renovate: datasource=github-releases depName=openbao/openbao
 openbao_version: 2.7.3
 openbao_deb_sha256: 0800c71469c1d7a5d5c9fb37ce0e441cad97d9fe122dab70391c8371e290b935
 # `published_at` of the GitHub release (UTC): the role refuses to install a release younger

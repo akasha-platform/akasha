@@ -42,7 +42,6 @@ item here.
 | B13 | Offline backup of the OpenBao Transit keys that encrypt the L2/L3 states: exportable keys with plaintext backup (cannot be turned off later) or rely on the off-site OpenBao raft snapshots plus the unseal shares | exportable key backup · raft snapshots only | P3 |
 | B14 | Off-AWS copy of the L2/L3 states, like ADR-0031's for L0, or none (they can be rebuilt by import) | copy after apply · none | P3 |
 | B15 | Tailnet policy: the CI tag may reach only the bastion's SSH port (change to the owner's tailnet policy, ADR-0008 step 4c) | yes · other | P3 |
-| B16 | Patches of OpenBao and of mise on the bastion (ADR-0040), both outside Debian's archive and so never updated by unattended upgrades (ADR-0039): watch its releases by hand, or a Renovate custom manager on `openbao_version` (the SHA-256 and the signature check stay manual) Also: cosign in the pinned toolchain, to check the release's sigstore signature as openbao.org shows | manual · Renovate custom manager | P1 (before step 7) |
 
 ## C. Questions never discussed yet
 

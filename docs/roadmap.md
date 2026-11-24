@@ -146,8 +146,14 @@ Done when: an empty PR passes every check; actions are SHA-pinned; `main` is pro
          least 3.56 GiB available, no swap-in.
        * The formula with the measured QEMU overhead gives 3.54 GiB.
        * The measurement was short, by the owner's choice: nobody uses the desktop.
-7. OpenBao initialisation (Shamir; self-init test A14),
-   restic to AWS S3 with Object Lock (design + test A13), host checks (A15).
+7. OpenBao initialisation, its certificates, off-site backups and host checks, split by the
+   owner on 2026-11-24 (Shamir: 3 shares, threshold 2):
+   * 7a: Renovate proposes new OpenBao and mise releases (B16, ADR-0042).
+   * 7b: host checks (A15).
+   * 7c: offline root CA and OpenBao initialisation (self-init A14 tested in a container
+     first).
+   * 7d: OpenBao's intermediate CA, its TLS certificate, and port 8200 opened.
+   * 7e: restic to AWS S3 with Object Lock (design + test A13).
 
 Done when: the L0 stack rebuilds from zero, lab traffic cannot reach the campus LAN, the
 laptop reaches the lab only through Tailscale.

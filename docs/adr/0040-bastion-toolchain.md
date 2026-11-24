@@ -107,7 +107,7 @@ The Ansible role `bastion_toolchain` does the following.
 * Good, because no credential exists on the bastion yet. Code comes over HTTPS from a public
   repository.
 * Bad, because mise is outside Debian's archive, like OpenBao: it is bumped by hand, verified
-  as in runbook `bastion.md` (open question B16 covers both).
+  as in runbook `bastion.md` (ADR-0042 covers both).
 * Bad, because the bastion trusts GitHub's TLS for the code. A commit signature proves
   nothing for squash merges, which GitHub's own key signs (ADR-0032). The operator compares
   the printed commit with GitHub.
@@ -142,3 +142,9 @@ Applied to the bastion from PR #70.
 
 * ADR-0022 (pinned toolchain), ADR-0026 (Ansible), ADR-0032 (CI through the bastion),
   ADR-0039 (host firewall defaults).
+
+## Updates
+
+* 2026-11-24: Renovate now opens a pull request when a new release of mise is out, through a
+  regex custom manager on the version line ([ADR-0042](0042-updates-of-pinned-release-binaries.md),
+  open question B16). The SHA-256, the publication time and the signature check stay manual.

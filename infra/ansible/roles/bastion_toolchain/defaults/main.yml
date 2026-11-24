@@ -8,7 +8,8 @@ bastion_toolchain_user: akasha
 # repository only serves its latest release (no pin, no cooldown). To bump (runbook
 # bastion.md): verify the release's GPG-signed SHASUMS256.asc (key 2485 3EC9 F655 CE80 B48E
 # 6C3A 8B81 C9D1 7413 A06D, published on https://mise.jdx.dev/installing-mise.html), then
-# change the three values. Same version as the laptop.
+# change the three values. Renovate proposes new versions (ADR-0042).
+# renovate: datasource=github-releases depName=jdx/mise
 bastion_toolchain_mise_version: 2026.11.4
 bastion_toolchain_mise_sha256: 0296d9cba9324106d4e0962bb94a2072902f3658813aeb3b09504947bb8ddc2b
 bastion_toolchain_mise_published_at: "2026-11-07T16:27:30Z"

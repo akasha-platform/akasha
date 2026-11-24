@@ -42,11 +42,12 @@ git ls-remote origin main      # on the laptop: the same SHA as the run printed
 ## Bump the pinned mise
 
 mise is not in Debian's archive. Its apt repository serves only the latest release, so it
-cannot pin (ADR-0040; open question B16). Keep the same version as the laptop. For a new
-version, on the laptop, in an empty directory:
+cannot pin (ADR-0040). Renovate opens a pull request that changes only
+`bastion_toolchain_mise_version` (ADR-0042). For a new version, on the laptop, in an empty
+directory:
 
 ```bash
-v=2026.11.12   # the new version, the laptop's
+v=2026.11.12   # the new version, from Renovate's pull request
 gh release view "v$v" -R jdx/mise --json publishedAt,isPrerelease   # at least 6 days old, not a pre-release
 gh release download "v$v" -R jdx/mise -p SHASUMS256.asc -p "mise-v$v-linux-x64"
 curl -fsSO https://mise.jdx.dev/gpg-key.pub
@@ -60,7 +61,8 @@ gpg --decrypt SHASUMS256.asc 2>/dev/null | grep "mise-v$v-linux-x64$"; sha256sum
   https://mise.jdx.dev/installing-mise.html.
 * Then change `bastion_toolchain_mise_version`, `bastion_toolchain_mise_sha256` and
   `bastion_toolchain_mise_published_at` in
-  `infra/ansible/roles/bastion_toolchain/defaults/main.yml` (pull request).
+  `infra/ansible/roles/bastion_toolchain/defaults/main.yml`: on Renovate's pull request, add
+  a commit with the SHA-256 and the publication time.
 * Run `bastion.yml --tags toolchain`.
 * The role reads mise's progress line to report a change (`installed 0 tools`): check that
   this wording is unchanged in the new version.
