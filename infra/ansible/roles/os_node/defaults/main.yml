@@ -1,0 +1,20 @@
+---
+# Expected shape of each OpenStack node VM (ADR-0041, infra/opentofu/live/l0-host/openstack.tf).
+# This role only reads and checks: Kolla-Ansible configures the nodes in P2.
+os_node_layout:
+  os-ctl01:
+    kind: controller
+    vcpus: 4
+    tun_address: 10.30.0.11
+  os-cmp01:
+    kind: compute
+    vcpus: 6
+    tun_address: 10.30.0.21
+  os-cmp02:
+    kind: compute
+    vcpus: 6
+    tun_address: 10.30.0.22
+
+# The controller's raw disk for Cinder (lv_cinder on the host, ADR-0009), seen as vdb.
+os_node_cinder_device: /dev/vdb
+os_node_cinder_size_gib: 120

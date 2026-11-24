@@ -1,0 +1,18 @@
+---
+argument_specs:
+  main:
+    short_description: Read-only checks of an OpenStack node VM (ADR-0041)
+    description:
+      - Checks the three NICs (mgmt and tun with their address, ext up without any), the guest
+        CPU topology (two threads per core), nested virtualisation on the computes, and the
+        controller's blank raw disk for Cinder. Changes nothing.
+    options:
+      os_node_layout:
+        type: dict
+        description: Expected kind, vCPU count and overlay address of each node, by host name.
+      os_node_cinder_device:
+        type: str
+        description: The controller's raw disk for Cinder, as the guest sees it.
+      os_node_cinder_size_gib:
+        type: int
+        description: Its size in GiB.

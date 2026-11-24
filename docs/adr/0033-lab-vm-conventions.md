@@ -152,3 +152,7 @@ libvirt-guests `ON_BOOT=ignore`); Debian cloud images index.
   `br-mgmt` get their network from `templates/vm-network.yaml.tftpl`: one NIC, the router as
   gateway and DNS server, search domain `akasha.internal`. MAC addresses on `br-mgmt` end with
   the address's last byte in hexadecimal (bastion .10 → `:0a`, core .12 → `:0c`).
+* 2026-11-24: the OpenStack nodes use the module's new optional inputs: 1:1 vCPU pinning,
+  emulator threads apart, guest CPU topology, a raw block device of the host
+  ([ADR-0041](0041-openstack-node-vms.md)). Their MAC addresses follow the same rule, the
+  fourth byte naming the network.

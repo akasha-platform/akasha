@@ -74,11 +74,25 @@ resource "libvirt_domain" "this" {
   running     = true
   on_crash    = "restart"
 
-  cpu = { mode = "host-passthrough" }
+  cpu = {
+    mode = "host-passthrough"
+    # Only when asked: a topology the guest sees, matching the host's sibling threads.
+    topology = var.cpu_threads == null ? null : {
+      sockets = 1
+      dies    = 1
+      cores   = var.vcpus / var.cpu_threads
+      threads = var.cpu_threads
+    }
+  }
 
   cpu_tune = {
-    vcpu_pin     = [for i in range(var.vcpus) : { vcpu = i, cpu_set = var.cpu_set }]
-    emulator_pin = { cpu_set = var.cpu_set }
+    vcpu_pin = [
+      for i in range(var.vcpus) : {
+        vcpu    = i
+        cpu_set = var.vcpu_cpus == null ? var.cpu_set : tostring(var.vcpu_cpus[i])
+      }
+    ]
+    emulator_pin = { cpu_set = coalesce(var.emulator_cpu_set, var.cpu_set) }
   }
 
   os = {
@@ -95,7 +109,7 @@ resource "libvirt_domain" "this" {
 
   devices = {
     # vda: root overlay; vdb: optional data disk (a volume owned by the caller, ADR-0038);
-    # sda: cloud-init seed.
+    # then an optional raw block device of the host (ADR-0041); sda: cloud-init seed.
     disks = concat([
       {
         # Disks are referenced by file path, not as pool volumes: virt-aa-helper only adds
@@ -118,6 +132,14 @@ resource "libvirt_domain" "this" {
         source = { file = { file = path } }
         target = { dev = "vdb", bus = "virtio" }
         driver = { name = "qemu", type = "qcow2", discard = "unmap" }
+      }],
+      # A raw block device of the host: no host page cache (cache=none, io=native), discards
+      # passed down to the LV.
+      [for dev in compact([var.block_disk_path]) : {
+        source = { block = { dev = dev } }
+        target = { dev = var.data_disk_path == null ? "vdb" : "vdc", bus = "virtio" }
+        serial = var.block_disk_serial
+        driver = { name = "qemu", type = "raw", cache = "none", io = "native", discard = "unmap" }
       }],
       [{
         device    = "cdrom"

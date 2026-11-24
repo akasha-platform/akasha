@@ -1,0 +1,32 @@
+# cloud-init network-config v2 of an OpenStack node (ADR-0041): three NICs matched by MAC and
+# renamed.
+# - mgmt (br-mgmt): management and OpenStack APIs; the router is gateway and DNS server.
+# - tun (br-tun): the Geneve overlay between the nodes, jumbo frames, no gateway.
+# - ext (br-ext): the provider and floating-IP network for OVN, up without any address.
+version: 2
+ethernets:
+  mgmt:
+    match:
+      macaddress: "${mgmt_mac}"
+    set-name: mgmt
+    addresses: [${mgmt_address}]
+    routes:
+      - to: default
+        via: 10.10.0.1
+    nameservers:
+      addresses: [10.10.0.1]
+      search: [akasha.internal]
+  tun:
+    match:
+      macaddress: "${tun_mac}"
+    set-name: tun
+    mtu: 9000
+    addresses: [${tun_address}]
+  ext:
+    match:
+      macaddress: "${ext_mac}"
+    set-name: ext
+    dhcp4: false
+    dhcp6: false
+    accept-ra: false
+    link-local: []

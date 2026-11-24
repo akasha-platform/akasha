@@ -83,6 +83,21 @@ Galera/RabbitMQ/etcd latency with KSM on and off.
   suspect is the host's transparent hugepages `always`, which is a host-wide setting and the
   school's (open question A24, to settle before the RAM gate of step 6d).
 
+* 2026-11-24: open question A24 answered.
+  * **The setting is in place.** On `insa`, THP is `always`, `max_ptes_none` is 511, and KSM
+    is off. 97–98 % of each VM's memory sits in 2 MiB transparent huge pages, QEMU's own
+    allocations included.
+  * **The test.** On the bastion, a 300 MB allocation was freed: within 2 s the host took back
+    48 MiB, and `thp_collapse_alloc` did not move. Free page reporting works, and khugepaged
+    does not refill.
+  * **The cause.** The guest reports only free blocks of at least 2 MiB, its
+    `page_reporting_order` of 9 matching the host's huge pages, and a guest's free memory is
+    mostly fragmented below that size (INFERRED). Its 344 MiB free yielded 48 MiB.
+  * **Not tried.** Lowering the order would split the host's huge pages, and khugepaged could
+    then refill them (INFERRED).
+  * **Conclusion.** Free page reporting is a small buffer, not capacity. VMs keep about their
+    full allocation (ADR-0030).
+
 ## More Information
 
 [research/08-observability-and-host-memory.md](../research/08-observability-and-host-memory.md)

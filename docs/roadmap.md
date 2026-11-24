@@ -132,7 +132,12 @@ Done when: an empty PR passes every check; actions are SHA-pinned; `main` is pro
 
        kolla-ansible joins `uv.lock` in P2 (open question B5); SSH from the bastion to the
        other VMs is decided in P2.
-   * 6d: OpenStack controller and computes, then the RAM gate (ADR-0030).
+   * 6d: OpenStack controller and computes, split by the owner on 2026-11-24 (A24 answered
+     first: free page reporting returns little, ADR-0016 Updates):
+     * 6d-1: the three node VMs (ADR-0041): 1:1 sibling P-core pinning with `threads=2`, three
+       NICs, `lv_cinder` attached raw to the controller; `vm_base`, `lab_client` and the
+       read-only checks of role `os_node`.
+     * 6d-2: the RAM gate (ADR-0030), measured over a working day.
 7. OpenBao initialisation (Shamir; self-init test A14),
    restic to AWS S3 with Object Lock (design + test A13), host checks (A15).
 
