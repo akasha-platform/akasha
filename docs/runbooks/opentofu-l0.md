@@ -100,7 +100,8 @@ recover or wipe those volumes on purpose before Kolla runs again.
 3. **After the apply, on `insa`:**
    * `sudo journalctl -k --since -10min | grep -i 'apparmor.*denied'` prints nothing;
    * `sudo pvs -a` still shows only the host's partition;
-   * `ls -lL /dev/vg_akasha/lv_cinder` is owned by `libvirt-qemu` while the controller runs;
+   * `ls -lL /dev/vg_akasha/lv_cinder` stays `root:disk`: libvirt relabels QEMU's private
+     `/dev`, not the host's (ADR-0041);
    * `virsh -c qemu:///system vcpupin os-cmp01` shows the 1:1 pins.
 4. **Memory stop rule until the RAM gate (6d-2):** if `MemAvailable` falls below 3 GiB or the
    host starts swapping in (`vmstat 5`, column `si`), shut a compute down

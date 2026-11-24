@@ -79,8 +79,7 @@ firewall in P2; 6d split into 6d-1 (the VMs) and 6d-2 (the RAM gate).
   * on the controller, a 120 GiB `vdb` with serial `lv_cinder`, blank before P2, or an LVM
     physical volume once Cinder has created its volume group on it.
 * **No host firewall yet.** Until P2 the nodes run only the cloud image's services: sshd,
-  and systemd-resolved's LLMNR on its addressed links (INFERRED, checked with `ss` in step
-  6d-1). Kolla opens many ports
+  and systemd-resolved's LLMNR (port 5355, verified in step 6d-1). Kolla opens many ports
   between them, and Docker interacts with nftables, so the nodes' firewall is designed with
   Kolla.
 
@@ -107,9 +106,34 @@ Step 6d-1:
 * `virsh vcpupin` and `virsh dumpxml` show the 1:1 pins, the emulator on 16–27, `threads=2`,
   and `lv_cinder` as a raw `vdb` with its serial; in each guest, `lscpu -e=CPU,CORE` shows
   sibling vCPUs sharing a core;
-* on `insa`: no AppArmor denial, `pvs -a` still shows the host's one physical volume, and
-  `/dev/dm-*` of `lv_cinder` is owned by `libvirt-qemu` while the controller runs;
+* on `insa`: no AppArmor denial, and `pvs -a` still shows the host's one physical volume;
 * the playbook's checks pass, and a second run reports `changed=0`.
+
+### Implementation (2026-11-24)
+
+Applied from PR #71.
+
+* **OpenTofu.** The plan added the 12 resources of `module.os_node` and changed nothing else,
+  and a second plan was empty.
+* **Host checks before and after.**
+  * Before: `linux2024` was off; `lv_cinder` was neither open nor carrying a signature; the
+    akasha slice's cpuset was `0-27`.
+  * After: no AppArmor denial, and still one physical volume on `insa`.
+* **`lv_cinder` on the host.** It stays `root:disk` while the controller runs, and the guest
+  uses it. libvirt gives QEMU a private `/dev` in its own mount namespace and changes the
+  owner there, not on the host (INFERRED from libvirt's default `namespaces`).
+* **Pinning and topology.** `virsh vcpupin` shows vCPUs 0–3 on host CPUs 0–3, 4–9 and 10–15
+  for the nodes, and the emulator pin is `16-27`. The topology is `cores=2 threads=2` (ctl)
+  and `cores=3 threads=2` (computes). In `os-cmp01`, `lscpu -e` pairs vCPUs (0,1), (2,3) and
+  (4,5) on the same core.
+* **Host keys** matched the serial logs.
+* **Ansible.** The playbook passed every check on the three nodes (`os_node`: the NICs,
+  nested virtualisation on the computes, and the blank 120 GiB `vdb` with serial `lv_cinder`
+  on the controller), and a second run reported `changed=0`.
+* **Time.** The host clock read through ptp_kvm was −8.5 ms from the nodes' clock.
+* **Listening on a node** (`ss`, `os-cmp01`): sshd on 22, and systemd-resolved's LLMNR on 5355
+  (TCP and UDP, all addresses). On the other VMs the host firewall drops it. On the nodes it
+  is open until P2, where turning LLMNR off is proposed together with their firewall.
 
 ## More Information
 
