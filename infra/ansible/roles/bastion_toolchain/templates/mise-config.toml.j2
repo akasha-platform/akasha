@@ -1,0 +1,6 @@
+# {{ ansible_managed }}
+# System-wide mise settings of the bastion (ADR-0040), read by every user's mise. Written by
+# root, so no unprivileged user can change them. mise 2026.11.4 also trusts the active config
+# of `mise install` and `mise exec` on its own; this setting names the repository explicitly.
+[settings]
+trusted_config_paths = ["{{ bastion_toolchain_repo_dir }}"]

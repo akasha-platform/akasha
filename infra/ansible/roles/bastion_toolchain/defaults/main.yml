@@ -1,0 +1,24 @@
+---
+# Toolchain of the bastion (ADR-0040): the repository at one commit and the pinned tools of
+# ADR-0022 (mise.toml + mise.lock, pyproject.toml + uv.lock), for an unprivileged user.
+
+bastion_toolchain_user: akasha
+
+# mise itself: the official binary, pinned. Debian has no mise package, and mise's apt
+# repository only serves its latest release (no pin, no cooldown). To bump (runbook
+# bastion.md): verify the release's GPG-signed SHASUMS256.asc (key 2485 3EC9 F655 CE80 B48E
+# 6C3A 8B81 C9D1 7413 A06D, published on https://mise.jdx.dev/installing-mise.html), then
+# change the three values. Same version as the laptop.
+bastion_toolchain_mise_version: 2026.11.4
+bastion_toolchain_mise_sha256: 0296d9cba9324106d4e0962bb94a2072902f3658813aeb3b09504947bb8ddc2b
+bastion_toolchain_mise_published_at: "2026-11-07T16:27:30Z"
+bastion_toolchain_mise_file: mise-v{{ bastion_toolchain_mise_version }}-linux-x64
+bastion_toolchain_mise_url: >-
+  https://github.com/jdx/mise/releases/download/v{{ bastion_toolchain_mise_version }}/{{ bastion_toolchain_mise_file }}
+bastion_toolchain_cooldown_days: 6
+
+# The public repository over HTTPS, no credential. `main` by default: the run prints the
+# commit it checked out, to compare with GitHub. Pass a SHA on main to pin one (a commit only
+# reachable from a pull request cannot be fetched).
+bastion_toolchain_repo: https://github.com/akasha-platform/akasha.git
+bastion_toolchain_commit: main

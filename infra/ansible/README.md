@@ -7,7 +7,7 @@ ansible.cfg
 collections/requirements.yml   pinned collections, incl. transitive ones (installed copy is git-ignored)
 inventories/lab/hosts.yml      insa by SSH alias (no address committed); lab VMs by lab address
 playbooks/                     facts.yml (read-only); host.yml, router.yml, core.yml, bastion.yml (P1); k3s.yml (P4)
-roles/                         host_storage, host_network, host_firewall, vm_base, router_dns, router_time, router_firewall, nft_commit, lab_client, vm_data_disk, vm_swap, vm_firewall, openbao (P1); later memory headroom, versitygw, …
+roles/                         host_storage, host_network, host_firewall, vm_base, router_dns, router_time, router_firewall, nft_commit, lab_client, vm_data_disk, vm_swap, vm_firewall, openbao, bastion_toolchain (P1); later memory headroom, versitygw, …
 ```
 
 ```bash

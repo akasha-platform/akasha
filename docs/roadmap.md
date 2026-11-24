@@ -124,7 +124,14 @@ Done when: an empty PR passes every check; actions are SHA-pinned; `main` is pro
        * From the bastion, port 8200 is dropped and logged.
 
        versitygw is deferred until OpenBao can serve it a certificate and P4 needs it.
-     * 6c-3: bastion: toolchain (mise, uv, OpenTofu, Ansible, kolla-ansible).
+     * 6c-3 ✅ 2026-11-24: bastion: toolchain for the unprivileged user `akasha` (mise pinned
+       from GitHub, the repository at one commit over HTTPS, `mise install`,
+       `uv sync --locked`, the pinned collections; ADR-0040) and a host firewall.
+       * Independent review: 2 blockers fixed before running.
+       * Second run `changed=0`; the same tool versions as the laptop; no sudo for `akasha`.
+
+       kolla-ansible joins `uv.lock` in P2 (open question B5); SSH from the bastion to the
+       other VMs is decided in P2.
    * 6d: OpenStack controller and computes, then the RAM gate (ADR-0030).
 7. OpenBao initialisation (Shamir; self-init test A14),
    restic to AWS S3 with Object Lock (design + test A13), host checks (A15).

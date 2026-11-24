@@ -46,3 +46,4 @@ its status changed or a dated note pointing to the new one. Only dated sections 
 | [0037](0037-router-firewall-and-forwarding.md) | Firewall and forwarding of the edge router | accepted |
 | [0038](0038-data-disks-outlive-vms.md) | Data disks of the lab's VMs outlive the VMs | accepted |
 | [0039](0039-openbao-on-core-bootstrap.md) | OpenBao on core: pinned package, localhost until its initialisation, and a host firewall | accepted |
+| [0040](0040-bastion-toolchain.md) | Toolchain of the bastion: pinned mise, the repository at one commit, an unprivileged user | accepted |
