@@ -107,7 +107,15 @@ Done when: an empty PR passes every check; actions are SHA-pinned; `main` is pro
          because free page reporting returns nothing (A24).
        * **Rebuild from zero.** Through the runbook, after an independent review: the new
          router is byte-identical to the old one, except its kernel.
-   * 6c: bastion and core (OpenBao + versitygw).
+   * 6c: bastion and core, split by the owner on 2026-11-24:
+     * 6c-1 ✅ 2026-11-24: the two VMs and their common base: OpenTofu, with core's data disk
+       outliving the VM (ADR-0038); Ansible roles `lab_client` (router as gateway, DNS and
+       only time source, ptp_kvm read by the checks only), `vm_data_disk`, `vm_swap`.
+       * Independent review: 2 blockers and 4 should-fix findings fixed before running.
+       * Both playbooks passed every check, and second runs reported `changed=0`.
+       * The rebuild of `core` kept its data disk: same marker, UUID and creation time.
+     * 6c-2: core: OpenBao (not initialised) and versitygw.
+     * 6c-3: bastion: toolchain (mise, uv, OpenTofu, Ansible, kolla-ansible).
    * 6d: OpenStack controller and computes, then the RAM gate (ADR-0030).
 7. OpenBao initialisation (Shamir; self-init test A14),
    restic to AWS S3 with Object Lock (design + test A13), host checks (A15).

@@ -31,7 +31,18 @@ cd ~/Documents/dev/Projets/akasha/infra/ansible
 uv run ansible router -m ansible.builtin.ping
 uv run ansible-playbook playbooks/router.yml --check --diff -e @~/akasha-private/lab_vms.yml
 uv run ansible-playbook playbooks/router.yml --diff -e @~/akasha-private/lab_vms.yml
+# the other VMs the same way: playbooks/core.yml, playbooks/bastion.yml
 ```
+
+`core` and `bastion` sit on `br-mgmt` only, behind the router (role `lab_client`):
+* the router is their gateway, DNS server (search domain `akasha.internal`) and only time
+  source;
+* the run prints `insa`'s clock offset, read once through `ptp_kvm` by a separate
+  `chronyd -Q`; the running chronyd never uses ptp_kvm (ADR-0029 Updates).
+
+After a host reboot, start the VMs in this order: router, then core, then bastion (ADR-0028).
+The router comes first because the others need it to resolve names, keep time and reach the
+Internet.
 
 Without the private file the play stops at `Check that the console password hash was passed`
 before anything changes. A second run must report `changed=0`.
@@ -97,6 +108,32 @@ cat ~/akasha-private/<vm>-hostkey >> ~/.ssh/known_hosts   # only once both match
 `sudo` on `insa` needs a terminal for its password: `ssh -t`.
 
 Then add the VM under `lab_vms` in `inventories/lab/hosts.yml`.
+
+## Data disk of `core` (ADR-0038)
+
+`core_data` (30 GiB, `core.tf`) is attached as `vdb` and mounted on `/srv` by label
+(`akasha-data`, `nofail`). It is a volume of the stack, not of the VM, and it carries
+`prevent_destroy`.
+
+```bash
+ssh debian@10.10.0.12 'findmnt /srv; df -h /srv'     # /dev/vdb ext4 akasha-data, 30G
+```
+
+* **Rebuilding `core`** follows `opentofu-l0.md`, "Rebuilding one VM". The destroy plan lists
+  only the four `module.core.` resources, never `libvirt_volume.core_data`. The new VM gets the
+  same disk back, and the role `vm_data_disk` finds its own ext4 and only mounts it.
+* **The role stops without changing anything** unless `vdb` is either its own ext4 or truly
+  blank. Truly blank means no signature for `blkid -p` and zeros in the first and the last MiB.
+  It also stops on another size or on partitions. Look at the disk by hand before anything
+  else: `sudo blkid -p /dev/vdb; sudo lsblk -f /dev/vdb`. An ext4 whose primary superblock is
+  damaged shows no signature: try `sudo e2fsck -n -b 32768 /dev/vdb` (read-only), never
+  `mkfs`.
+* **Deleting the data on purpose:** remove `prevent_destroy` from `core_data` in a pull
+  request, then `tofu destroy -target=libvirt_volume.core_data` with the VM destroyed first.
+  The next apply creates a blank disk, which the role formats. Put `prevent_destroy` back in
+  the next pull request.
+* **Growing the disk** is not possible through OpenTofu (ADR-0038): it is a manual procedure,
+  written when needed.
 
 ## Locked out of SSH
 

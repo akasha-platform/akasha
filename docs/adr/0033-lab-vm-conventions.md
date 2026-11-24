@@ -147,3 +147,8 @@ libvirt-guests `ON_BOOT=ignore`); Debian cloud images index.
 * 2026-11-22: "password login off" above holds for SSH; the default user gets a password for the
   serial console only, set by Ansible from a private file and never by cloud-init
   ([ADR-0035](0035-access-to-the-lab-vms.md)).
+* 2026-11-24: a VM may have a data disk, attached as `vdb` from a volume of the stack that
+  outlives the VM, with `prevent_destroy` ([ADR-0038](0038-data-disks-outlive-vms.md)). VMs on
+  `br-mgmt` get their network from `templates/vm-network.yaml.tftpl`: one NIC, the router as
+  gateway and DNS server, search domain `akasha.internal`. MAC addresses on `br-mgmt` end with
+  the address's last byte in hexadecimal (bastion .10 → `:0a`, core .12 → `:0c`).

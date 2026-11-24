@@ -1,0 +1,7 @@
+---
+# Sources and refclocks are read only when chronyd starts. The files were checked with
+# `chronyd -p` before they were written.
+- name: Restart chrony
+  ansible.builtin.systemd_service:
+    name: chrony.service
+    state: restarted

@@ -23,7 +23,7 @@
   block:
     # `validate:` does not run in check mode: check the rendered files with the VM's chronyd
     # (`-p` parses the configuration, prints it and exits) in temporary files. chronyd reads
-    # them through a copy in /run/chrony (AppArmor, vars/main.yml).
+    # them through a copy it is allowed to read (AppArmor, vars/main.yml).
     - name: Check the rendered files in a dry run
       when: ansible_check_mode
       check_mode: false

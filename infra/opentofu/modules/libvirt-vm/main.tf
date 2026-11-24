@@ -94,7 +94,9 @@ resource "libvirt_domain" "this" {
   resource = { partition = var.partition }
 
   devices = {
-    disks = [
+    # vda: root overlay; vdb: optional data disk (a volume owned by the caller, ADR-0038);
+    # sda: cloud-init seed.
+    disks = concat([
       {
         # Disks are referenced by file path, not as pool volumes: virt-aa-helper only adds
         # local file/block/dir sources to the VM's AppArmor profile and skips `volume` sources
@@ -111,14 +113,19 @@ resource "libvirt_domain" "this" {
           format = { type = "qcow2" }
           source = { file = { file = var.base_volume_path } }
         }
-      },
-      {
+      }],
+      [for path in compact([var.data_disk_path]) : {
+        source = { file = { file = path } }
+        target = { dev = "vdb", bus = "virtio" }
+        driver = { name = "qemu", type = "qcow2", discard = "unmap" }
+      }],
+      [{
         device    = "cdrom"
         read_only = true
         source    = { file = { file = libvirt_volume.seed.path } }
         target    = { dev = "sda", bus = "sata" }
-      },
-    ]
+      }],
+    )
 
     interfaces = [
       for nic in var.interfaces : {

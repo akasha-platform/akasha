@@ -1,0 +1,18 @@
+---
+argument_specs:
+  main:
+    short_description: A lab VM behind the edge router (ADR-0028, ADR-0029)
+    description:
+      - Checks that cloud-init made the router the gateway and DNS server with the lab's
+        search domain, and makes chrony (in place of systemd-timesyncd) follow the router as
+        its only source. Its checks read the host's clock offset once through ptp_kvm.
+    options:
+      lab_client_router:
+        type: str
+        description: Address of the edge router on br-mgmt.
+      lab_client_domain:
+        type: str
+        description: The lab's DNS zone, also the search domain.
+      lab_client_sync_tries:
+        type: int
+        description: Tries of 10 s the checks wait for chrony to synchronise.

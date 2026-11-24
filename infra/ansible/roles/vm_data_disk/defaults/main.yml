@@ -1,0 +1,9 @@
+---
+# Data disk of a lab VM (ADR-0038): a volume of the OpenTofu stack attached as vdb, which
+# outlives the VM. Formatted once, never reformatted, mounted by label.
+vm_data_disk_device: /dev/vdb
+# Expected size: the role refuses any other disk (it must be the volume declared in
+# OpenTofu, e.g. core_data in core.tf).
+vm_data_disk_size_gib: 30
+vm_data_disk_label: akasha-data
+vm_data_disk_mount: /srv

@@ -1,0 +1,27 @@
+---
+# OpenBao and versitygw host (ADR-0011, ADR-0012): VM base, router client, data disk on /srv.
+# No -K: the VM's default user has passwordless sudo (ADR-0035). Always dry-run first; vm_base
+# needs the private file:
+#   uv run ansible-playbook playbooks/core.yml --check --diff -e @~/akasha-private/lab_vms.yml
+- name: Configure core
+  hosts: core
+  become: true
+  gather_facts: true
+  # Modules parse command output: never use a locale other than C.
+  environment:
+    LC_ALL: C
+    LANGUAGE: C
+  pre_tasks:
+    # Stop before any role changes the VM when the private input is missing.
+    - name: Check the private input of the VM base
+      ansible.builtin.import_role:
+        name: vm_base
+        tasks_from: check
+      tags: [base]
+  roles:
+    - role: vm_base
+      tags: [base]
+    - role: lab_client
+      tags: [client]
+    - role: vm_data_disk
+      tags: [data]

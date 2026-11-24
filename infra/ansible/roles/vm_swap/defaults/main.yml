@@ -1,0 +1,4 @@
+---
+# Swap file inside a lab VM (ADR-0030: the bastion's 1 GiB, for peaks of Ansible and Kolla).
+vm_swap_file: /swapfile
+vm_swap_size_mib: 1024
