@@ -97,6 +97,13 @@ Galera/RabbitMQ/etcd latency with KSM on and off.
     then refill them (INFERRED).
   * **Conclusion.** Free page reporting is a small buffer, not capacity. VMs keep about their
     full allocation (ADR-0030).
+* 2026-11-24 (step 6d-2): the conclusion of A24 above holds for fragmented free memory only.
+  Freed memory in large contiguous blocks is reported almost entirely and at once. After
+  each OpenStack node freed about 7 GiB it had just touched, its QEMU RSS fell from about
+  8.3 GiB back to about 0.9 GiB within a minute, with no khugepaged refill. Free page
+  reporting therefore returns a VM's large freed areas, such as after a burst, but not the
+  small holes of a long-running guest. It stays a buffer, not capacity (ADR-0030 counts
+  every allocation in full).
 
 ## More Information
 

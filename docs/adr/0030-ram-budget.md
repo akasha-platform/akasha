@@ -139,3 +139,26 @@ Independent review of 2026-11-17 (draft and findings in the project's working no
   (bastion). THP backs QEMU's own allocations too: the router's 548 MiB of huge pages exceed
   its 512 MiB guest. Free page reporting returns little (ADR-0016 Updates), so the step-6 gate
   counts each VM at its full allocation plus its measured overhead.
+* 2026-11-24: **step-6 gate passed** (step 6d-2), with all six VMs running.
+  * **Method:**
+    * a transient unit `akasha-ram-gate` on `insa` logged memory, swap, PSI and each QEMU's
+      RSS every minute;
+    * the three OpenStack nodes then each held all their available memory at the same time
+      for two minutes (worst case), while `MemAvailable` was read every 10 s.
+  * **Result:**
+    * **the lowest `MemAvailable` was 3 647 MiB (3.56 GiB), above the 3 GiB minimum by about
+      575 MiB**;
+    * no swap-in during the test;
+    * PSI stayed at 0 over the whole log.
+  * **The formula above, with measured values:** MemTotal 31 839 MiB, minus the host's own
+    share 2 158 MiB (MemTotal − MemAvailable − all QEMU RSS, nobody on the desktop), minus the
+    allocations 25 650 MiB, minus the measured QEMU overhead of 410 MiB, gives **3 621 MiB**.
+    The overhead at full RSS was: router 103, core 100, bastion 39, os-ctl01 114, os-cmp01 25
+    and os-cmp02 29 MiB.
+  * **Two deviations chosen by the owner.**
+    * The measurement lasted about 30 minutes instead of a working day: nobody uses
+      `insa`'s desktop any more, although the machine is still the school's (ADR-0027
+      unchanged).
+    * The 3 GiB minimum is kept.
+  * **Still open.** Open question A2 measures again once Kolla runs (P2). The controller's
+    real use is the known risk (overview, "8 GB is tight").
