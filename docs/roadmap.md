@@ -99,7 +99,14 @@ Done when: an empty PR passes every check; actions are SHA-pinned; `main` is pro
        * Second run `changed=0`.
        * Fake clients on `br-mgmt` and `br-ext`: 14/14 cases as expected, spoofed source
          dropped, drops logged.
-     * 6b-4: reboot test, memory measurement of the router, rebuild from zero.
+     * 6b-4 ✅ 2026-11-24: reboot test, memory measurement and rebuild of the router.
+       * **Boot order.** Rules were in place about 3 s before networkd, and forwarding came on
+         after them. A boot with a broken firewall file left forwarding off, and the role
+         recovered it.
+       * **Memory.** The guest used 102 MiB of 464 MiB. The host keeps about 532 MiB for it,
+         because free page reporting returns nothing (A24).
+       * **Rebuild from zero.** Through the runbook, after an independent review: the new
+         router is byte-identical to the old one, except its kernel.
    * 6c: bastion and core (OpenBao + versitygw).
    * 6d: OpenStack controller and computes, then the RAM gate (ADR-0030).
 7. OpenBao initialisation (Shamir; self-init test A14),

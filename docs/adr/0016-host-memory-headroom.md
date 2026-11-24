@@ -75,6 +75,14 @@ Order chosen by the owner on 2026-11-17:
 A/B measurement after deployment: KSM profit and ksmd CPU, zswap usage, per-VM RSS,
 Galera/RabbitMQ/etcd latency with KSM on and off.
 
+## Updates
+
+* 2026-11-24: on the router (step 6b-4), free page reporting is negotiated and enabled on
+  both sides, but returned no memory to `insa`. Its QEMU process kept the whole 512 MiB
+  resident while the guest had about 88 MiB free in blocks of 2 MiB or more. The main
+  suspect is the host's transparent hugepages `always`, which is a host-wide setting and the
+  school's (open question A24, to settle before the RAM gate of step 6d).
+
 ## More Information
 
 [research/08-observability-and-host-memory.md](../research/08-observability-and-host-memory.md)

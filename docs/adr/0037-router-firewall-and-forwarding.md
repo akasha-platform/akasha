@@ -194,6 +194,28 @@ source 10.10.0.99 raised the `fib` counter from 0 to 6, counting retransmissions
 log showed an `akasha drop input` or `akasha drop forward` line for each blocked case. Every
 test object was removed.
 
+### Implementation (2026-11-24, step 6b-4)
+
+* **Normal boot.** Times are from the same monotonic clock, in seconds since boot:
+  * nftables ran from 5.88 s to 6.93 s;
+  * `systemd-networkd` started at 9.80 s, and its first `Link UP` came at 9.96 s;
+  * `akasha-forwarding` started at 12.62 s.
+
+  So the rules were in place about 3 s before any interface was configured, and forwarding
+  came on after them. Forwarding was 1 on `wan`, `mgmt` and `ext`, and the playbook then
+  reported `changed=0`. `systemd-analyze critical-chain` counts from a different origin and
+  is not evidence of this order.
+* **Boot with a broken boot file.** A syntax error appended to `/etc/nftables.conf` was
+  rejected by `nft -c` before the reboot. After the reboot:
+  * `nftables.service` failed;
+  * `akasha-forwarding.service` shows "Dependency failed", `ip_forward=0` and no rules;
+  * SSH still worked.
+
+  The role saw the boot file and the loaded rules drift, loaded the candidate commit
+  confirmed, rewrote the boot file and started forwarding. A second run reported `changed=0`.
+* **Rebuild from zero.** The role configured the new router with the same rule set (same
+  fingerprint).
+
 ## More Information
 
 * Before review, the rendered rule set was tested on 2026-11-23 in a Debian 13 container, with

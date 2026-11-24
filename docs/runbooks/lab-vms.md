@@ -36,6 +36,14 @@ uv run ansible-playbook playbooks/router.yml --diff -e @~/akasha-private/lab_vms
 Without the private file the play stops at `Check that the console password hash was passed`
 before anything changes. A second run must report `changed=0`.
 
+On a **new VM**, the dry run stops at the first `apt` task with `No package matching ... is
+available`. The cloud image has no package lists yet, and a dry run does not download them
+(`update_cache`). Only `vm_base` is checked by that dry run; run the playbook for real, since
+every role checks its files before writing them and checks the result.
+
+After the first run on a new VM, unattended upgrades soon install a newer kernel than the
+image's. Reboot the VM once that is done (`uname -r` against `ls /boot/vmlinuz-*`).
+
 ## Serial console
 
 From the laptop (the owner is in `insa`'s `libvirt` group):
@@ -74,10 +82,19 @@ item and the paper.
 Before the first SSH connection, compare the VM's host key with the one printed on its serial
 console by cloud-init, then add it to `~/.ssh/known_hosts`:
 
+The serial log is appended to across boots and VM rebuilds (`append="on"`), so it also holds
+the fingerprints of earlier VMs with the same name. Before destroying a VM you will recreate,
+note its length (`ssh -t insa 'sudo wc -l /var/log/libvirt/qemu/<vm>-serial.log'`), and read
+only the lines after it:
+
 ```bash
-ssh insa 'sudo grep -A3 "BEGIN SSH HOST KEY FINGERPRINTS" /var/log/libvirt/qemu/<vm>-serial.log'
-ssh-keyscan -t ed25519 <address> 2>/dev/null | ssh-keygen -lf -     # must show the same SHA256
+ssh -t insa 'sudo tail -n +<length+1> /var/log/libvirt/qemu/<vm>-serial.log | grep -A3 "BEGIN SSH HOST KEY FINGERPRINTS"'
+ssh-keyscan -t ed25519 <address> 2>/dev/null > ~/akasha-private/<vm>-hostkey
+ssh-keygen -lf ~/akasha-private/<vm>-hostkey          # must show the same SHA256
+cat ~/akasha-private/<vm>-hostkey >> ~/.ssh/known_hosts   # only once both match
 ```
+
+`sudo` on `insa` needs a terminal for its password: `ssh -t`.
 
 Then add the VM under `lab_vms` in `inventories/lab/hosts.yml`.
 
