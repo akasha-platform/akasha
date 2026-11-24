@@ -130,7 +130,9 @@
     chronyc waitsync {{ lab_client_sync_tries }} 0.1 >/dev/null && echo sync=yes
     echo "ntp_synchronized=$(timedatectl show --property=NTPSynchronized --value)"
     chronyc -n sources | awk '$1 ~ /^\^\*/ { print "selected=" $2 }'
-    chronyc -n sources | awk '$1 ~ /^[\^=]/ { n++ } END { print "ntp_sources=" n + 0 }'
+    # Source lines start with a two-character mode and state (^* ^+ =? ...); the header
+    # line of ===== below the column titles must not count.
+    chronyc -n sources | awk 'length($1) == 2 && $1 ~ /^[\^=]/ { n++ } END { print "ntp_sources=" n + 0 }'
   args:
     executable: /bin/bash
   register: lab_client_state
