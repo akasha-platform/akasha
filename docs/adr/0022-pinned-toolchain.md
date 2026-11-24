@@ -66,3 +66,10 @@ Verification level at first lock (2026-11-09):
 ## More Information
 
 How-to: [docs/development.md](../development.md).
+
+## Updates
+* 2026-11-24: on the bastion, mise is the official GitHub binary pinned by version and
+  SHA-256 (from the GPG-signed `SHASUMS256.asc`), the same version as the laptop. mise's apt
+  repository serves only its latest release, so it can neither pin nor respect the cooldown
+  ([ADR-0040](0040-bastion-toolchain.md)). The tools themselves still come from `mise.lock` and
+  `uv.lock`.

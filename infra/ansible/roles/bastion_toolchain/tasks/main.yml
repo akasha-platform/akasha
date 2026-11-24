@@ -1,0 +1,183 @@
+---
+# Toolchain of the bastion (ADR-0040): an unprivileged user owns the repository at one commit
+# and the tools pinned by mise.lock and uv.lock, installed exactly as on the laptop.
+
+- name: Check that the pinned mise release is past the cooldown (ADR-0022)
+  ansible.builtin.assert:
+    that:
+      - >-
+        (now(utc=true) - (bastion_toolchain_mise_published_at | to_datetime('%Y-%m-%dT%H:%M:%SZ'))).total_seconds()
+        >= (bastion_toolchain_cooldown_days | int) * 86400
+    fail_msg: >-
+      mise {{ bastion_toolchain_mise_version }} was published at
+      {{ bastion_toolchain_mise_published_at }}: wait until {{ bastion_toolchain_cooldown_days }}
+      days have passed. Nothing was changed.
+    quiet: true
+
+- name: Point at the repository's directory
+  ansible.builtin.set_fact:
+    bastion_toolchain_repo_dir: /home/{{ bastion_toolchain_user }}/akasha
+
+# No password and no sudo: the operator reaches it with `sudo -iu akasha` from `debian`.
+- name: Create the toolchain user, without password or sudo
+  ansible.builtin.user:
+    name: "{{ bastion_toolchain_user }}"
+    shell: /bin/bash
+    create_home: true
+    password: "!"
+    update_password: always
+
+- name: Install git
+  ansible.builtin.apt:
+    name: git
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+# get_url checks the SHA-256 before the file is kept. Owned by root: the user cannot replace
+# it (`mise self-update` fails), so mise only changes through this role.
+- name: Install the pinned mise binary
+  ansible.builtin.get_url:
+    url: "{{ bastion_toolchain_mise_url }}"
+    dest: /usr/local/bin/mise
+    checksum: sha256:{{ bastion_toolchain_mise_sha256 }}
+    owner: root
+    group: root
+    mode: "0755"
+
+# /etc/mise, written by root: no file transfer as the unprivileged user (which would need the
+# acl package), and root never writes into a directory that user controls.
+- name: Create the system-wide mise configuration directory
+  ansible.builtin.file:
+    path: /etc/mise
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Trust the repository's mise.toml by path, system-wide
+  ansible.builtin.template:
+    src: mise-config.toml.j2
+    dest: /etc/mise/config.toml
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Look for the toolchain user
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ bastion_toolchain_user }}"
+    fail_key: false
+
+# A dry run on a VM without the user, git or mise cannot run anything as that user.
+- name: Set up the repository and the tools as the toolchain user
+  when: >-
+    not ansible_check_mode
+    or (ansible_facts.getent_passwd[bastion_toolchain_user] is not none)
+  become: true
+  become_user: "{{ bastion_toolchain_user }}"
+  # Only module tasks run as the user (pipelined, no temporary file to share). The play's
+  # LC_ALL=C makes ansible-galaxy refuse to start (it requires UTF-8): C.UTF-8 is built into
+  # Debian 13's glibc.
+  environment:
+    LC_ALL: C.UTF-8
+  block:
+    # force: false never discards local changes: a modified checkout stops the run.
+    - name: Check out the repository at the requested commit
+      ansible.builtin.git:
+        repo: "{{ bastion_toolchain_repo }}"
+        dest: "{{ bastion_toolchain_repo_dir }}"
+        version: "{{ bastion_toolchain_commit }}"
+        force: false
+      register: bastion_toolchain_git
+
+    # mise.toml enables `locked` and `locked_verify_provenance`: only what mise.lock describes,
+    # with checksums and signatures checked.
+    - name: Install the tools pinned in mise.lock
+      ansible.builtin.command: mise install
+      args:
+        chdir: "{{ bastion_toolchain_repo_dir }}"
+      register: bastion_toolchain_mise_install
+      changed_when: >-
+        'installed 0 tools' not in (bastion_toolchain_mise_install.stdout ~ bastion_toolchain_mise_install.stderr)
+
+    - name: Install the Python tools pinned in uv.lock
+      ansible.builtin.command: mise exec -- uv sync --locked
+      args:
+        chdir: "{{ bastion_toolchain_repo_dir }}"
+      register: bastion_toolchain_uv_sync
+      changed_when: >-
+        'Installed' in bastion_toolchain_uv_sync.stderr or 'Uninstalled' in bastion_toolchain_uv_sync.stderr
+
+    # The pinned collections of ADR-0026 (git-ignored, so a fresh clone has none): needed to run
+    # the playbooks from the bastion. ansible-galaxy checks each download against Galaxy's
+    # SHA-256.
+    - name: Install the pinned Ansible collections
+      ansible.builtin.command: >-
+        mise exec -- uv run --locked ansible-galaxy collection install
+        -r collections/requirements.yml -p collections
+      args:
+        chdir: "{{ bastion_toolchain_repo_dir }}/infra/ansible"
+      register: bastion_toolchain_collections
+      changed_when: "'was installed successfully' in bastion_toolchain_collections.stdout"
+
+# --- Checks ----------------------------------------------------------------------------------
+
+- name: Read the toolchain user's sudo rights
+  ansible.builtin.command: sudo -l -U {{ bastion_toolchain_user }}
+  register: bastion_toolchain_sudo
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+
+# Every command whose output a check relies on must succeed: an error stops the task instead of
+# reading as an empty (passing) result.
+- name: Read the tool versions and the checked-out commit
+  ansible.builtin.shell: |
+    set -euo pipefail
+    cd {{ bastion_toolchain_repo_dir }}
+    echo "mise=$(mise --version | awk '{ print $1 }')"
+    # Nothing in mise.lock is missing, and the virtual environment matches uv.lock.
+    missing=$(mise ls --missing)
+    echo "mise_missing=$(printf '%s' "$missing" | grep -c . || true)"
+    if mise exec -- uv sync --locked --check >/dev/null 2>&1; then echo uv_synced=yes; fi
+    # For information: the versions in use.
+    echo "tofu=$(mise exec -- tofu version | awk 'NR == 1 { print $2 }')"
+    echo "uv=$(mise exec -- uv --version | awk '{ print $2 }')"
+    echo "ansible=$(mise exec -- uv run --locked ansible --version | awk 'NR == 1 { print $3 }' | tr -d ']')"
+    echo "commit=$(git rev-parse HEAD)"
+    # Tracked files only: untracked files never stop the checkout (force: false ignores them).
+    status=$(git status --porcelain --untracked-files=no)
+    echo "dirty=$(printf '%s' "$status" | grep -c . || true)"
+  args:
+    executable: /bin/bash
+  become: true
+  become_user: "{{ bastion_toolchain_user }}"
+  environment:
+    LC_ALL: C.UTF-8
+  register: bastion_toolchain_state
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+
+- name: Check that the user has no sudo, and the tools are the pinned ones
+  ansible.builtin.assert:
+    that:
+      - "'is not allowed to run sudo' in bastion_toolchain_sudo.stdout"
+      - ('mise=' ~ bastion_toolchain_mise_version) in bastion_toolchain_state.stdout_lines
+      - "'mise_missing=0' in bastion_toolchain_state.stdout_lines"
+      - "'uv_synced=yes' in bastion_toolchain_state.stdout_lines"
+      - "'dirty=0' in bastion_toolchain_state.stdout_lines"
+      - bastion_toolchain_state.stdout_lines | select('match', '^commit=[0-9a-f]{40}$') | length == 1
+      - >-
+        bastion_toolchain_commit is not match('^[0-9a-f]{40}$')
+        or ('commit=' ~ bastion_toolchain_commit) in bastion_toolchain_state.stdout_lines
+    fail_msg: "{{ bastion_toolchain_sudo.stdout_lines | default([]) + bastion_toolchain_state.stdout_lines }}"
+    quiet: true
+  when: not ansible_check_mode
+
+# Compare the commit with GitHub (`git ls-remote origin main` on the laptop).
+- name: Show the checked-out commit and the tool versions
+  ansible.builtin.debug:
+    msg: "{{ bastion_toolchain_state.stdout_lines | select('match', '(commit|tofu|uv|ansible)=') | list }}"
+  when: not ansible_check_mode

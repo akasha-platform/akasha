@@ -1,5 +1,6 @@
 ---
-# Bastion (ADR-0032): VM base, router client, swap file (ADR-0030).
+# Bastion (ADR-0032, ADR-0040): VM base, router client, swap file (ADR-0030), host firewall,
+# pinned toolchain for the unprivileged user akasha.
 # No -K: the VM's default user has passwordless sudo (ADR-0035). Always dry-run first; vm_base
 # needs the private file:
 #   uv run ansible-playbook playbooks/bastion.yml --check --diff -e @~/akasha-private/lab_vms.yml
@@ -25,3 +26,7 @@
       tags: [client]
     - role: vm_swap
       tags: [swap]
+    - role: vm_firewall
+      tags: [firewall]
+    - role: bastion_toolchain
+      tags: [toolchain]

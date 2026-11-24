@@ -1,0 +1,37 @@
+---
+argument_specs:
+  main:
+    short_description: The pinned toolchain of the bastion for an unprivileged user (ADR-0040)
+    description:
+      - Creates a user without password or sudo, installs the pinned mise binary (SHA-256
+        checked, cooldown enforced) and git, checks out the public repository at one commit as
+        that user, then installs the tools of mise.lock and uv.lock and the pinned Ansible
+        collections. Prints the commit.
+    options:
+      bastion_toolchain_user:
+        type: str
+        description: Unprivileged user that owns the repository and the tools.
+      bastion_toolchain_mise_version:
+        type: str
+        description: Pinned mise version (same as the laptop).
+      bastion_toolchain_mise_sha256:
+        type: str
+        description: SHA-256 of the official linux-x64 binary of that version.
+      bastion_toolchain_mise_published_at:
+        type: str
+        description: Publication time of the GitHub release (UTC, %Y-%m-%dT%H:%M:%SZ).
+      bastion_toolchain_mise_file:
+        type: str
+        description: File name of the binary in the release.
+      bastion_toolchain_mise_url:
+        type: str
+        description: Download URL of that binary.
+      bastion_toolchain_cooldown_days:
+        type: int
+        description: Minimum age of the mise release before it may be installed (ADR-0022).
+      bastion_toolchain_repo:
+        type: str
+        description: HTTPS URL of the public repository.
+      bastion_toolchain_commit:
+        type: str
+        description: Branch, tag or commit SHA to check out (main by default).
