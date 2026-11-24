@@ -132,6 +132,29 @@ Step 6c-2:
 * on `core`, every check passes and a second run reports `changed=0`;
 * from the bastion, `10.10.0.12:8200` is unreachable.
 
+### Implementation (2026-11-24)
+
+Applied from PR #69.
+
+* **Cooldown exception, granted by the owner.** OpenBao 2.7.3 was installed 4.8 days after its
+  release, before the 6-day cooldown of ADR-0022 ended. 2.7.3 is a security release
+  (GHSA-fgmw-h9wp-wc7g, GHSA-h8fh-pmch-cjww). Its alternative, 2.7.2, carries those known
+  issues. The exception was given on the command line (`-e openbao_cooldown_days=4`) for this
+  one run; the role's default stays 6 days.
+* **Router.** After the commit-confirmed logic moved into `nft_commit`, the router's playbook
+  reported `changed=0`.
+* **core.** The first real run loaded the host firewall commit confirmed and installed and
+  started OpenBao; the next run reported `changed=0`, and so did a later dry run.
+  * `bao status`: version 2.7.3, Shamir seal, not initialised, sealed, Raft storage.
+  * `bao` listens on `127.0.0.1:8200` only.
+  * `openbao` has uid and gid 950.
+  * The `input` chain drops by default and accepts SSH from 10.10.0.10 and 10.255.255.1 only.
+  * From the bastion, a connection to 10.10.0.12:8200 timed out (dropped, not refused), and
+    the kernel log showed `akasha drop input` for its three SYNs.
+* **Defects found on the way, fixed in the same pull request:**
+  * the cooldown read from `-e` was a string;
+  * a dry run tried to install a package it had not downloaded.
+
 ## More Information
 
 * The independent review of the plan and the code (2026-11-24) found no blocker. Its
