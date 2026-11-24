@@ -120,3 +120,8 @@ Independent review of 2026-11-17 (draft and findings in the project's working no
   ([ADR-0034](0034-vga-adapter-on-lab-vms.md)): Debian's cloud images do not boot without a
   video device. "No graphics or video device" above becomes "no graphics device"; the
   adapter's memory is measured at the step-6 gate.
+* 2026-11-24: first measurement of a VM's QEMU overhead (step 6b-4, the router, 512 MiB with
+  a VGA adapter): the QEMU process holds about 532 MiB, so the guest's 512 MiB plus about
+  20 MiB. Free page reporting returned nothing (open question A24), so the guest's whole
+  allocation stays resident even with 362 MiB available inside. This is consistent with this
+  ADR, which counts every allocation in full and no saving from free page reporting.

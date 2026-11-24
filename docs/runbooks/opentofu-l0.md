@@ -78,7 +78,36 @@ the checks of `host-firewall.md` ("Check after every reboot"), then
 `virsh -c qemu:///system start router`, then the other VMs.
 
 **Destroying the whole stack** on purpose: the base images carry `prevent_destroy`; remove that
-line in `images.tf` first. `tofu destroy -target=module.router` removes only the router.
+line in `images.tf` first.
+
+**Rebuilding one VM** (done for the router in step 6b-4):
+
+1. Record what must come back: `virsh -c qemu:///system dumpxml <vm>`, the VM's managed files,
+   and the length of its serial log (runbook `lab-vms.md`, "Add a lab VM").
+2. Make an off-AWS copy of the state.
+3. Destroy through a saved plan, so that what you read is what runs. The confirmation prompt
+   of `tofu destroy` says "destroy all resources" even with `-target`: judge by the list.
+   Expect `libvirt_domain.this`, `libvirt_volume.root`, `libvirt_volume.seed` and possibly
+   `libvirt_cloudinit_disk.seed` (it is only in the state while its ISO is still in the
+   laptop's temporary directory), all under `module.<vm>.`, and nothing else.
+
+   ```bash
+   tofu plan -destroy -target=module.<vm> -no-color -out=destroy.plan 2>&1 | grep -E '^  # |^Plan:|Error'
+   tofu apply -no-color destroy.plan; rm -f destroy.plan
+   ```
+
+4. Check that nothing is left, then copy the state again.
+
+   ```bash
+   ssh -t insa 'virsh -c qemu:///system list --all; virsh -c qemu:///system vol-list akasha; sudo ls -la /var/lib/libvirt/akasha/pool'
+   ```
+
+5. `tofu plan -out=l0.plan` (only `module.<vm>.` resources to add), `tofu apply l0.plan`, then
+   a second plan with no change. Copy the state.
+6. Check the new host key (runbook `lab-vms.md`), and run the VM's playbook twice.
+
+Paste only filtered output (`grep` as above): a full plan prints the SSH key's comment in the
+user-data, and `aws s3 cp` prints the bucket name unless it is given `--only-show-errors`.
 
 **A23 drill** (provider 0.9.9 keeps the cloud-init ISO in the laptop's temp directory): delete
 `${TMPDIR:-/tmp}/terraform-provider-libvirt-cloudinit/`, run `tofu plan`: it may recreate the

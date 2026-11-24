@@ -149,3 +149,22 @@ OPNsense" chain is also replaced, by ADR-0029).
   * new rule sets load "commit confirmed";
   * forwarding comes on only through a unit that requires the firewall;
   * DNS and NTP are served only on the router's address on the client's network.
+* 2026-11-24: Confirmation done, in step 6b-4.
+  * **Idle memory.** 17 minutes after a reboot, the guest used 102 MiB of 464 MiB, with 362 MiB
+    available. Memory pressure was 0 and there was no OOM.
+    * The largest processes were unattended-upgrades (21 MB), Unbound (18 MB) and
+      systemd-resolved (15 MB).
+    * The 150–200 MB estimate above held for "used", but not on the host's side. The router's
+      QEMU process holds about 532 MiB (`RssAnon` ≈ 509 MiB): all 512 MiB plus about 20 MiB.
+      Free page reporting gave nothing back (open question A24).
+  * **Rebuild from zero.** `tofu destroy -target=module.router` (4 resources), then an apply
+    (4 resources) and an empty second plan, then the playbook.
+    * The new router was configured from code with every check passed, and a second run
+      reported `changed=0`.
+    * Every akasha-managed file, the rule-set fingerprint, `sshd -T`, the listening ports,
+      the enabled units, the network and the package versions are byte-identical to the old
+      router's.
+    * Only the kernel differs. The old router had booted 6.12.118 from unattended upgrades;
+      the new one runs the image's 6.12.116 until its next reboot.
+    * The domain XML differs only in uuid, id, tap names and pty paths.
+    * `linux2024` and the base image were untouched.

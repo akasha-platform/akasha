@@ -128,6 +128,19 @@ sudo journalctl -k -g 'akasha drop' -n 20   # dropped packets (at most 5 lines p
 sudo nft list ruleset | grep 'counter packets [1-9]'   # which drop rules matched
 ```
 
+After a reboot, the boot order can be checked on one clock (microseconds since boot):
+* nftables must have exited before `systemd-networkd` started;
+* `akasha-forwarding` must have started after nftables became active.
+
+`systemd-analyze critical-chain` counts from another origin and does not show this.
+
+```bash
+for u in nftables systemd-networkd akasha-forwarding; do
+  echo "$u: $(systemctl show -p ExecMainStartTimestampMonotonic -p ExecMainExitTimestampMonotonic -p ActiveEnterTimestampMonotonic $u.service | paste -sd' ')"
+done
+cat /proc/sys/net/ipv4/conf/{wan,mgmt,ext}/forwarding    # 1 1 1
+```
+
 Forwarding depends on the firewall: `akasha-forwarding.service` requires `nftables.service`.
 * Never `systemctl restart nftables`: its stop flushes the rules, and forwarding stops and
   restarts with it.
