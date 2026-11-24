@@ -48,8 +48,8 @@ BAO_ADDR=http://127.0.0.1:8200 bao operator unseal    # once per share, up to th
 
 ## Bump the pinned OpenBao version
 
-OpenBao is not in Debian's archive: unattended upgrades never patch it (open question B16).
-For a new release, on the laptop, in an empty directory:
+OpenBao is not in Debian's archive: unattended upgrades never patch it. Renovate opens a pull
+request that changes only `openbao_version` (ADR-0042). For a new release, on the laptop, in an empty directory:
 
 ```bash
 v=2.7.4   # the new version
@@ -65,11 +65,12 @@ grep "openbao_${v}_linux_amd64.deb$" checksums.txt               # the new SHA-2
   https://openbao.org/docs/install/ ("Primary key fingerprint"), a channel other than GitHub.
   A new key file name or fingerprint is a finding: stop.
 * **Sigstore**: the install page also shows `cosign verify-blob` for `checksums.txt` against the
-  release workflow's identity. cosign is not in the pinned toolchain yet (B16): until it is,
+  release workflow's identity. cosign is not in the pinned toolchain (ADR-0042), so
   only the GPG signature is checked.
 * **Read the release and upgrade notes.**
 * **Change** `openbao_version`, `openbao_deb_sha256` and `openbao_published_at` in
-  `infra/ansible/roles/openbao/defaults/main.yml` (pull request).
+  `infra/ansible/roles/openbao/defaults/main.yml`: on Renovate's pull request, add a commit
+  with the SHA-256 and the publication time.
 * **From step 7 on**, take a snapshot first:
   `BAO_ADDR=... bao operator raft snapshot save /srv/openbao/pre-upgrade.snap`.
 * **Run** `core.yml --tags openbao`. The role installs the new package, but it does not

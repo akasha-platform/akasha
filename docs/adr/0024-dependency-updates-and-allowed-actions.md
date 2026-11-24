@@ -104,3 +104,9 @@ https://docs.renovatebot.com/modules/manager/mise/ (safe mode in
 https://docs.renovatebot.com/key-concepts/minimum-release-age/; uv `exclude-newer`:
 https://docs.astral.sh/uv/reference/settings/#exclude-newer; allowed actions API:
 https://docs.github.com/en/rest/actions/permissions.
+
+## Updates
+
+* 2026-11-24: Renovate also covers the release binaries pinned in Ansible role defaults
+  (OpenBao, mise), through a regex custom manager
+  ([ADR-0042](0042-updates-of-pinned-release-binaries.md)).

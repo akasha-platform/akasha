@@ -36,6 +36,22 @@
     labels: ['security'],
   },
 
+  // Binaries outside Debian's archive, pinned in Ansible role defaults (ADR-0042): OpenBao on
+  // core and mise on the bastion. A `# renovate:` comment above the `*_version` line names the
+  // GitHub repository. Renovate bumps the version only: the SHA-256 and `*_published_at`
+  // change by hand after the signature check of the runbook (see prBodyNotes below).
+  customManagers: [
+    {
+      description: 'Pinned release binaries in Ansible role defaults',
+      customType: 'regex',
+      managerFilePatterns: ['/^infra/ansible/roles/[^/]+/defaults/main\\.yml$/'],
+      matchStrings: [
+        '# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\n[a-z_]+_version: (?<currentValue>\\S+)',
+      ],
+      extractVersionTemplate: '^v(?<version>.+)$', // tag v2.7.3 -> 2.7.3
+    },
+  ],
+
   packageRules: [
     {
       description: 'Keep pyproject.toml ranges as written and update uv.lock within them',
@@ -83,6 +99,13 @@
       matchManagers: ['github-actions'],
       matchDepTypes: ['github-runner'],
       dependencyDashboardApproval: true,
+    },
+    {
+      description: 'Pinned release binaries: the PR is a reminder, the checksum is checked by hand (ADR-0042)',
+      matchManagers: ['custom.regex'],
+      prBodyNotes: [
+        '**Do not merge as is.** Only the version changed. Check the release signature, then update `*_sha256` and `*_published_at` in the same file: runbook `docs/runbooks/core.md` (OpenBao) or `docs/runbooks/bastion.md` (mise). With a stale checksum the role refuses the download.',
+      ],
     },
   ],
 }

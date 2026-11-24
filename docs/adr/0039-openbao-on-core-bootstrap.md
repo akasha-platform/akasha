@@ -119,7 +119,7 @@ now. The pinned official package is part of the approved plan.
 * Good, because a missing data disk, or a configuration change on an unsealed OpenBao, fails
   visibly instead of silently.
 * Bad, because OpenBao is not in Debian's archive, so unattended upgrades never patch it.
-  Every patch is a new pin, verified by hand (runbook `core.md`; open question B16).
+  Every patch is a new pin, verified by hand (runbook `core.md`; ADR-0042).
 * Bad, because nothing can use OpenBao before step 7.
 * Bad, because the package's self-signed certificate in `/opt/openbao/tls` stays on disk,
   unused, until step 7 replaces it.
@@ -174,3 +174,9 @@ Applied from PR #69.
 * Note for step 7: inside the VM, `core` resolves to `127.0.1.1` (cloud-init
   `manage_etc_hosts`). Network-facing addresses must use 10.10.0.12 or
   `core.akasha.internal` through the router's DNS.
+
+## Updates
+
+* 2026-11-24: Renovate now opens a pull request when a new release of OpenBao is out, through a
+  regex custom manager on the version line ([ADR-0042](0042-updates-of-pinned-release-binaries.md),
+  open question B16). The SHA-256, the publication time and the signature check stay manual.
