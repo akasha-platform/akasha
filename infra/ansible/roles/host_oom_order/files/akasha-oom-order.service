@@ -1,0 +1,11 @@
+# Managed by Ansible (role host_oom_order, ADR-0043).
+[Unit]
+Description=akasha: OOM order of the lab VMs (oom_score_adj of their QEMU processes)
+Documentation=https://github.com/akasha-platform/akasha/blob/main/docs/runbooks/host-oom-order.md
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/akasha-oom-order
+# Run every 30 s: drop systemd's own info lines about the unit (Starting, Finished,
+# Deactivated). The script's changes (notice), warnings and failures are still logged.
+LogLevelMax=notice

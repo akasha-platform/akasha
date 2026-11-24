@@ -1,0 +1,53 @@
+#!/bin/bash
+# {{ ansible_managed }}
+# OOM order of akasha's VMs (ADR-0043, role host_oom_order). Sets the oom_score_adj of the
+# QEMU process of each domain in machine-akasha.slice and touches no other process.
+# Quiet when nothing changes; one notice per change; a warning and exit 1 for a domain that is
+# missing from the table or whose QEMU process is not found. Run every 30 s by
+# akasha-oom-order.timer.
+set -uo pipefail
+
+declare -A want=(
+{% for name, value in host_oom_order_adj.items() %}
+  [{{ name }}]={{ value }}
+{% endfor %}
+)
+slice=${AKASHA_OOM_SLICE:-{{ host_oom_order_slice }}}
+rc=0
+shopt -s nullglob
+
+for scope in "$slice"/machine-qemu*.scope; do
+  # machine-qemu\x2d<id>\x2d<name>.scope: systemd escapes each "-" of the name as \x2d.
+  name=$(basename "$scope" .scope)
+  name=${name#machine-qemu\\x2d}
+  name=${name#*\\x2d}
+  name=${name//\\x2d/-}
+  value=${want[$name]:-}
+  if [ -z "$value" ]; then
+    echo "<4>$name: not in the table, oom_score_adj left unchanged"
+    rc=1
+    continue
+  fi
+  # The cgroup of the scope as /proc/<pid>/cgroup shows it (cgroup v2: "0::<path>").
+  cgroup="0::${scope#/sys/fs/cgroup}"
+  found=0
+  for pid in $(pgrep -f "guest=$name,"); do
+    # Only a process inside this very scope: proves that the match is this domain's QEMU.
+    line=$(cat "/proc/$pid/cgroup" 2>/dev/null) || continue
+    [[ $line == "$cgroup" || $line == "$cgroup/"* ]] || continue
+    found=1
+    current=$(cat "/proc/$pid/oom_score_adj" 2>/dev/null) || continue
+    [ "$current" = "$value" ] && continue
+    if echo "$value" > "/proc/$pid/oom_score_adj"; then
+      echo "<5>$name: pid $pid oom_score_adj $current -> $value"
+    else
+      echo "<3>$name: pid $pid: cannot set oom_score_adj"
+      rc=1
+    fi
+  done
+  if [ "$found" = 0 ]; then
+    echo "<4>$name: no QEMU process found in its scope"
+    rc=1
+  fi
+done
+exit "$rc"

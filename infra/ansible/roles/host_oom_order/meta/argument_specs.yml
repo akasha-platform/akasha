@@ -1,0 +1,13 @@
+---
+argument_specs:
+  main:
+    short_description: OOM order of akasha's VMs on the L0 host (ADR-0043)
+    options:
+      host_oom_order_adj:
+        type: dict
+        description:
+          - oom_score_adj of the QEMU process of each lab domain, by domain name. Positive
+            values only, so that akasha's VMs never outrank the school's processes.
+      host_oom_order_slice:
+        type: str
+        description: cgroup directory of libvirt's akasha partition; only its QEMU processes are touched.
