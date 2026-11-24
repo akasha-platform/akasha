@@ -1,0 +1,20 @@
+---
+argument_specs:
+  main:
+    short_description: Format once and mount the data disk of a lab VM (ADR-0038)
+    description:
+      - Checks the device and its size, creates an ext4 file system only when the disk has
+        none (never reformats), and mounts it by label with nofail.
+    options:
+      vm_data_disk_device:
+        type: str
+        description: Block device of the data disk.
+      vm_data_disk_size_gib:
+        type: int
+        description: Exact size of the data disk in GiB; any other size stops the role.
+      vm_data_disk_label:
+        type: str
+        description: ext4 label, used to mount the disk.
+      vm_data_disk_mount:
+        type: str
+        description: Mount point.

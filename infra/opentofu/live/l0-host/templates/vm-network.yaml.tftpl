@@ -1,0 +1,15 @@
+# cloud-init network-config v2 of a VM on br-mgmt: one NIC matched by MAC and renamed, the
+# router as gateway, DNS server (Unbound, ADR-0028) and search domain.
+version: 2
+ethernets:
+  mgmt:
+    match:
+      macaddress: "${mac}"
+    set-name: mgmt
+    addresses: [${address}]
+    routes:
+      - to: default
+        via: 10.10.0.1
+    nameservers:
+      addresses: [10.10.0.1]
+      search: [akasha.internal]

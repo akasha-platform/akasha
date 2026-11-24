@@ -1,0 +1,178 @@
+---
+# A lab VM behind the edge router (ADR-0028, ADR-0029). cloud-init's network-config gives it
+# the router as gateway and DNS server with the search domain: check that. Then chrony
+# replaces systemd-timesyncd (they conflict on `time-daemon`) with the router as only source.
+# The host's clock is read through ptp_kvm by the checks only, never by the running chronyd:
+# chronyd stops at boot when a refclock device cannot be opened (ADR-0029 Updates).
+
+- name: Read the network settings cloud-init applied
+  ansible.builtin.shell: |
+    set -o pipefail
+    echo "gateway=$(ip -4 route show default | awk '{ print $3; exit }')"
+    echo "dns=$(resolvectl dns mgmt | awk '{ print $NF }')"
+    echo "domain=$(resolvectl domain mgmt | awk '{ print $NF }')"
+  args:
+    executable: /bin/bash
+  register: lab_client_network
+  changed_when: false
+  check_mode: false
+
+- name: Check that the router is the gateway and the DNS server, with the lab's search domain
+  ansible.builtin.assert:
+    that:
+      - ('gateway=' ~ lab_client_router) in lab_client_network.stdout_lines
+      - ('dns=' ~ lab_client_router) in lab_client_network.stdout_lines
+      - ('domain=' ~ lab_client_domain) in lab_client_network.stdout_lines
+    fail_msg: "{{ lab_client_network.stdout_lines }}: see the VM's network-config (OpenTofu)."
+    quiet: true
+
+- name: Install chrony (apt removes systemd-timesyncd)
+  ansible.builtin.apt:
+    name: chrony
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+# The paravirtual clock of KVM (Debian builds it as a module, CONFIG_PTP_1588_CLOCK_KVM=m),
+# for the checks' reading of the host's offset. It needs a stable TSC on the host: when it
+# cannot load, only that reading is missing, and the checks say so.
+- name: Load ptp_kvm now and at every boot
+  community.general.modprobe:
+    name: ptp_kvm
+    state: present
+    persistent: present
+  register: lab_client_ptp_module
+  failed_when: false
+
+# On a VM without chrony, a dry run has neither its directories nor chronyd: the files can
+# only be checked by the real run (`validate:` below).
+- name: Look for chronyd
+  ansible.builtin.stat:
+    path: /usr/sbin/chronyd
+  register: lab_client_chronyd
+
+- name: Configure chrony
+  when: not ansible_check_mode or lab_client_chronyd.stat.exists
+  block:
+    # `validate:` does not run in check mode: check the rendered sources file with the VM's
+    # chronyd in a temporary file, so the dry run already proves the syntax.
+    - name: Check the rendered sources file in a dry run
+      when: ansible_check_mode
+      check_mode: false
+      block:
+        - name: Create a temporary file for the rendered sources
+          ansible.builtin.tempfile:
+            suffix: .sources
+          register: lab_client_tmp
+
+        - name: Render the sources into the temporary file
+          ansible.builtin.template:
+            src: akasha.sources.j2
+            dest: "{{ lab_client_tmp.path }}"
+            mode: "0644"
+
+        - name: Check the sources with chronyd
+          ansible.builtin.command: "{{ lab_client_check_command }} {{ lab_client_tmp.path }}"
+          changed_when: false
+      always:
+        - name: Remove the temporary file
+          ansible.builtin.file:
+            path: "{{ lab_client_tmp.path }}"
+            state: absent
+          when: lab_client_tmp.path is defined
+
+    # The Debian pool line of the packaged chrony.conf: the router is the only source.
+    - name: Turn off the Debian pool (checked by chronyd before the file is replaced)
+      ansible.builtin.lineinfile:
+        path: /etc/chrony/chrony.conf
+        regexp: '^#?\s*pool 2\.debian\.pool\.ntp\.org'
+        line: "#pool 2.debian.pool.ntp.org iburst  # off: the router is the only source (akasha, ADR-0029)"
+        validate: "{{ lab_client_check_command }} %s"
+      notify: Restart chrony
+
+    - name: Make the router the time source (checked by chronyd before the file is written)
+      ansible.builtin.template:
+        src: akasha.sources.j2
+        dest: /etc/chrony/sources.d/akasha.sources
+        owner: root
+        group: root
+        mode: "0644"
+        validate: "{{ lab_client_check_command }} %s"
+      notify: Restart chrony
+
+    - name: Check the whole chrony configuration
+      ansible.builtin.command: /usr/sbin/chronyd -p
+      changed_when: false
+      check_mode: false
+
+    - name: Enable and start chrony
+      ansible.builtin.systemd_service:
+        name: chrony.service
+        enabled: true
+        state: started
+
+- name: Apply a changed time configuration now
+  ansible.builtin.meta: flush_handlers
+
+# --- Checks ----------------------------------------------------------------------------------
+
+# /etc/hosts (cloud-init manage_etc_hosts) maps the VM's own name, so the DNS checks use the
+# router's name and a short name (search domain) instead.
+- name: Read DNS answers, Internet access, and chrony's state and sources
+  ansible.builtin.shell: |
+    set -o pipefail
+    echo "router_fqdn=$(getent hosts router.{{ lab_client_domain }} | awk '{ print $1 }')"
+    echo "router_short=$(getent hosts router | awk '{ print $1 }')"
+    getent ahostsv4 deb.debian.org >/dev/null && echo internet_dns=yes
+    timeout 5 bash -c '</dev/tcp/deb.debian.org/443' 2>/dev/null && echo internet_tcp=yes
+    echo "unit=$(systemctl is-active chrony.service)"
+    echo "timesyncd=$(dpkg-query -W -f='${Status}' systemd-timesyncd 2>/dev/null || echo absent)"
+    chronyc waitsync {{ lab_client_sync_tries }} 0.1 >/dev/null && echo sync=yes
+    echo "ntp_synchronized=$(timedatectl show --property=NTPSynchronized --value)"
+    chronyc -n sources | awk '$1 ~ /^\^\*/ { print "selected=" $2 }'
+    chronyc -n sources | awk '$1 ~ /^[\^=]/ { n++ } END { print "ntp_sources=" n + 0 }'
+  args:
+    executable: /bin/bash
+  register: lab_client_state
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+
+- name: Check DNS through the router, Internet access, and the router as only time source
+  ansible.builtin.assert:
+    that:
+      - ('router_fqdn=' ~ lab_client_router) in lab_client_state.stdout_lines
+      - ('router_short=' ~ lab_client_router) in lab_client_state.stdout_lines
+      - "'internet_dns=yes' in lab_client_state.stdout_lines"
+      - "'internet_tcp=yes' in lab_client_state.stdout_lines"
+      - "'unit=active' in lab_client_state.stdout_lines"
+      - "'timesyncd=install ok installed' not in lab_client_state.stdout_lines"
+      - "'sync=yes' in lab_client_state.stdout_lines"
+      - "'ntp_synchronized=yes' in lab_client_state.stdout_lines"
+      - ('selected=' ~ lab_client_router) in lab_client_state.stdout_lines
+      - "'ntp_sources=1' in lab_client_state.stdout_lines"
+    fail_msg: "{{ lab_client_state.stdout_lines }}"
+    quiet: true
+  when: not ansible_check_mode
+
+# How far insa's clock is from this VM's (router-synchronised) clock, read once through
+# ptp_kvm by a separate chronyd that only prints the offset (-Q) and exits; the running chronyd
+# never depends on ptp_kvm (ADR-0029 Updates, A18). Information only: never fails the play.
+- name: Read the host clock's offset through ptp_kvm
+  ansible.builtin.shell: |
+    set -o pipefail
+    test -e /dev/ptp_kvm || { echo "ptp_kvm unavailable"; exit 0; }
+    /usr/sbin/chronyd -Q -t 40 'refclock PHC /dev/ptp_kvm poll 0' 2>&1 \
+      | grep -E 'System clock wrong|Fatal' || echo "no reading within 40 s"
+  args:
+    executable: /bin/bash
+  register: lab_client_host_offset
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+
+- name: Show the host clock's offset
+  ansible.builtin.debug:
+    msg: "insa vs this VM: {{ lab_client_host_offset.stdout | default('') }}"
+  when: not ansible_check_mode

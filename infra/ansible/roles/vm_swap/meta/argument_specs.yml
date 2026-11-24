@@ -1,0 +1,14 @@
+---
+argument_specs:
+  main:
+    short_description: A swap file inside a lab VM (ADR-0030)
+    description:
+      - Creates the swap file once at the given size, enables it at boot and now. A swap file
+        of another size stops the role instead of being replaced.
+    options:
+      vm_swap_file:
+        type: str
+        description: Path of the swap file.
+      vm_swap_size_mib:
+        type: int
+        description: Size of the swap file in MiB.

@@ -1,0 +1,75 @@
+---
+# Swap file of a lab VM (ADR-0030). Created once; a file of another size is never resized in
+# place (it may be in use): the role stops and says so.
+
+- name: Look for the swap file
+  ansible.builtin.stat:
+    path: "{{ vm_swap_file }}"
+  register: vm_swap_stat
+
+- name: Check the size of an existing swap file
+  ansible.builtin.assert:
+    that:
+      - vm_swap_stat.stat.size == vm_swap_size_mib * 1024 * 1024
+    fail_msg: >-
+      {{ vm_swap_file }} is {{ vm_swap_stat.stat.size }} bytes, expected {{ vm_swap_size_mib }}
+      MiB: resize it by hand (swapoff, remove, rerun the role).
+    quiet: true
+  when: vm_swap_stat.stat.exists
+
+# One step, so that a failure never leaves an unformatted file at the final path: allocate and
+# format a temporary file readable by root only, then rename it. fallocate is supported for
+# swap files on ext4 (the cloud image's root file system).
+- name: Create the swap file
+  ansible.builtin.shell: |
+    set -eu
+    umask 077
+    rm -f {{ vm_swap_file }}.new
+    fallocate -l {{ vm_swap_size_mib }}M {{ vm_swap_file }}.new
+    mkswap {{ vm_swap_file }}.new >/dev/null
+    mv {{ vm_swap_file }}.new {{ vm_swap_file }}
+  args:
+    creates: "{{ vm_swap_file }}"
+
+- name: Enable the swap file at boot
+  ansible.posix.mount:
+    path: none
+    src: "{{ vm_swap_file }}"
+    fstype: swap
+    opts: sw
+    state: present
+
+- name: Read the active swap
+  ansible.builtin.command: swapon --show=NAME --noheadings
+  register: vm_swap_active
+  changed_when: false
+  check_mode: false
+
+- name: Enable the swap file now
+  ansible.builtin.command: swapon {{ vm_swap_file }}
+  changed_when: true
+  when: vm_swap_file not in vm_swap_active.stdout_lines
+
+# --- Checks ----------------------------------------------------------------------------------
+
+# swapon shows one page less than the file (the kernel keeps the header page out of the swap
+# area), so the size is checked on the file itself.
+- name: Read the active swap and the swap file again
+  ansible.builtin.shell: |
+    swapon --show=NAME --noheadings
+    echo "file_size=$(stat -c %s {{ vm_swap_file }})"
+    echo "file_mode=$(stat -c %a {{ vm_swap_file }})"
+  register: vm_swap_final
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+
+- name: Check that the swap file is active, at its size, readable by root only
+  ansible.builtin.assert:
+    that:
+      - vm_swap_file in vm_swap_final.stdout_lines
+      - ('file_size=' ~ (vm_swap_size_mib * 1024 * 1024)) in vm_swap_final.stdout_lines
+      - "'file_mode=600' in vm_swap_final.stdout_lines"
+    fail_msg: "{{ vm_swap_final.stdout_lines }}"
+    quiet: true
+  when: not ansible_check_mode

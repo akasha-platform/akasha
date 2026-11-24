@@ -52,6 +52,15 @@ variable "interfaces" {
   }))
 }
 
+variable "data_disk_path" {
+  description = <<-EOT
+    Path of a qcow2 data volume attached as vdb, or null for none. The volume belongs to the
+    caller, not to this module, so destroying the VM never destroys its data (ADR-0038).
+  EOT
+  type        = string
+  default     = null
+}
+
 variable "user_data" {
   description = "cloud-init user-data. Never put a secret here: it is stored in the OpenTofu state and in a local ISO."
   type        = string

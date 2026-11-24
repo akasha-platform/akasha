@@ -162,3 +162,10 @@ Unbound and chrony together raised the router's used memory from 97 to 111 MiB (
   denied").
 * Leap smear: https://developers.google.com/time/smear (Google's public NTP smears leap
   seconds).
+
+## Updates
+
+* 2026-11-24: the roles check chrony files through a copy at `/etc/chrony.akasha-check.conf`
+  (allowed by the AppArmor profile, `/etc/chrony.* r`), no longer in `/run/chrony`. That
+  runtime directory exists only while chronyd runs, so a stopped chronyd could not be
+  repaired by the role (independent review of step 6c-1).

@@ -96,7 +96,8 @@ line in `images.tf` first.
    tofu apply -no-color destroy.plan; rm -f destroy.plan
    ```
 
-4. Check that nothing is left, then copy the state again.
+4. Check that nothing is left, then copy the state again. A VM with a data disk (ADR-0038)
+   keeps it: for `core`, `core-data.qcow2` stays in `vol-list` and in the pool directory.
 
    ```bash
    ssh -t insa 'virsh -c qemu:///system list --all; virsh -c qemu:///system vol-list akasha; sudo ls -la /var/lib/libvirt/akasha/pool'

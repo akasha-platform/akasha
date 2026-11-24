@@ -1,0 +1,93 @@
+---
+# Data disk of a lab VM (ADR-0038). It outlives the VM: after a rebuild it already holds a
+# file system and data, so the role creates one only on a blank disk, and stops on anything
+# it does not recognise instead of touching it.
+
+# "Blank" must mean blank, not "no signature recognised": ext4 with a damaged primary
+# superblock (e.g. after a power loss) shows no signature but is still recoverable with
+# e2fsck and a backup superblock. mkfs never asks under Ansible (no terminal), so the role
+# decides alone, fail-closed: blank only when `blkid -p` finds nothing (exit code 2 exactly)
+# and the first and the last MiB read as zeros, as a new qcow2 does.
+- name: Read the data disk, its signatures, its first and last MiB, and the root device
+  ansible.builtin.shell: |
+    set -o pipefail
+    dev={{ vm_data_disk_device }}
+    size=$(lsblk -bdno SIZE "$dev")
+    echo "size=$size"
+    echo "type=$(lsblk -dno TYPE "$dev")"
+    echo "parts=$(lsblk -no NAME "$dev" | tail -n +2 | wc -l)"
+    echo "root=$(findmnt -no SOURCE /)"
+    rc=0; probe=$(blkid -p -o export "$dev") || rc=$?
+    echo "blkid_rc=$rc"
+    echo "fstype=$(printf '%s\n' "$probe" | sed -n 's/^TYPE=//p')"
+    echo "label=$(printf '%s\n' "$probe" | sed -n 's/^LABEL=//p')"
+    cmp -s -n 1048576 "$dev" /dev/zero && echo head=zero
+    dd if="$dev" bs=1M skip=$(( size / 1048576 - 1 )) count=1 status=none \
+      | cmp -s -n 1048576 - /dev/zero && echo tail=zero
+    true
+  args:
+    executable: /bin/bash
+  register: vm_data_disk_state
+  changed_when: false
+  check_mode: false
+
+- name: Decide whether the disk is blank or already ours
+  ansible.builtin.set_fact:
+    vm_data_disk_blank: >-
+      {{ ['blkid_rc=2', 'fstype=', 'label=', 'head=zero', 'tail=zero']
+         | difference(vm_data_disk_state.stdout_lines) | length == 0 }}
+    vm_data_disk_ours: >-
+      {{ ['blkid_rc=0', 'fstype=ext4', 'label=' ~ vm_data_disk_label]
+         | difference(vm_data_disk_state.stdout_lines) | length == 0 }}
+
+- name: Check that it is the expected disk, and blank or already ours
+  ansible.builtin.assert:
+    that:
+      - ('size=' ~ (vm_data_disk_size_gib * 1024 * 1024 * 1024)) in vm_data_disk_state.stdout_lines
+      - "'type=disk' in vm_data_disk_state.stdout_lines"
+      - "'parts=0' in vm_data_disk_state.stdout_lines"
+      - vm_data_disk_state.stdout_lines | select('match', 'root=' ~ vm_data_disk_device) | length == 0
+      - vm_data_disk_blank | bool or vm_data_disk_ours | bool
+    fail_msg: >-
+      {{ vm_data_disk_state.stdout_lines }}: expected {{ vm_data_disk_device }} of
+      {{ vm_data_disk_size_gib }} GiB without partitions, either blank (no signature and zeros
+      at both ends) or ext4 labelled {{ vm_data_disk_label }}. Nothing was changed: look at
+      the disk by hand (runbook lab-vms.md).
+    quiet: true
+
+# Only on a blank disk (checked above): an existing file system is never recreated.
+- name: Create the file system on the blank data disk
+  community.general.filesystem:
+    dev: "{{ vm_data_disk_device }}"
+    fstype: ext4
+    opts: -L {{ vm_data_disk_label }}
+    force: false
+  when: vm_data_disk_blank | bool
+
+# nofail: a missing data disk must not stop the boot (the console and SSH stay usable);
+# services that need it declare RequiresMountsFor= on the mount point.
+- name: Mount the data disk by label
+  ansible.posix.mount:
+    path: "{{ vm_data_disk_mount }}"
+    src: LABEL={{ vm_data_disk_label }}
+    fstype: ext4
+    opts: defaults,nofail
+    passno: 2 # checked by fsck at boot, after the root file system
+    state: mounted
+
+# --- Checks ----------------------------------------------------------------------------------
+
+- name: Read the mount
+  ansible.builtin.command: findmnt -no SOURCE,FSTYPE,LABEL {{ vm_data_disk_mount }}
+  register: vm_data_disk_mounted
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+
+- name: Check that the data disk is mounted
+  ansible.builtin.assert:
+    that:
+      - vm_data_disk_mounted.stdout.split() == [vm_data_disk_device, 'ext4', vm_data_disk_label]
+    fail_msg: "{{ vm_data_disk_mount }}: {{ vm_data_disk_mounted.stdout }}"
+    quiet: true
+  when: not ansible_check_mode

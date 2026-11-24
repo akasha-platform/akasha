@@ -1,0 +1,11 @@
+---
+# Lab VMs behind the edge router (ADR-0028, ADR-0029): the router is their gateway, DNS server
+# and only time source. The network itself (address, gateway, DNS, search domain) comes from
+# cloud-init's network-config; this role checks it and configures chrony.
+
+lab_client_router: 10.10.0.1
+lab_client_domain: akasha.internal
+
+# The checks wait until chrony has synchronised to the router: at most this many tries of
+# 10 seconds.
+lab_client_sync_tries: 18

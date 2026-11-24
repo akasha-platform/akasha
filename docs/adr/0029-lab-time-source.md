@@ -107,3 +107,14 @@ the NTP server by DHCP.
   (htpdate, chronyd `-x`, `local stratum 10`) is replaced by ADR-0036: chrony on the router
   follows UTC over NTP and serves it to the lab, without `local`. The parts for the L1 VMs and
   the OpenStack instances stay as decided here.
+* 2026-11-24 (step 6c-1, after the independent review): the L1 VMs do **not** carry
+  `refclock PHC /dev/ptp_kvm noselect` in their chrony configuration. chronyd stops at boot
+  when a refclock device cannot be opened (VERIFIED: chrony 4.6.1 `refclock_phc.c` "Could
+  not open PHC", fatal; Debian's `chrony.service` has no `Restart=`). ptp_kvm needs a stable
+  TSC on the host, so a diagnostic would make every VM's time service depend on it.
+  * The role `lab_client` loads ptp_kvm and reads the host's offset once per run instead,
+    with a separate `chronyd -Q 'refclock PHC /dev/ptp_kvm'` that prints the offset and
+    exits.
+  * The time chain itself is unchanged: chrony with the router as its only source, and the
+    Debian pool line of the packaged `chrony.conf` turned off. That file is a modified
+    conffile, so a chrony update that changes it may wait for a manual `apt` (INFERRED).
