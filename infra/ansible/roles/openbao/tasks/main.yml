@@ -1,0 +1,261 @@
+---
+# OpenBao on core (ADR-0011, ADR-0039): the pinned official package, Raft storage on the data
+# disk, listening on localhost only, left uninitialised and sealed for step 7.
+
+- name: Check that the pinned release is past the cooldown (ADR-0022)
+  ansible.builtin.assert:
+    that:
+      - >-
+        (now(utc=true) - (openbao_published_at | to_datetime('%Y-%m-%dT%H:%M:%SZ'))).total_seconds()
+        >= (openbao_cooldown_days | int) * 86400
+    fail_msg: >-
+      OpenBao {{ openbao_version }} was published at {{ openbao_published_at }}: wait until
+      {{ openbao_cooldown_days }} days have passed. Nothing was changed.
+    quiet: true
+
+- name: Check that the data disk is mounted on /srv
+  ansible.builtin.command: findmnt -no FSTYPE,LABEL /srv
+  register: openbao_srv
+  changed_when: false
+  check_mode: false
+  failed_when: openbao_srv.rc != 0 or openbao_srv.stdout.split() != ['ext4', 'akasha-data']
+
+# Fixed ids before the package exists, so that the data on the data disk keeps its owner across
+# rebuilds (the package's preinst only creates the user when it is missing).
+- name: Create the openbao group with a fixed gid
+  ansible.builtin.group:
+    name: openbao
+    gid: "{{ openbao_gid }}"
+    system: true
+
+- name: Create the openbao user with a fixed uid
+  ansible.builtin.user:
+    name: openbao
+    uid: "{{ openbao_uid }}"
+    group: openbao
+    system: true
+    shell: /bin/false
+    home: /nonexistent
+    create_home: false
+
+- name: Create the download cache
+  ansible.builtin.file:
+    path: /var/cache/akasha
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Look for the download cache
+  ansible.builtin.stat:
+    path: /var/cache/akasha
+  register: openbao_cache
+
+# get_url checks the SHA-256 before the file is kept: a mismatch fails and leaves nothing. A dry
+# run on a VM without the cache directory cannot check the download (it would fail on the
+# missing directory), so it is skipped there.
+- name: Download the pinned OpenBao package
+  ansible.builtin.get_url:
+    url: "{{ openbao_deb_url }}"
+    dest: /var/cache/akasha/{{ openbao_deb_file }}
+    checksum: sha256:{{ openbao_deb_sha256 }}
+    owner: root
+    group: root
+    mode: "0644"
+  register: openbao_deb
+  when: not ansible_check_mode or openbao_cache.stat.exists
+
+# A dry run never downloads (get_url then reports no change either): install only a file that
+# is really there.
+- name: Look for the downloaded package
+  ansible.builtin.stat:
+    path: /var/cache/akasha/{{ openbao_deb_file }}
+  register: openbao_deb_file_stat
+
+- name: Look for older OpenBao packages in the cache
+  ansible.builtin.find:
+    paths: /var/cache/akasha
+    patterns: openbao_*_linux_amd64.deb
+    excludes: "{{ openbao_deb_file }}"
+  register: openbao_old_debs
+
+- name: Remove older OpenBao packages from the cache
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ openbao_old_debs.files }}"
+  loop_control:
+    label: "{{ item.path }}"
+
+- name: Look for the bao binary
+  ansible.builtin.stat:
+    path: /usr/bin/bao
+  register: openbao_bin
+
+# Never restart an initialised OpenBao by itself (a restart seals it). Restarting is allowed
+# only when the running server says `initialized: false`, or when nothing runs; a state that
+# cannot be read (wrong address, TLS, a hung server) counts as initialised.
+- name: Read whether OpenBao is running and initialised
+  ansible.builtin.shell: |
+    set -o pipefail
+    if ! systemctl is-active --quiet openbao.service; then
+      echo state=inactive
+      exit 0
+    fi
+    # exit code 2 means sealed: keep the JSON, ignore the code
+    { BAO_ADDR=http://{{ openbao_api_address }} bao status -format=json || true; } | python3 -c \
+      'import json, sys; print("initialized=" + str(json.load(sys.stdin)["initialized"]).lower())' \
+      || echo initialized=unknown
+  args:
+    executable: /bin/bash
+  register: openbao_init_state
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: openbao_bin.stat.exists
+
+- name: Decide whether OpenBao may be restarted by the role
+  ansible.builtin.set_fact:
+    openbao_may_restart: >-
+      {{ not openbao_bin.stat.exists
+         or 'state=inactive' in openbao_init_state.stdout_lines | default([])
+         or 'initialized=false' in openbao_init_state.stdout_lines | default([]) }}
+
+# The package creates a self-signed certificate in /opt/openbao/tls (unused here; kept, since
+# the postinst regenerates it and re-owns /etc/openbao when it is missing) and neither enables
+# nor starts the service. confold: keep our /etc/openbao/openbao.hcl (a conffile) on upgrades.
+# A new version is only used after a restart: notified, and guarded like any restart.
+- name: Install OpenBao from the pinned package
+  ansible.builtin.apt:
+    deb: /var/cache/akasha/{{ openbao_deb_file }}
+    dpkg_options: force-confold,force-confdef
+  register: openbao_install
+  notify: Restart OpenBao
+  when: not ansible_check_mode or openbao_deb_file_stat.stat.exists
+
+- name: Configure and start OpenBao
+  when: not ansible_check_mode or openbao_bin.stat.exists
+  block:
+    # The package's postinst gives /etc/openbao to the service user: the service only reads it.
+    - name: Make the configuration directory root's, readable by OpenBao
+      ansible.builtin.file:
+        path: /etc/openbao
+        state: directory
+        owner: root
+        group: openbao
+        mode: "0750"
+
+    - name: Make the environment file root's, readable by OpenBao
+      ansible.builtin.file:
+        path: /etc/openbao/openbao.env
+        owner: root
+        group: openbao
+        mode: "0640"
+
+    - name: Create the data directory
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: openbao
+        group: openbao
+        mode: "0700"
+      loop:
+        - "{{ openbao_data_dir }}"
+        - "{{ openbao_data_dir }}/raft"
+
+    - name: Write OpenBao's configuration
+      ansible.builtin.template:
+        src: openbao.hcl.j2
+        dest: /etc/openbao/openbao.hcl
+        owner: root
+        group: openbao
+        mode: "0640"
+      register: openbao_config
+      notify: Restart OpenBao
+
+    - name: Create the directory of OpenBao's systemd drop-ins
+      ansible.builtin.file:
+        path: /etc/systemd/system/openbao.service.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Make OpenBao wait for the data disk
+      ansible.builtin.copy:
+        src: akasha.conf
+        dest: /etc/systemd/system/openbao.service.d/akasha.conf
+        owner: root
+        group: root
+        mode: "0644"
+      register: openbao_dropin
+      notify:
+        - Reload systemd
+        - Restart OpenBao
+
+    - name: Enable and start OpenBao
+      ansible.builtin.systemd_service:
+        name: openbao.service
+        enabled: true
+        state: started
+        daemon_reload: true
+
+- name: Apply a changed package or configuration now
+  ansible.builtin.meta: flush_handlers
+
+- name: Stop when a running, initialised OpenBao needs a restart
+  ansible.builtin.assert:
+    that:
+      - >-
+        openbao_may_restart | bool
+        or not (openbao_install is changed or openbao_config is changed or openbao_dropin is changed)
+    fail_msg: >-
+      OpenBao is initialised (or its state could not be read) and its package or configuration
+      changed: it was not restarted, since a restart seals it. Restart it by hand and unseal it
+      (runbook core.md).
+    quiet: true
+
+# --- Checks ----------------------------------------------------------------------------------
+
+# `bao status` exits 2 when sealed. Its `version` is the running server's, not the binary's.
+- name: Read OpenBao's state and sockets
+  ansible.builtin.shell: |
+    set -o pipefail
+    echo "unit=$(systemctl is-active openbao.service) enabled=$(systemctl is-enabled openbao.service)"
+    ss -Hlntp | awk '/"bao"/ { print "listen=" $4 }' | sort -u
+    { BAO_ADDR=http://{{ openbao_api_address }} bao status -format=json || true; } | python3 -c 'import json, sys
+    s = json.load(sys.stdin)
+    print("server_version=" + s["version"])
+    print("initialized=" + str(s["initialized"]).lower())
+    print("sealed=" + str(s["sealed"]).lower())
+    print("storage=" + s["storage_type"])'
+    echo "data_owner=$(stat -c %u:%g:%a {{ openbao_data_dir }}/raft)"
+  args:
+    executable: /bin/bash
+  register: openbao_state
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+
+# Before step 7 OpenBao must be uninitialised and sealed; a kept data disk from an initialised
+# OpenBao (after a rebuild) shows initialized=true, which is fine.
+- name: Check that OpenBao runs on localhost only, at the pinned version, with Raft
+  ansible.builtin.assert:
+    that:
+      - "'unit=active enabled=enabled' in openbao_state.stdout_lines"
+      - ('server_version=' ~ openbao_version) in openbao_state.stdout_lines
+      # The API listener always; the Raft cluster listener opens only once OpenBao is unsealed
+      # (an uninitialised one listens on the API address alone). Nothing else, never 0.0.0.0.
+      - ('listen=' ~ openbao_api_address) in openbao_state.stdout_lines
+      - >-
+        openbao_state.stdout_lines | select('match', 'listen=')
+        | difference(['listen=' ~ openbao_api_address, 'listen=' ~ openbao_cluster_address])
+        | length == 0
+      - "'storage=raft' in openbao_state.stdout_lines"
+      - ('data_owner=' ~ openbao_uid ~ ':' ~ openbao_gid ~ ':700') in openbao_state.stdout_lines
+      - >-
+        'initialized=true' in openbao_state.stdout_lines
+        or ('initialized=false' in openbao_state.stdout_lines and 'sealed=true' in openbao_state.stdout_lines)
+    fail_msg: "{{ openbao_state.stdout_lines }}"
+    quiet: true
+  when: not ansible_check_mode

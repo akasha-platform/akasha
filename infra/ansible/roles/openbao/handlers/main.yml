@@ -1,0 +1,13 @@
+---
+- name: Reload systemd
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+
+# A restart seals OpenBao. The role restarts it only when it read `initialized=false` from the
+# running server or when the service was not running; in any other case (initialised, or a
+# state it could not read) it leaves OpenBao running and stops with instructions.
+- name: Restart OpenBao
+  ansible.builtin.systemd_service:
+    name: openbao.service
+    state: restarted
+  when: openbao_may_restart | bool

@@ -1,0 +1,50 @@
+---
+# Host firewall of a lab VM (ADR-0039), loaded commit confirmed by the shared role nft_commit
+# (ADR-0037).
+
+# The caller's template, as an absolute path for the shared role. Tagged `always`: ansible-core
+# checks nft_commit's arguments on every run, whatever tags are selected.
+- name: Point the shared role at this VM's rules
+  ansible.builtin.set_fact:
+    vm_firewall_src: "{{ role_path }}/templates/nftables.conf.j2"
+  tags: [always]
+
+- name: Load this VM's rules commit confirmed
+  ansible.builtin.import_role:
+    name: nft_commit
+  vars:
+    nft_commit_src: "{{ vm_firewall_src }}"
+    nft_commit_ssh_sources: "{{ vm_firewall_ssh_sources }}"
+
+# --- Checks ----------------------------------------------------------------------------------
+
+- name: Read the firewall and the rollback timer
+  ansible.builtin.shell: |
+    set -o pipefail
+    echo "nftables active=$(systemctl is-active nftables.service) enabled=$(systemctl is-enabled nftables.service)"
+    echo "rollback=$(systemctl is-active akasha-firewall-rollback.timer)"
+    cmp -s /etc/akasha/nftables.conf /etc/nftables.conf && echo file=confirmed
+    [ "$(nft -s list ruleset | sha256sum | cut -d' ' -f1)" = "$(cat /etc/akasha/nftables.loaded.sha256)" ] \
+      && echo loaded=confirmed
+    nft list tables | sed 's/^/table=/'
+    nft list table inet akasha | awk '$1 == "chain" { c = $2 } /policy/ { print "chain=" c " " $NF }'
+  args:
+    executable: /bin/bash
+  register: vm_firewall_state
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+
+- name: Check that the firewall is loaded alone, confirmed, and drops by default
+  ansible.builtin.assert:
+    that:
+      - "'nftables active=active enabled=enabled' in vm_firewall_state.stdout_lines"
+      - "'rollback=inactive' in vm_firewall_state.stdout_lines"
+      - "'file=confirmed' in vm_firewall_state.stdout_lines"
+      - "'loaded=confirmed' in vm_firewall_state.stdout_lines"
+      - vm_firewall_state.stdout_lines | select('match', 'table=') | list == ['table=table inet akasha']
+      - "'chain=input drop;' in vm_firewall_state.stdout_lines"
+      - "'chain=forward drop;' in vm_firewall_state.stdout_lines"
+    fail_msg: "{{ vm_firewall_state.stdout_lines }}"
+    quiet: true
+  when: not ansible_check_mode

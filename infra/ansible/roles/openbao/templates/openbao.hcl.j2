@@ -1,0 +1,20 @@
+# {{ ansible_managed }}
+# OpenBao on core (ADR-0011, ADR-0039, role openbao). Replaces the package's example file
+# (pebbledb, TLS listener on 0.0.0.0).
+
+ui = false
+
+storage "raft" {
+  path    = "{{ openbao_data_dir }}/raft"
+  node_id = "{{ openbao_node_id }}"
+}
+
+# Localhost only and no TLS until step 7 (no secret exists before the initialisation).
+listener "tcp" {
+  address         = "{{ openbao_api_address }}"
+  cluster_address = "{{ openbao_cluster_address }}"
+  tls_disable     = true
+}
+
+api_addr     = "http://{{ openbao_api_address }}"
+cluster_addr = "https://{{ openbao_cluster_address }}"

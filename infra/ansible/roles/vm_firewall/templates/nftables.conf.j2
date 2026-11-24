@@ -1,0 +1,31 @@
+# {{ ansible_managed }}
+# Host firewall of a lab VM (ADR-0039, roles vm_firewall and nft_commit). This VM is akasha's,
+# so this file owns the whole rule set; loading it is one transaction. Default drop in input
+# and forward; output is not filtered.
+
+flush ruleset
+
+table inet akasha {
+	chain input {
+		type filter hook input priority filter; policy drop;
+		iifname "lo" accept
+		# The lab has no IPv6.
+		meta nfproto ipv6 counter drop
+		ct state invalid counter drop
+		ct state established,related accept
+
+		ip saddr { {{ vm_firewall_ping_sources | join(', ') }} } icmp type echo-request accept
+		ip saddr { {{ vm_firewall_ssh_sources | join(', ') }} } tcp dport 22 accept
+{% for service in vm_firewall_tcp_services %}
+		# {{ service.comment }}
+		ip saddr { {{ service.sources | join(', ') }} } tcp dport {{ service.port }} accept
+{% endfor %}
+
+		limit rate {{ vm_firewall_log_rate }}/minute burst 10 packets log prefix "akasha drop input: "
+		counter drop
+	}
+
+	chain forward {
+		type filter hook forward priority filter; policy drop;
+	}
+}

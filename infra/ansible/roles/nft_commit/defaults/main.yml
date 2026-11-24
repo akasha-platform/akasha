@@ -1,0 +1,4 @@
+---
+# Seconds after which a newly loaded rule set is rolled back unless Ansible reaches the VM
+# again over a new SSH connection.
+nft_commit_rollback_seconds: 180

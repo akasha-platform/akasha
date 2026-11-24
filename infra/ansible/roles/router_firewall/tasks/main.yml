@@ -1,229 +1,28 @@
 ---
 # Firewall and forwarding of the edge router (ADR-0028, ADR-0037).
-# A changed rule set is loaded "commit confirmed": a timer restores the previous rules unless
-# Ansible reaches the router again over a new SSH connection. Forwarding comes last, and only
-# through a unit that requires the firewall (fail-closed at boot).
+# A changed rule set is loaded "commit confirmed" by the shared role nft_commit: a timer
+# restores the previous rules unless Ansible reaches the router again over a new SSH
+# connection. Forwarding comes last, and only through a unit that requires the firewall
+# (fail-closed at boot).
 
-- name: Install nftables
-  ansible.builtin.apt:
-    name: nftables
-    state: present
-    update_cache: true
-    cache_valid_time: 3600
-
-# On a VM without nftables, a dry run has no nft: the rules can only be checked by the real
-# run (`validate:` below).
-- name: Look for nft
-  ansible.builtin.stat:
-    path: /usr/sbin/nft
-  register: router_firewall_nft
-
-# `validate:` does not run in check mode: check the rendered rules with the VM's nft and kernel
-# in a temporary file, so the dry run already proves the syntax.
-- name: Check the rendered rules in a dry run
-  when: ansible_check_mode and router_firewall_nft.stat.exists
-  check_mode: false
-  block:
-    - name: Create a temporary file for the rendered rules
-      ansible.builtin.tempfile:
-        suffix: .nft
-      register: router_firewall_tmp
-
-    - name: Render the rules into the temporary file
-      ansible.builtin.template:
-        src: nftables.conf.j2
-        dest: "{{ router_firewall_tmp.path }}"
-        mode: "0600"
-
-    - name: Check the rules with nft
-      ansible.builtin.command: /usr/sbin/nft -c -f {{ router_firewall_tmp.path }}
-      changed_when: false
-  always:
-    - name: Remove the temporary file
-      ansible.builtin.file:
-        path: "{{ router_firewall_tmp.path }}"
-        state: absent
-      when: router_firewall_tmp.path is defined
-
-# Three files: the candidate Ansible renders, the confirmed file nftables.service loads at boot,
-# and the fingerprint of the rule set loaded when it was confirmed. The confirmed file is only
-# replaced once the router is reached over a new SSH connection with the candidate loaded, so
-# a rule set that was rolled back is never loaded again at boot or by a later run.
-- name: Create the akasha configuration directory
-  ansible.builtin.file:
-    path: /etc/akasha
-    state: directory
-    owner: root
-    group: root
-    mode: "0755"
-
-- name: Write the candidate rules (checked by nft before the file is replaced)
-  ansible.builtin.template:
-    src: nftables.conf.j2
-    dest: /etc/akasha/nftables.conf
-    owner: root
-    group: root
-    mode: "0644"
-    validate: /usr/sbin/nft -c -f %s
-  register: router_firewall_candidate
-  when: not ansible_check_mode or router_firewall_nft.stat.exists
-
-# Pending when the candidate differs from the confirmed file, or when the loaded rule set is not
-# the one confirmed last (never confirmed, rolled back, flushed or changed by hand).
-- name: Compare the candidate, the confirmed file and the loaded rules
-  ansible.builtin.shell: |
-    set -o pipefail
-    cmp -s /etc/akasha/nftables.conf /etc/nftables.conf && echo file=confirmed || echo file=pending
-    loaded=$(nft -s list ruleset | sha256sum | cut -d' ' -f1)
-    [ "$loaded" = "$(cat /etc/akasha/nftables.loaded.sha256 2>/dev/null)" ] \
-      && echo loaded=confirmed || echo loaded=pending
-  args:
-    executable: /bin/bash
-  register: router_firewall_compare
-  changed_when: false
-  check_mode: false
-  when: router_firewall_nft.stat.exists
-
-- name: Decide whether the rules must be loaded
+# The caller's template, as an absolute path for the shared role. Tagged `always`: ansible-core
+# checks nft_commit's arguments on every run, whatever tags are selected.
+- name: Point the shared role at the router's rules
   ansible.builtin.set_fact:
-    router_firewall_pending: >-
-      {{ router_firewall_candidate is changed
-         or 'file=pending' in router_firewall_compare.stdout_lines | default([])
-         or 'loaded=pending' in router_firewall_compare.stdout_lines | default([]) }}
+    router_firewall_src: "{{ role_path }}/templates/nftables.conf.j2"
+  tags: [always]
 
-# --- Commit confirmed ------------------------------------------------------------------------
+- name: Load the router's rules commit confirmed
+  ansible.builtin.import_role:
+    name: nft_commit
+  vars:
+    nft_commit_src: "{{ router_firewall_src }}"
+    nft_commit_ssh_sources:
+      - "{{ router_firewall_tailnet_source }}/32"
+      - "{{ router_firewall_mgmt_net }}"
+    nft_commit_rollback_seconds: "{{ router_firewall_rollback_seconds }}"
 
-- name: Load the candidate rules, with a timed rollback
-  when: router_firewall_pending | bool and not ansible_check_mode
-  block:
-    # Without become: sudo resets the environment and drops SSH_CLIENT. The rules accept SSH
-    # from the management network and from the tailnet source only: stop before loading them
-    # if Ansible itself comes from elsewhere.
-    - name: Read the SSH connection Ansible uses now
-      ansible.builtin.shell: |
-        set -o pipefail
-        echo "client=$SSH_CLIENT"
-        src=${SSH_CLIENT%% *}
-        echo "dev=$(ip -o -4 route get "$src" | grep -o 'dev [^ ]*' | cut -d' ' -f2)"
-        echo "src=$src"
-      args:
-        executable: /bin/bash
-      register: router_firewall_ssh_before
-      changed_when: false
-      become: false
-
-    - name: Check that the new rules will accept Ansible's own SSH source
-      ansible.builtin.assert:
-        that: >-
-          ('src=' ~ router_firewall_tailnet_source) in router_firewall_ssh_before.stdout_lines
-          or ('dev=' ~ router_firewall_mgmt) in router_firewall_ssh_before.stdout_lines
-        fail_msg: >-
-          {{ router_firewall_ssh_before.stdout_lines }}: the rules accept SSH from
-          {{ router_firewall_tailnet_source }} on {{ router_firewall_wan }} and from
-          {{ router_firewall_mgmt_net }} on {{ router_firewall_mgmt }} only; nothing was loaded.
-        quiet: true
-
-    # The restore file is the loaded rule set as nft prints it, after a flush: loading it is
-    # one transaction. If what it restores has no akasha table (e.g. after a manual flush),
-    # forwarding is turned off as well: the rollback never leaves the router routing without
-    # rules.
-    - name: Save the loaded rules for the rollback
-      ansible.builtin.shell: |
-        set -o pipefail
-        install -d -m 0700 /run/akasha
-        { echo 'flush ruleset'; nft list ruleset; } > /run/akasha/firewall-rollback.nft
-      args:
-        executable: /bin/bash
-      changed_when: true
-
-    # A timer left by an earlier run that never confirmed would make systemd-run fail.
-    - name: Stop a rollback timer left by an earlier run
-      ansible.builtin.systemd_service:
-        name: akasha-firewall-rollback.timer
-        state: stopped
-      failed_when: false
-
-    # AccuracySec=1s: the default accuracy of a timer is one minute.
-    - name: Arm the rollback timer
-      ansible.builtin.command:
-        argv:
-          - systemd-run
-          - --collect
-          - --unit=akasha-firewall-rollback
-          - --on-active={{ router_firewall_rollback_seconds }}
-          - --timer-property=AccuracySec=1s
-          - /bin/sh
-          - -c
-          - >-
-            /usr/sbin/nft -f /run/akasha/firewall-rollback.nft;
-            /usr/sbin/nft list table inet akasha >/dev/null 2>&1
-            || /usr/sbin/sysctl -q -w net.ipv4.ip_forward=0
-      changed_when: true
-
-    - name: Load the candidate rules (one transaction)
-      ansible.builtin.command: /usr/sbin/nft -f /etc/akasha/nftables.conf
-      changed_when: true
-
-# The persistent SSH connection would survive rules that block new SSH connections: close it so
-# the next task has to open a new one. (`meta` does not take `when`, so this runs every time.)
-- name: Close Ansible's SSH connection to the router
-  ansible.builtin.meta: reset_connection
-
-- name: Read the SSH connection Ansible uses after the rules were loaded
-  ansible.builtin.command: printenv SSH_CLIENT
-  register: router_firewall_ssh_after
-  changed_when: false
-  check_mode: false
-  become: false
-
-- name: Confirm the candidate rules
-  when: router_firewall_pending | bool and not ansible_check_mode
-  block:
-    - name: Check that the router was reached over a new connection
-      ansible.builtin.assert:
-        that:
-          - ('client=' ~ router_firewall_ssh_after.stdout) not in router_firewall_ssh_before.stdout_lines
-        fail_msg: >-
-          Same SSH connection before and after the rules were loaded
-          ({{ router_firewall_ssh_after.stdout }}): new SSH connections are not proven. The
-          timer restores the previous rules within {{ router_firewall_rollback_seconds }} s and
-          the confirmed file is unchanged.
-        quiet: true
-
-    - name: Stop the rollback timer
-      ansible.builtin.systemd_service:
-        name: akasha-firewall-rollback.timer
-        state: stopped
-
-    - name: Make the candidate the confirmed file loaded at boot
-      ansible.builtin.copy:
-        src: /etc/akasha/nftables.conf
-        dest: /etc/nftables.conf
-        remote_src: true
-        owner: root
-        group: root
-        mode: "0644"
-
-    - name: Record the fingerprint of the confirmed rule set
-      ansible.builtin.shell: |
-        set -o pipefail
-        nft -s list ruleset | sha256sum | cut -d' ' -f1 > /etc/akasha/nftables.loaded.sha256
-      args:
-        executable: /bin/bash
-      changed_when: true
-
-# --- Boot and forwarding ---------------------------------------------------------------------
-
-# nftables.service loads the confirmed /etc/nftables.conf before network-pre.target, so the
-# rules are in place before any interface comes up. Starting it loads the same file again (one
-# transaction). Package upgrades restart it (Debian's --restart-after-upgrade): its stop
-# flushes the rules and, through Requires=, stops forwarding until it is loaded again.
-- name: Enable and start nftables at boot
-  ansible.builtin.systemd_service:
-    name: nftables.service
-    enabled: true
-    state: started
-  when: not ansible_check_mode or router_firewall_nft.stat.exists
+# --- Forwarding ------------------------------------------------------------------------------
 
 - name: Install the unit that turns forwarding on after the firewall
   ansible.builtin.copy:

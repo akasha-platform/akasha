@@ -1,0 +1,23 @@
+---
+# Host firewall of a lab VM (ADR-0039): a second layer behind the router's, for traffic that
+# never crosses the router (VMs on the same bridge). Input drops by default; nothing is routed.
+
+# SSH only from where the lab is administered (owner's choice, 2026-11-24, ADR-0039): the
+# bastion, and the tailnet (Tailscale on insa masquerades tailnet traffic to the host's transit
+# address, ADR-0008). Other VMs on br-mgmt (controller, computes) cannot SSH in. Networks in
+# CIDR form: the list is also checked against Ansible's own connection before rules are
+# loaded (role nft_commit).
+vm_firewall_ssh_sources:
+  - 10.10.0.10/32
+  - 10.255.255.1/32
+# Ping from the whole management network and the tailnet.
+vm_firewall_ping_sources:
+  - 10.10.0.0/24
+  - 10.255.255.1/32
+
+# Extra TCP services: a list of {port, sources, comment}. None on core until step 7 opens
+# OpenBao's port on purpose.
+vm_firewall_tcp_services: []
+
+# Logged drops per minute (the rest are only counted).
+vm_firewall_log_rate: 5
