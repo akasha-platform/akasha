@@ -65,6 +65,13 @@
   register: openbao_deb
   when: not ansible_check_mode or openbao_cache.stat.exists
 
+# A dry run never downloads (get_url then reports no change either): install only a file that
+# is really there.
+- name: Look for the downloaded package
+  ansible.builtin.stat:
+    path: /var/cache/akasha/{{ openbao_deb_file }}
+  register: openbao_deb_file_stat
+
 - name: Look for older OpenBao packages in the cache
   ansible.builtin.find:
     paths: /var/cache/akasha
@@ -124,7 +131,7 @@
     dpkg_options: force-confold,force-confdef
   register: openbao_install
   notify: Restart OpenBao
-  when: not ansible_check_mode or openbao_deb is not changed
+  when: not ansible_check_mode or openbao_deb_file_stat.stat.exists
 
 - name: Configure and start OpenBao
   when: not ansible_check_mode or openbao_bin.stat.exists
