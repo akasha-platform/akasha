@@ -76,6 +76,17 @@ Chosen by the owner on 2026-11-24: **a Renovate regex custom manager**, without 
 * After the merge, the Dependency Dashboard (issue #12) lists both under `regex`, and Renovate
   reports no configuration error.
 
+### Implementation (2026-11-24)
+
+Merged in PR #73. The Dependency Dashboard (#12) listed `openbao/openbao 2.7.3`, with no update,
+and `jdx/mise 2026.11.4`, which had an update to 2026.11.10. mise had released 2026.11.11 to
+2026.11.14 already, but they were younger than 6 days, so the cooldown applies to this manager.
+
+The CI's mise, the `version:` of `jdx/mise-action`, also has the dependency name `jdx/mise`,
+and Renovate put both bumps on the same branch (PR #32). The rule for `custom.regex` therefore
+sets `additionalBranchPrefix: pinned-binary-` and its own `commitMessageTopic`. With them,
+each pinned binary gets a pull request of its own.
+
 ## More Information
 
 * Renovate: regex manager https://docs.renovatebot.com/modules/manager/regex/; GitHub releases
