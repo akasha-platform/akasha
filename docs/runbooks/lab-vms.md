@@ -40,9 +40,18 @@ uv run ansible-playbook playbooks/router.yml --diff -e @~/akasha-private/lab_vms
 * the run prints `insa`'s clock offset, read once through `ptp_kvm` by a separate
   `chronyd -Q`; the running chronyd never uses ptp_kvm (ADR-0029 Updates).
 
-After a host reboot, start the VMs in this order: router, then core, then bastion (ADR-0028).
-The router comes first because the others need it to resolve names, keep time and reach the
-Internet.
+After a host reboot, start the VMs in this order: router, then core, then bastion, then the
+OpenStack nodes (ADR-0028). The router comes first because the others need it to resolve names,
+keep time and reach the Internet.
+
+The OpenStack nodes (`playbooks/openstack-nodes.yml`, ADR-0041) get `vm_base`, `lab_client` and
+the read-only checks of role `os_node`:
+* the NICs `mgmt`, `tun` (MTU 9000) and `ext` (up, no address);
+* two threads per core;
+* nested virtualisation on the computes;
+* the controller's blank `vdb` (`lv_cinder`).
+
+They have no host firewall before P2.
 
 Without the private file the play stops at `Check that the console password hash was passed`
 before anything changes. A second run must report `changed=0`.

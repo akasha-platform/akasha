@@ -80,7 +80,32 @@ the checks of `host-firewall.md` ("Check after every reboot"), then
 **Destroying the whole stack** on purpose: the base images carry `prevent_destroy`; remove that
 line in `images.tf` first.
 
-**Rebuilding one VM** (done for the router in step 6b-4):
+**Rebuilding one VM** (done for the router in step 6b-4). The OpenStack nodes are one
+`for_each` module: target one of them as `-target='module.os_node["os-cmp01"]'` (quotes
+included). Destroying `os-ctl01` detaches `lv_cinder` without deleting it (ADR-0041). After P2,
+Cinder's volume group stays on it while Cinder's database goes with the old root disk:
+recover or wipe those volumes on purpose before Kolla runs again.
+
+**Creating the OpenStack nodes** (step 6d-1, ADR-0041):
+1. **Right before the apply, on `insa`** (read-only):
+   * `virsh -c qemu:///system domstate linux2024` shows `shut off`;
+   * `sudo lvs -o lv_attr vg_akasha/lv_cinder` shows no `o` (not open), and `sudo blkid -p
+     /dev/vg_akasha/lv_cinder` exits with 2 (blank, before P2);
+   * `grep MemAvailable /proc/meminfo`;
+   * `/sys/fs/cgroup/machine.slice/machine-akasha.slice/cpuset.cpus.effective` covers 0-15.
+2. **The plan** may only add `module.os_node[...]` resources: 12, plus one local
+   `libvirt_cloudinit_disk` per existing VM if the laptop's temporary directory was cleared
+   (A23). It must change and destroy nothing. Anything touching router, core or bastion would
+   restart them: stop.
+3. **After the apply, on `insa`:**
+   * `sudo journalctl -k --since -10min | grep -i 'apparmor.*denied'` prints nothing;
+   * `sudo pvs -a` still shows only the host's partition;
+   * `ls -lL /dev/vg_akasha/lv_cinder` stays `root:disk`: libvirt relabels QEMU's private
+     `/dev`, not the host's (ADR-0041);
+   * `virsh -c qemu:///system vcpupin os-cmp01` shows the 1:1 pins.
+4. **Memory stop rule until the RAM gate (6d-2):** if `MemAvailable` falls below 3 GiB or the
+   host starts swapping in (`vmstat 5`, column `si`), shut a compute down
+   (`virsh -c qemu:///system shutdown os-cmp02`) and report it.
 
 1. Record what must come back: `virsh -c qemu:///system dumpxml <vm>`, the VM's managed files,
    and the length of its serial log (runbook `lab-vms.md`, "Add a lab VM").

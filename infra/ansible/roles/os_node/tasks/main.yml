@@ -1,0 +1,90 @@
+---
+# Read-only checks of an OpenStack node VM (ADR-0041): its three NICs, the CPU topology the
+# guest sees, nested virtualisation on the computes, the blank raw disk for Cinder on the
+# controller. It changes nothing.
+
+- name: Find this node's expected shape
+  ansible.builtin.set_fact:
+    os_node_expected: "{{ os_node_layout[inventory_hostname] }}"
+
+- name: Read the NICs, the CPU topology and, on computes, nested virtualisation
+  ansible.builtin.shell: |
+    set -euo pipefail
+    ip -j addr show | python3 -c 'import json, sys
+    for d in json.load(sys.stdin):
+        if d["ifname"] not in ("mgmt", "tun", "ext"):
+            continue
+        v4 = ",".join(a["local"] for a in d.get("addr_info", []) if a["family"] == "inet") or "none"
+        v6 = sum(1 for a in d.get("addr_info", []) if a["family"] == "inet6")
+        up = "true" if "UP" in d["flags"] else "false"
+        print("nic", d["ifname"], "up=" + up, "mtu=" + str(d["mtu"]), "v4=" + v4, "v6=" + str(v6))'
+    echo "cpus=$(nproc)"
+    echo "threads_per_core=$(lscpu | awk -F: '/^Thread\(s\) per core/ { gsub(/ /, "", $2); print $2 }')"
+    {% if os_node_expected.kind == 'compute' %}
+    # One `flags` line per CPU (Intel also prints a `vmx flags` line: not counted).
+    echo "vmx=$(grep -cE '^flags[[:space:]]*:.*[[:space:]]vmx([[:space:]]|$)' /proc/cpuinfo || true)"
+    test -c /dev/kvm && echo dev_kvm=yes
+    grep -q '^kvm_intel ' /proc/modules && echo kvm_intel=loaded
+    {% endif %}
+    true  # missing items are reported by the assertion below, not by the exit code
+  args:
+    executable: /bin/bash
+  register: os_node_state
+  changed_when: false
+  check_mode: false
+
+# mgmt and tun have their address (and mgmt its IPv6 link-local); ext is up with no address
+# at all, for OVN's provider bridge in P2.
+- name: Check the NICs, the CPU topology and nested virtualisation
+  ansible.builtin.assert:
+    that:
+      - >-
+        os_node_state.stdout_lines
+        | select('match', '^nic mgmt up=true mtu=1500 v4=' ~ (ansible_host | regex_escape) ~ ' ')
+        | length == 1
+      - >-
+        os_node_state.stdout_lines
+        | select('match', '^nic tun up=true mtu=9000 v4=' ~ (os_node_expected.tun_address | regex_escape) ~ ' ')
+        | length == 1
+      - "'nic ext up=true mtu=1500 v4=none v6=0' in os_node_state.stdout_lines"
+      - ('cpus=' ~ os_node_expected.vcpus) in os_node_state.stdout_lines
+      - "'threads_per_core=2' in os_node_state.stdout_lines"
+      - >-
+        os_node_expected.kind != 'compute'
+        or ('dev_kvm=yes' in os_node_state.stdout_lines
+            and 'kvm_intel=loaded' in os_node_state.stdout_lines
+            and ('vmx=' ~ os_node_expected.vcpus) in os_node_state.stdout_lines)
+    fail_msg: "{{ os_node_state.stdout_lines }}"
+    quiet: true
+
+# The controller's raw disk for Cinder: blank until Kolla creates its volume group in P2, an LVM
+# physical volume afterwards (also after a rebuild of the controller: lv_cinder survives it).
+# Anything else stops the role.
+- name: Read the controller's raw disk for Cinder
+  ansible.builtin.shell: |
+    set -uo pipefail
+    echo "size=$(lsblk -bdno SIZE {{ os_node_cinder_device }})"
+    echo "type=$(lsblk -dno TYPE {{ os_node_cinder_device }})"
+    echo "serial=$(lsblk -dno SERIAL {{ os_node_cinder_device }})"
+    rc=0; probe=$(blkid -p -o export {{ os_node_cinder_device }}) || rc=$?
+    echo "blkid_rc=$rc"
+    echo "fstype=$(printf '%s\n' "$probe" | sed -n 's/^TYPE=//p')"
+  args:
+    executable: /bin/bash
+  register: os_node_cinder
+  changed_when: false
+  check_mode: false
+  when: os_node_expected.kind == 'controller'
+
+- name: Check that the controller's raw disk is there, of the right size, blank or Cinder's
+  ansible.builtin.assert:
+    that:
+      - ('size=' ~ (os_node_cinder_size_gib * 1024 * 1024 * 1024)) in os_node_cinder.stdout_lines
+      - "'type=disk' in os_node_cinder.stdout_lines"
+      - "'serial=lv_cinder' in os_node_cinder.stdout_lines"
+      - >-
+        'blkid_rc=2' in os_node_cinder.stdout_lines
+        or ('blkid_rc=0' in os_node_cinder.stdout_lines and 'fstype=LVM2_member' in os_node_cinder.stdout_lines)
+    fail_msg: "{{ os_node_cinder.stdout_lines }}"
+    quiet: true
+  when: os_node_expected.kind == 'controller'

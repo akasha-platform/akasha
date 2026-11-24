@@ -14,7 +14,7 @@ variable "vcpus" {
 }
 
 variable "cpu_set" {
-  description = "Host CPUs the vCPUs and the emulator threads are pinned to, e.g. \"16-27\" for the E-cores."
+  description = "Host CPUs the vCPUs and the emulator threads are pinned to (\"16-27\" for the E-cores), unless vcpu_cpus and emulator_cpu_set override them."
   type        = string
 }
 
@@ -56,6 +56,62 @@ variable "data_disk_path" {
   description = <<-EOT
     Path of a qcow2 data volume attached as vdb, or null for none. The volume belongs to the
     caller, not to this module, so destroying the VM never destroys its data (ADR-0038).
+  EOT
+  type        = string
+  default     = null
+}
+
+variable "vcpu_cpus" {
+  description = <<-EOT
+    Host CPU of each vCPU, in order (one-to-one pinning), or null to let every vCPU float over
+    cpu_set. Used for the OpenStack nodes, each on its own sibling P-core threads (ADR-0041).
+  EOT
+  type        = list(number)
+  default     = null
+
+  validation {
+    condition = var.vcpu_cpus == null || (
+      length(coalesce(var.vcpu_cpus, [])) == var.vcpus
+      && length(distinct(coalesce(var.vcpu_cpus, []))) == var.vcpus
+    )
+    error_message = "vcpu_cpus needs exactly one distinct host CPU per vCPU."
+  }
+}
+
+variable "emulator_cpu_set" {
+  description = "Host CPUs of QEMU's emulator threads, or null for cpu_set."
+  type        = string
+  default     = null
+}
+
+variable "cpu_threads" {
+  description = <<-EOT
+    Threads per core of the guest's CPU topology (one socket), or null for libvirt's default
+    (one thread per core). With 1:1 pinning on sibling threads, 2 tells the guest which vCPUs
+    share a core (ADR-0041).
+  EOT
+  type        = number
+  default     = null
+
+  validation {
+    condition     = var.cpu_threads == null || var.vcpus % coalesce(var.cpu_threads, 1) == 0
+    error_message = "vcpus must be a multiple of cpu_threads."
+  }
+}
+
+variable "block_disk_serial" {
+  description = <<-EOT
+    Serial number of the raw block device, so that the guest finds it as
+    /dev/disk/by-id/virtio-<serial> whatever its order (ADR-0041). Null for none.
+  EOT
+  type        = string
+  default     = null
+}
+
+variable "block_disk_path" {
+  description = <<-EOT
+    Path of a raw block device on the host attached after the other disks (the controller's
+    lv_cinder, ADR-0041), or null for none. It belongs to the host's LVM, not to OpenTofu.
   EOT
   type        = string
   default     = null

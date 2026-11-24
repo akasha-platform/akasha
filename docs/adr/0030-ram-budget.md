@@ -134,3 +134,8 @@ Independent review of 2026-11-17 (draft and findings in the project's working no
 
   The allocations stay the planned figures. The step-6 gate measures the overhead again
   under load.
+* 2026-11-24: QEMU overhead measured on the three small VMs (`smaps_rollup`, 2026-11-24):
+  `Anonymous` above the allocation by about 50 MiB (router), 77 MiB (core) and 27 MiB
+  (bastion). THP backs QEMU's own allocations too: the router's 548 MiB of huge pages exceed
+  its 512 MiB guest. Free page reporting returns little (ADR-0016 Updates), so the step-6 gate
+  counts each VM at its full allocation plus its measured overhead.
