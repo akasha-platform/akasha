@@ -114,7 +114,10 @@ Done when: an empty PR passes every check; actions are SHA-pinned; `main` is pro
        * Independent review: 2 blockers and 4 should-fix findings fixed before running.
        * Both playbooks passed every check, and second runs reported `changed=0`.
        * The rebuild of `core` kept its data disk: same marker, UUID and creation time.
-     * 6c-2: core: OpenBao (not initialised) and versitygw.
+     * 6c-2: core: OpenBao 2.7.3 (pinned package, Raft on `/srv`, localhost only,
+       uninitialised, ADR-0039) and a host firewall (role `vm_firewall`, through the shared
+       commit-confirmed role `nft_commit`). versitygw is deferred until OpenBao can serve it a
+       certificate and P4 needs it.
      * 6c-3: bastion: toolchain (mise, uv, OpenTofu, Ansible, kolla-ansible).
    * 6d: OpenStack controller and computes, then the RAM gate (ADR-0030).
 7. OpenBao initialisation (Shamir; self-init test A14),

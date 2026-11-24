@@ -1,0 +1,29 @@
+---
+# OpenBao on core (ADR-0011, ADR-0039). The package is pinned: version, SHA-256 of the
+# official .deb and the release's publication time. To bump (runbook core.md): verify the
+# release's GPG-signed checksums.txt (key 66D1 5FDD 8728 7219 C8E1 5478 D200 CD70 2853 E6D0,
+# also published on https://openbao.org/docs/install/), then change the three values.
+openbao_version: 2.7.3
+openbao_deb_sha256: 0800c71469c1d7a5d5c9fb37ce0e441cad97d9fe122dab70391c8371e290b935
+# `published_at` of the GitHub release (UTC): the role refuses to install a release younger
+# than the cooldown of ADR-0022.
+openbao_published_at: "2026-11-19T19:25:54Z"
+openbao_cooldown_days: 6
+openbao_deb_file: openbao_{{ openbao_version }}_linux_amd64.deb
+openbao_deb_url: https://github.com/openbao/openbao/releases/download/v{{ openbao_version }}/{{ openbao_deb_file }}
+
+# Integrated Raft storage on core's data disk (ADR-0038), one node.
+openbao_data_dir: /srv/openbao
+openbao_node_id: core
+
+# Until step 7 OpenBao listens on localhost only, without TLS: it holds no secret before its
+# initialisation, which runs on core over SSH so that the unseal shares never cross the
+# network. Step 7 adds TLS and opens the port on purpose (ADR-0039).
+openbao_api_address: 127.0.0.1:8200
+openbao_cluster_address: 127.0.0.1:8201
+
+# Fixed uid and gid of the openbao user: its data lives on a disk that outlives the VM
+# (ADR-0038), so a rebuilt VM must own it under the same ids. Created before the package,
+# whose preinst then skips its own `useradd`.
+openbao_uid: 950
+openbao_gid: 950

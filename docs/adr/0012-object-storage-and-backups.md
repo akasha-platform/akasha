@@ -49,3 +49,7 @@ barman-cloud and K3s etcd-s3 uploads must succeed (A4); a restore drill must pas
   keeps K3s etcd snapshots and the CloudNativePG and OpenBao backups; the conditional-write
   test (A3) is dropped, and "state locking" no longer applies to the in-lab S3. Garage's
   rejection reason (no conditional writes) no longer matters, but versitygw stays.
+* 2026-11-24: versitygw is deferred until OpenBao's PKI can serve it a certificate (after
+  step 7) and a first user needs it (P4: etcd snapshots, CloudNativePG), decided by the owner
+  in step 6c-2 ([ADR-0039](0039-openbao-on-core-bootstrap.md)). Its data will live on `core`'s
+  data disk (`/srv`, ADR-0038).

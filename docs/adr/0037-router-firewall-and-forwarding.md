@@ -241,3 +241,13 @@ test object was removed.
   off.
 * `meta: reset_connection` ignores `when:` (ansible-core 2.20, `plugins/strategy/__init__.py`),
   so the role resets the connection and proves a new one on every run.
+
+## Updates
+
+* 2026-11-24: the commit-confirmed loading moved into a shared role, `nft_commit`, also used
+  by the host firewall of `core` (role `vm_firewall`, ADR-0039). The files, the timer and the
+  checks are unchanged. Before loading, Ansible's own SSH source is now checked against the
+  networks the new rules accept for SSH (CIDR), instead of the router's interface names. The
+  task that points the shared role at the caller's template is tagged `always`: ansible-core
+  checks the shared role's arguments on every run, so runs limited to other tags
+  (`--tags dns`) would otherwise fail.

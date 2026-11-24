@@ -1,5 +1,6 @@
 ---
-# OpenBao and versitygw host (ADR-0011, ADR-0012): VM base, router client, data disk on /srv.
+# OpenBao host (ADR-0011, ADR-0039): VM base, router client, data disk on /srv, host firewall,
+# OpenBao (localhost only, uninitialised until step 7).
 # No -K: the VM's default user has passwordless sudo (ADR-0035). Always dry-run first; vm_base
 # needs the private file:
 #   uv run ansible-playbook playbooks/core.yml --check --diff -e @~/akasha-private/lab_vms.yml
@@ -25,3 +26,7 @@
       tags: [client]
     - role: vm_data_disk
       tags: [data]
+    - role: vm_firewall
+      tags: [firewall]
+    - role: openbao
+      tags: [openbao]

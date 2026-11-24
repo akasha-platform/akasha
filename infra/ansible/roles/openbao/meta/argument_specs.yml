@@ -1,0 +1,46 @@
+---
+argument_specs:
+  main:
+    short_description: OpenBao on core, pinned package, localhost only until step 7 (ADR-0039)
+    description:
+      - Installs the pinned official package after its SHA-256 is checked, configures Raft
+        storage on the data disk and a localhost listener without TLS, makes the service wait
+        for the data disk, and starts it. Refuses a release younger than the cooldown. Never
+        restarts an initialised OpenBao, or one whose state it cannot read, by itself.
+    options:
+      openbao_version:
+        type: str
+        description: Pinned OpenBao version.
+      openbao_deb_sha256:
+        type: str
+        description: SHA-256 of the official linux_amd64 .deb of that version.
+      openbao_published_at:
+        type: str
+        description: Publication time of the GitHub release (UTC, %Y-%m-%dT%H:%M:%SZ).
+      openbao_cooldown_days:
+        type: int
+        description: Minimum age of the release before it may be installed (ADR-0022).
+      openbao_uid:
+        type: int
+        description: Fixed uid of the openbao user (data on a disk that outlives the VM).
+      openbao_gid:
+        type: int
+        description: Fixed gid of the openbao group.
+      openbao_deb_file:
+        type: str
+        description: File name of the .deb in the release.
+      openbao_deb_url:
+        type: str
+        description: Download URL of that .deb.
+      openbao_data_dir:
+        type: str
+        description: Directory of OpenBao's data on the data disk (Raft in raft/).
+      openbao_node_id:
+        type: str
+        description: Raft node id.
+      openbao_api_address:
+        type: str
+        description: Listener address (localhost until step 7).
+      openbao_cluster_address:
+        type: str
+        description: Raft cluster address (localhost on a single node).

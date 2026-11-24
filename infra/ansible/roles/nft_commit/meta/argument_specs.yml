@@ -1,0 +1,23 @@
+---
+argument_specs:
+  main:
+    short_description: Load an nftables rule set commit confirmed (ADR-0037)
+    description:
+      - Renders the caller's template into /etc/akasha/nftables.conf (checked by nft), loads it
+        with a timed rollback, confirms it over a new SSH connection, then writes the boot file
+        /etc/nftables.conf and the rule set's fingerprint, and enables nftables.service.
+    options:
+      nft_commit_src:
+        type: str
+        required: true
+        description: Absolute path of the caller's rule-set template.
+      nft_commit_ssh_sources:
+        type: list
+        elements: str
+        required: true
+        description:
+          - Networks (CIDR) the new rules accept SSH from. The role refuses to load them when
+            Ansible's own connection comes from elsewhere.
+      nft_commit_rollback_seconds:
+        type: int
+        description: Seconds before a newly loaded rule set is rolled back unless confirmed.

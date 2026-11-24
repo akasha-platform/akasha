@@ -34,6 +34,8 @@ One runbook per alert or known failure mode, written when the failure mode is in
   over Tailscale; stale package lists
 * [lab-vms.md](lab-vms.md) — lab VMs: console password, Ansible runs, serial console, add a
   VM (host key check), locked out of SSH, roll back `vm_base`
+* [core.md](core.md) — `core`: OpenBao (state, checks, bump the pinned version, restart of an
+  initialised OpenBao), host firewall
 * [router.md](router.md) — edge router DNS (Unbound), time (chrony), firewall and forwarding:
   run, check, DNS not answering, add a name, lost time sources, commit-confirmed loading,
   locked out, fake-client test, roll back

@@ -45,3 +45,4 @@ its status changed or a dated note pointing to the new one. Only dated sections 
 | [0036](0036-router-time-over-ntp.md) | The edge router follows UTC over NTP with chrony and serves it to the lab | accepted |
 | [0037](0037-router-firewall-and-forwarding.md) | Firewall and forwarding of the edge router | accepted |
 | [0038](0038-data-disks-outlive-vms.md) | Data disks of the lab's VMs outlive the VMs | accepted |
+| [0039](0039-openbao-on-core-bootstrap.md) | OpenBao on core: pinned package, localhost until its initialisation, and a host firewall | accepted |
