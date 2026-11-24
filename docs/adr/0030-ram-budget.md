@@ -125,3 +125,12 @@ Independent review of 2026-11-17 (draft and findings in the project's working no
   20 MiB. Free page reporting returned nothing (open question A24), so the guest's whole
   allocation stays resident even with 362 MiB available inside. This is consistent with this
   ADR, which counts every allocation in full and no saving from free page reporting.
+* 2026-11-24: bastion and core running (step 6c-1). insa's used memory went from 2.6 to
+  4.15 GiB, with 27.7 GiB available. QEMU RSS (`virsh dommemstat`):
+  * core: 581 MiB of 614 MiB;
+  * bastion: 834 MiB of 768 MiB, about 66 MiB above its allocation, right after its first
+    `apt` runs;
+  * router: about 20 MiB above its allocation (open question A24).
+
+  The allocations stay the planned figures. The step-6 gate measures the overhead again
+  under load.

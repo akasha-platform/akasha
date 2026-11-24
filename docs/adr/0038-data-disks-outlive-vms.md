@@ -77,6 +77,23 @@ Step 6c-1:
   and an apply. The data volume is not in the destroy plan, the marker is still there, and
   the role did not create a file system.
 
+### Implementation (2026-11-24)
+
+Applied from PR #68.
+* **Creation.** The plan added `core_data` and the two VMs (9 resources) and changed nothing
+  on the router. A second plan was empty. On the blank disk, the role created ext4
+  `akasha-data` and mounted it on `/srv` (`defaults,nofail 0 2`).
+* **Durability test.** A marker file was written on `/srv`, and the file system's UUID and
+  creation time were recorded. Then `core` was rebuilt through the runbook:
+  * the destroy plan held only the four `module.core.` resources, and `core-data.qcow2`
+    stayed in the pool;
+  * the apply added four resources, and a second plan was empty;
+  * the new host key was checked against the serial log, and the playbook ran (then
+    `changed=0`).
+
+  The marker's SHA-256, the UUID and the creation time were unchanged, so the disk was
+  mounted again and never reformatted.
+
 ## More Information
 
 * ADR-0033 (VM conventions), ADR-0011 (OpenBao on `core`), ADR-0012 (versitygw on `core`),
