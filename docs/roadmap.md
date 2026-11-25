@@ -153,8 +153,8 @@ Done when: an empty PR passes every check; actions are SHA-pinned; `main` is pro
      * Second run `changed=0`; the OOM scores rise from the router (873) to os-cmp02 (1346).
      * A value reset by hand came back within 35 s, with one journal line and no systemd
        "Started/Finished" line.
-   * 7c: offline root CA and OpenBao initialisation (self-init A14 tested in a container
-     first).
+   * 7c: offline root CA and OpenBao initialisation, by hand (A14 answered on 2026-11-25:
+     self-init needs auto-unseal, ADR-0011 Updates).
    * 7d: OpenBao's intermediate CA, its TLS certificate, and port 8200 opened.
    * 7e: restic to AWS S3 with Object Lock (design + test A13).
 

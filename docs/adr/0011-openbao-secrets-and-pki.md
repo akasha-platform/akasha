@@ -45,3 +45,30 @@ provider, External Secrets Operator Vault provider.
 ## More Information
 
 [research/07-trust-and-data.md](../research/07-trust-and-data.md)
+
+## Updates
+
+* 2026-11-25 (step 7, open question A14): **self-initialisation cannot be used with the Shamir
+  seal**, so OpenBao is initialised by hand, over SSH on `core`, as
+  [ADR-0039](0039-openbao-on-core-bootstrap.md) plans. The Shamir choice is unchanged.
+  * VERIFIED in OpenBao 2.7.3:
+    * The self-init documentation requires an auto-unseal mechanism.
+    * In `internal/command/server.go`, `Initialize` returns the error "self-initialization
+      requires auto-unseal as there is no way to persist the Shamir's keys" whenever the
+      configuration has an `initialize` stanza and the seal has no recovery keys. The server
+      then exits. This check runs before the one that skips an already initialised OpenBao.
+  * Tested in a Debian 13 container, with the pinned package and `core`'s configuration plus
+    an `initialize` stanza:
+    * an uninitialised OpenBao exited with code 1 and that error;
+    * initialised by hand (`bao operator init -key-shares=3 -key-threshold=2`) and unsealed
+      with two of the three shares, then restarted with the stanza, it exited the same way;
+    * restarted without the stanza, it started, initialised and sealed.
+
+    The container and its keys were deleted.
+  * Consequences:
+    * A stanza left in the configuration would stop OpenBao at every start. The role writes
+      none.
+    * The mounts, auth methods and policies have to be configured by requests after the
+      unseal, with a token.
+    * When unsealing, give the share at `bao operator unseal`'s prompt, not as an argument,
+      which other processes can read.
