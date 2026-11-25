@@ -1,0 +1,105 @@
+---
+# OOM order of akasha's VMs (ADR-0043): a timer keeps a positive oom_score_adj on the QEMU
+# process of each lab domain. It touches only processes in libvirt's akasha partition; neither
+# libvirt nor the school's processes are changed (ADR-0027).
+
+- name: Look for libvirt's akasha partition
+  ansible.builtin.stat:
+    path: "{{ host_oom_order_slice }}"
+  register: host_oom_order_slice_dir
+
+- name: Check that the lab's VMs run in the akasha partition
+  ansible.builtin.assert:
+    that:
+      - host_oom_order_slice_dir.stat.isdir | default(false)
+    fail_msg: "{{ host_oom_order_slice }} is missing: no lab VM runs (ADR-0033)."
+    quiet: true
+
+- name: Install the script
+  ansible.builtin.template:
+    src: akasha-oom-order.j2
+    dest: /usr/local/sbin/akasha-oom-order
+    owner: root
+    group: root
+    mode: "0755"
+    validate: /bin/bash -n %s
+
+- name: Install the service and the timer
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: /etc/systemd/system/{{ item }}
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - akasha-oom-order.service
+    - akasha-oom-order.timer
+
+# A dry run never writes the units: systemd only knows the timer once a real run installed it.
+- name: Look for the installed timer
+  ansible.builtin.stat:
+    path: /etc/systemd/system/akasha-oom-order.timer
+  register: host_oom_order_timer
+
+- name: Enable and start the timer
+  ansible.builtin.systemd_service:
+    name: akasha-oom-order.timer
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: not ansible_check_mode or host_oom_order_timer.stat.exists
+
+# The timer's next run may be up to 30 s away: apply the order now. The script prints a line
+# with "->" for each value it changes.
+- name: Apply the order now
+  ansible.builtin.command: /usr/local/sbin/akasha-oom-order
+  register: host_oom_order_run
+  changed_when: "'->' in host_oom_order_run.stdout"
+  when: not ansible_check_mode
+
+# --- Checks ----------------------------------------------------------------------------------
+
+- name: Read the oom_score_adj of the lab's QEMU processes, the timer and the last run
+  ansible.builtin.shell: |
+    set -o pipefail
+    for name in {{ host_oom_order_adj.keys() | join(' ') }}; do
+      for pid in $(pgrep -f "guest=$name,"); do
+        grep -qF '/machine-akasha.slice/' "/proc/$pid/cgroup" \
+          && echo "$name=$(cat "/proc/$pid/oom_score_adj")"
+      done
+    done
+    ls {{ host_oom_order_slice }} | grep -c '^machine-qemu.*\.scope$' | sed 's/^/scopes=/'
+    echo "timer=$(systemctl is-active akasha-oom-order.timer) $(systemctl is-enabled akasha-oom-order.timer)"
+    echo "result=$(systemctl show -P Result akasha-oom-order.service)"
+  args:
+    executable: /bin/bash
+  register: host_oom_order_state
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+
+- name: Check that every running lab VM has its oom_score_adj and that the timer runs
+  vars:
+    # The lines of the VMs only: "scopes=<count>" has the same shape, so match the names.
+    host_oom_order_seen: >-
+      {{ host_oom_order_state.stdout_lines
+         | select('match', '^(' ~ host_oom_order_adj.keys() | join('|') ~ ')=-?[0-9]+$') | list }}
+    host_oom_order_expected: >-
+      {{ host_oom_order_adj | dict2items | map(attribute='key')
+         | zip(host_oom_order_adj | dict2items | map(attribute='value'))
+         | map('join', '=') | list }}
+  ansible.builtin.assert:
+    that:
+      - host_oom_order_seen | length > 0
+      - host_oom_order_seen | difference(host_oom_order_expected) | length == 0
+      - ('scopes=' ~ host_oom_order_seen | length) in host_oom_order_state.stdout_lines
+      - "'timer=active enabled' in host_oom_order_state.stdout_lines"
+      - "'result=success' in host_oom_order_state.stdout_lines"
+    fail_msg: "{{ host_oom_order_state.stdout_lines }} (expected {{ host_oom_order_expected }})"
+    quiet: true
+  when: not ansible_check_mode
+
+- name: Show the oom_score_adj of the lab's VMs
+  ansible.builtin.debug:
+    msg: "{{ host_oom_order_state.stdout_lines }}"
+  when: not ansible_check_mode

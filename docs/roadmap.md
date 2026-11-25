@@ -148,8 +148,11 @@ Done when: an empty PR passes every check; actions are SHA-pinned; `main` is pro
        * The measurement was short, by the owner's choice: nobody uses the desktop.
 7. OpenBao initialisation, its certificates, off-site backups and host checks, split by the
    owner on 2026-11-24 (Shamir: 3 shares, threshold 2):
-   * 7a: Renovate proposes new OpenBao and mise releases (B16, ADR-0042).
-   * 7b: host checks (A15).
+   * 7a ✅ 2026-11-24: Renovate proposes new OpenBao and mise releases (B16, ADR-0042).
+   * 7b ✅ 2026-11-25: OOM order of the lab VMs on the host (A15, ADR-0043).
+     * Second run `changed=0`; the OOM scores rise from the router (873) to os-cmp02 (1346).
+     * A value reset by hand came back within 35 s, with one journal line and no systemd
+       "Started/Finished" line.
    * 7c: offline root CA and OpenBao initialisation (self-init A14 tested in a container
      first).
    * 7d: OpenBao's intermediate CA, its TLS certificate, and port 8200 opened.

@@ -23,3 +23,5 @@
       tags: [network]
     - role: host_firewall
       tags: [firewall]
+    - role: host_oom_order
+      tags: [oom]

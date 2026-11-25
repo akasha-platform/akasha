@@ -49,3 +49,4 @@ its status changed or a dated note pointing to the new one. Only dated sections 
 | [0040](0040-bastion-toolchain.md) | Toolchain of the bastion: pinned mise, the repository at one commit, an unprivileged user | accepted |
 | [0041](0041-openstack-node-vms.md) | OpenStack node VMs: dedicated sibling P-cores, three NICs, a raw LV for Cinder | accepted |
 | [0042](0042-updates-of-pinned-release-binaries.md) | Updates of the release binaries pinned in Ansible roles | accepted |
+| [0043](0043-oom-order-of-the-lab-vms.md) | OOM order of the lab VMs on the school's host | accepted |

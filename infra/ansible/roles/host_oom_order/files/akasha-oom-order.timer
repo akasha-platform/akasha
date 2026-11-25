@@ -1,0 +1,13 @@
+# Managed by Ansible (role host_oom_order, ADR-0043).
+# A restarted VM has a new QEMU process with oom_score_adj 0 until the next run.
+[Unit]
+Description=akasha: keep the OOM order of the lab VMs
+Documentation=https://github.com/akasha-platform/akasha/blob/main/docs/runbooks/host-oom-order.md
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=30s
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target

@@ -162,3 +162,6 @@ Independent review of 2026-11-17 (draft and findings in the project's working no
     * The 3 GiB minimum is kept.
   * **Still open.** Open question A2 measures again once Kolla runs (P2). The controller's
     real use is the known risk (overview, "8 GB is tight").
+* 2026-11-24 (step 7b): the OOM order announced in "More Information" is set: os-cmp02, os-cmp01,
+  os-ctl01, the bastion, `core`, then the router, all before the school's processes
+  ([ADR-0043](0043-oom-order-of-the-lab-vms.md)). `MemoryLow=` is still undecided (ADR-0016).

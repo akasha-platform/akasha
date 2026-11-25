@@ -1,0 +1,17 @@
+---
+# OOM order of akasha's VMs on the L0 host (ADR-0043). The kernel kills the process with the
+# highest badness: its RSS + swap + page tables in thousandths of RAM + swap, plus
+# oom_score_adj. A VM holding all its memory weighs at most about 146 (os-ctl01) on insa, so
+# each step below is larger than that and the order holds whatever each VM holds. The lowest
+# value stays above the 200 that systemd gives the desktop's user processes: akasha's VMs go
+# before the school's processes (ADR-0027).
+host_oom_order_adj:
+  os-cmp02: 1000
+  os-cmp01: 800
+  os-ctl01: 600
+  bastion: 500
+  core: 400
+  router: 300
+
+# libvirt's cgroup partition of the lab's VMs (/machine/akasha, ADR-0033).
+host_oom_order_slice: /sys/fs/cgroup/machine.slice/machine-akasha.slice

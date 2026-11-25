@@ -105,6 +105,11 @@ Galera/RabbitMQ/etcd latency with KSM on and off.
   small holes of a long-running guest. It stays a buffer, not capacity (ADR-0030 counts
   every allocation in full).
 
+* 2026-11-24 (step 7b): the OOM order is set, with per-VM `oom_score_adj` and without a libvirt
+  hook ([ADR-0043](0043-oom-order-of-the-lab-vms.md)). The desktop's user processes already
+  have 200 (systemd 257), so akasha's values start at 300. `MemoryLow=`, KSM, zswap and
+  `vm.swappiness` are still undecided.
+
 ## More Information
 
 [research/08-observability-and-host-memory.md](../research/08-observability-and-host-memory.md)
