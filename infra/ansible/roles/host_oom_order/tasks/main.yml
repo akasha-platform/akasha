@@ -80,7 +80,10 @@
 
 - name: Check that every running lab VM has its oom_score_adj and that the timer runs
   vars:
-    host_oom_order_seen: "{{ host_oom_order_state.stdout_lines | select('match', '^[a-z0-9-]+=-?[0-9]+$') | list }}"
+    # The lines of the VMs only: "scopes=<count>" has the same shape, so match the names.
+    host_oom_order_seen: >-
+      {{ host_oom_order_state.stdout_lines
+         | select('match', '^(' ~ host_oom_order_adj.keys() | join('|') ~ ')=-?[0-9]+$') | list }}
     host_oom_order_expected: >-
       {{ host_oom_order_adj | dict2items | map(attribute='key')
          | zip(host_oom_order_adj | dict2items | map(attribute='value'))
