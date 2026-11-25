@@ -16,7 +16,7 @@ Researched: 2026-11-08. Prices and free tiers change often; **re-check before si
 **Storage**
 - Integrated Raft, which needs `cluster_addr` even on a single node. **VERIFIED**: https://openbao.org/docs/configuration/storage/raft/
 - A 3-node Raft cluster on one physical host adds nothing, so akasha runs **one node** and takes `raft snapshot` backups. **INFERRED**
-- **Declarative first start:** an `initialize` (self-init) stanza in the server config applies setup (auth methods, mounts, policies) on first start. **VERIFIED**: https://openbao.org/docs/configuration/self-init/ . The docs pair it with auto-unseal; with Shamir, check how it behaves (**OPEN**, tracked as open-questions A14).
+- **Declarative first start:** an `initialize` (self-init) stanza in the server config applies setup (auth methods, mounts, policies) on first start. **VERIFIED**: https://openbao.org/docs/configuration/self-init/ . It requires auto-unseal: with the Shamir seal, the server refuses to start while the stanza is present (**VERIFIED** 2026-11-25 in the 2.7.3 source and in a container, ADR-0011 Updates).
 
 ### Seal options without a cloud KMS
 
