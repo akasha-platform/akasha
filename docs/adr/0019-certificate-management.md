@@ -26,3 +26,9 @@ automatically, with the CA trusted by every client.
 * Good, because one PKI serves the whole lab and renewal is automatic.
 * Bad, because cert-manager does not document OpenBao: compatibility is an acceptance test
   (open-questions A6).
+
+## Updates
+
+* 2026-11-25: the root CA is made, and restricted to the lab's names by name constraints
+  ([ADR-0044](0044-offline-root-ca.md)): `akasha.internal`, `cluster.local` and `10.0.0.0/8`.
+  Every certificate issued through OpenBao must name only those.
