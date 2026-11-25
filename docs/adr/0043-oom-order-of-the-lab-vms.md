@@ -102,6 +102,23 @@ Chosen by the owner on 2026-11-24: **computes first**, with **the timer**.
   has its value. A value reset by hand comes back within 30 s, and `journalctl -u` shows no
   "Started/Finished" line.
 
+### Implementation (2026-11-25)
+
+Run on `insa` in PR #75. Two fixes to the role's own tasks came first; the script and the
+units did not change.
+* The dry run tried to enable a timer that it had not written. Like the other roles, the
+  task is now skipped in check mode until the unit file exists.
+* The check counted the line `scopes=6` as a VM. It now keeps only the lines of the VMs in
+  the table.
+
+Results:
+* The checks passed and a second run reported `changed=0`.
+* The six QEMU processes have their values. Their `oom_score` rises in the chosen order:
+  router 873, `core` 941, bastion 1009, os-ctl01 1080, os-cmp01 1214, os-cmp02 1346.
+* The router's value, set to 0 by hand, was 300 again 35 s later. The journal had the one line
+  `router: pid <pid> oom_score_adj 0 -> 300` and no systemd line about the unit, so
+  `LogLevelMax=notice` also works with systemd 257.
+
 ## More Information
 
 * Runbook: [host-oom-order.md](../runbooks/host-oom-order.md).
