@@ -35,14 +35,19 @@
     - akasha-oom-order.service
     - akasha-oom-order.timer
 
+# A dry run never writes the units: systemd only knows the timer once a real run installed it.
+- name: Look for the installed timer
+  ansible.builtin.stat:
+    path: /etc/systemd/system/akasha-oom-order.timer
+  register: host_oom_order_timer
+
 - name: Enable and start the timer
   ansible.builtin.systemd_service:
     name: akasha-oom-order.timer
     enabled: true
     state: started
     daemon_reload: true
-  # In check mode the unit files are not written, so systemd does not know the units yet.
-  ignore_errors: "{{ ansible_check_mode }}"
+  when: not ansible_check_mode or host_oom_order_timer.stat.exists
 
 # The timer's next run may be up to 30 s away: apply the order now. The script prints a line
 # with "->" for each value it changes.
