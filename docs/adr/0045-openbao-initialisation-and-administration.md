@@ -179,7 +179,7 @@ Run on `core` from PR #78, with the laptop's swap off.
   admin's token and deleted `~/.vault-token`. The second run then sent no token. Tokens
   survive a seal and an unseal, as the source says (`sealInitCommon` revokes only a token at
   its last use).
-* **Audit.** 35 request/response lines after the ceremony. The only denials were the two
+* **Audit.** 19 requests, each with its response, after the ceremony. The only denials were the two
   expected root-token tries and that token-less `revoke-self`.
 
 ## More Information
