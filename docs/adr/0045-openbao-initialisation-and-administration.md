@@ -151,6 +151,37 @@ On `core`, after the ceremony:
 * the admin seals OpenBao, and shares 3 and 1 unseal it, so every share works;
 * the audit log holds lines, owned by `openbao`, mode 0600.
 
+### Implementation (2026-11-26)
+
+Run on `core` from PR #78, with the laptop's swap off.
+* **Role.**
+  * The first run made 6 changes, then restarted the still uninitialised OpenBao: the audit
+    directory (950:950 0700), the audit stanza, the two helpers, logrotate and its
+    configuration.
+  * The second run reported `changed=0`. So did a run after the initialisation, with every
+    check passing.
+* **Laptop files.**
+  * The identity decrypted with the passphrase read from the paper copy, and matched
+    `recipient.txt`.
+  * After the init, the JSON held 3 shares, threshold 2, and a root token.
+  * Every file is `-r--------`. `init.json.age` was shredded at the end, on the owner's
+    confirmation.
+* **OpenBao.**
+  * Initialised, unsealed with shares 1 and 2: 3 shares, threshold 2, HA mode active.
+  * The audit file was created at unseal, `openbao` 0600.
+  * The bootstrap created the admin and revoked its test login and the root token. The root
+    token was then refused when tried independently.
+* **Admin.**
+  * `userpass-admin`, policies `admin` and `default`, TTL 1 h, the only live token.
+  * It sealed OpenBao, and shares 3 and 1 unsealed it, so all three shares work.
+* **A puzzling 403, explained by the audit log.** A `revoke-self` returned "permission
+  denied". The audit log showed that the same command had already run once: it revoked the
+  admin's token and deleted `~/.vault-token`. The second run then sent no token. Tokens
+  survive a seal and an unseal, as the source says (`sealInitCommon` revokes only a token at
+  its last use).
+* **Audit.** 35 request/response lines after the ceremony. The only denials were the two
+  expected root-token tries and that token-less `revoke-self`.
+
 ## More Information
 
 * OpenBao documentation (v2.7.3 sources): audit devices and blocked devices
