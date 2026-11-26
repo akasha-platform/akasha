@@ -172,7 +172,10 @@ Done when: an empty PR passes every check; actions are SHA-pinned; `main` is pro
        the trust stores of the bastion and `core` (role `lab_trust`), the admin bound to
        127.0.0.1, break-glass `generate-root` on loopback (ADR-0047). Independent review:
        no blocker; three design points decided by the owner.
-   * 7e: restic to AWS S3 with Object Lock (design + test A13).
+   * 7e: split by the owner on 2026-11-26.
+     * 7e-1: restic to AWS S3 with Object Lock (A13 answered, ADR-0048): the bucket, the user
+       `akasha-backup`, and `~/akasha-private` backed up and restored.
+     * 7e-2: OpenBao's Raft snapshots from `core` to their own repository.
 
 Done when: the L0 stack rebuilds from zero, lab traffic cannot reach the campus LAN, the
 laptop reaches the lab only through Tailscale.
