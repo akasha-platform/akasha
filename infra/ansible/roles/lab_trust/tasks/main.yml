@@ -1,6 +1,8 @@
 ---
-# The lab's root CA in the system trust store (ADR-0044, ADR-0047). Clients on this VM (curl,
-# Python, Go, OpenSSL) then verify certificates from OpenBao's PKI without extra options.
+# The lab's root CA in the system trust store (ADR-0044, ADR-0047). Clients that use it (curl,
+# OpenSSL, Go, Python's ssl module) then verify certificates from OpenBao's PKI. Python
+# `requests`/`httpx` in a virtual environment use certifi instead: point them at
+# /etc/ssl/certs/ca-certificates.crt (REQUESTS_CA_BUNDLE, SSL_CERT_FILE) in P2.
 
 - name: Install the CA certificates package
   ansible.builtin.apt:
@@ -18,6 +20,17 @@
 
 - name: Update the trust store now
   ansible.builtin.meta: flush_handlers
+
+# Repairs a store that missed an update (the handler only runs when the file changes).
+- name: Look for the root in the system trust store
+  ansible.builtin.stat:
+    path: /etc/ssl/certs/akasha-root-ca.pem
+  register: lab_trust_link
+
+- name: Add the root to the system trust store when it is missing
+  ansible.builtin.command: update-ca-certificates
+  changed_when: true
+  when: not lab_trust_link.stat.exists
 
 - name: Check that OpenSSL trusts the root through the system store
   ansible.builtin.command: >-

@@ -14,6 +14,18 @@
       {{ openbao_cooldown_days }} days have passed. Nothing was changed.
     quiet: true
 
+- name: Check the TLS listener's settings (ADR-0047)
+  ansible.builtin.assert:
+    that:
+      - openbao_tls_address.split(':')[0] not in ['0.0.0.0', '', '[::]']
+      - openbao_tls_names | length > 0
+      - openbao_tls_ips | length > 0
+    fail_msg: >-
+      openbao_tls_address must be one lab address (never 0.0.0.0), with at least one name and
+      one IP address for the certificate.
+    quiet: true
+  when: openbao_tls_address | length > 0
+
 - name: Check that the data disk is mounted on /srv
   ansible.builtin.command: findmnt -no FSTYPE,LABEL /srv
   register: openbao_srv
@@ -181,23 +193,17 @@
         - akasha-bao-bootstrap
         - akasha-bao-tls
 
-    # The TLS listener needs its certificate before OpenBao starts with it: the first run with
-    # openbao_tls_address set stops here, after installing akasha-bao-tls (runbook core.md).
+    # The TLS listener is written only once its certificate exists (on the data disk, so it
+    # survives a rebuild of core). Without it, OpenBao runs on loopback only and the run ends
+    # asking for akasha-bao-tls (runbook core.md, "OpenBao's certificate").
     - name: Look for OpenBao's certificate
       ansible.builtin.stat:
         path: "{{ openbao_tls_dir }}/openbao.crt"
       register: openbao_tls_cert
-      when: openbao_tls_address | length > 0
 
-    - name: Stop until OpenBao's certificate is issued
-      ansible.builtin.assert:
-        that:
-          - openbao_tls_cert.stat.exists
-        fail_msg: >-
-          {{ openbao_tls_dir }}/openbao.crt is missing: issue it with akasha-bao-tls
-          (runbook core.md, "OpenBao's certificate"), then run the role again.
-        quiet: true
-      when: openbao_tls_address | length > 0 and not ansible_check_mode
+    - name: Decide whether the TLS listener is configured
+      ansible.builtin.set_fact:
+        openbao_tls_active: "{{ openbao_tls_address | length > 0 and openbao_tls_cert.stat.exists }}"
 
     - name: Write OpenBao's configuration
       ansible.builtin.template:
@@ -263,6 +269,18 @@
       changed: it was not restarted, since a restart seals it. Restart it by hand and unseal it
       (runbook core.md).
     quiet: true
+  when: not ansible_check_mode
+
+# A dry run cannot write the files, so it only warns.
+- name: Warn that a real run would stop for a restart by hand
+  ansible.builtin.debug:
+    msg: >-
+      A real run would write a new package or configuration and stop: OpenBao is initialised,
+      so it would have to be restarted by hand and unsealed.
+  when:
+    - ansible_check_mode
+    - not openbao_may_restart | bool
+    - openbao_install is changed or openbao_config is changed or openbao_dropin is changed
 
 # --- Checks ----------------------------------------------------------------------------------
 
@@ -281,7 +299,7 @@
     echo "data_owner=$(stat -c %u:%g:%a {{ openbao_data_dir }}/raft)"
     echo "audit_owner=$(stat -c %u:%g:%a {{ openbao_audit_dir }})"
     test -f {{ openbao_audit_dir }}/audit.log && echo audit_log=present || echo audit_log=absent
-    {% if openbao_tls_address %}
+    {% if openbao_tls_active | bool %}
     c={{ openbao_tls_dir }}/openbao.crt
     openssl x509 -in "$c" -noout -checkend {{ openbao_tls_min_days * 86400 }} >/dev/null \
       && echo tls_cert=valid || echo "tls_cert=expiring $(openssl x509 -in "$c" -noout -enddate)"
@@ -289,20 +307,23 @@
     # Through the TLS listener by IP address (a SAN of the certificate), verified against the
     # system trust store (role lab_trust); TLS 1.2 must be refused.
     python3 - <<'PY'
-    import json, ssl, urllib.request
+    import json, ssl, urllib.error, urllib.request
     url = "https://{{ openbao_tls_address }}/v1/sys/seal-status"
     try:
         with urllib.request.urlopen(url, timeout=5) as response:
             print("tls_health=" + ("sealed" if json.load(response)["sealed"] else "unsealed"))
     except Exception as error:
         print(f"tls_health=error {error}")
+    # Refused only when the TLS handshake fails; an HTTP error means TLS 1.2 got through.
     old = ssl.create_default_context()
     old.maximum_version = ssl.TLSVersion.TLSv1_2
     try:
         urllib.request.urlopen(url, timeout=5, context=old)
         print("tls12=accepted")
-    except Exception:
-        print("tls12=refused")
+    except urllib.error.HTTPError:
+        print("tls12=accepted")
+    except urllib.error.URLError as error:
+        print("tls12=refused" if isinstance(error.reason, ssl.SSLError) else f"tls12=error {error}")
     PY
     {% endif %}
   args:
@@ -323,7 +344,7 @@
       # once OpenBao is unsealed (an uninitialised one listens on the API address alone).
       # Nothing else, never 0.0.0.0.
       - ('listen=' ~ openbao_api_address) in openbao_state.stdout_lines
-      - not openbao_tls_address or ('listen=' ~ openbao_tls_address) in openbao_state.stdout_lines
+      - not (openbao_tls_active | bool) or ('listen=' ~ openbao_tls_address) in openbao_state.stdout_lines
       - >-
         openbao_state.stdout_lines | select('match', 'listen=')
         | difference(['listen=' ~ openbao_api_address, 'listen=' ~ openbao_cluster_address,
@@ -339,13 +360,26 @@
         or ('initialized=false' in openbao_state.stdout_lines and 'sealed=true' in openbao_state.stdout_lines)
       # TLS (ADR-0047): a certificate valid for openbao_tls_min_days more, a key readable by
       # OpenBao only, a verified TLS 1.3 connection, and TLS 1.2 refused.
-      - not openbao_tls_address or 'tls_cert=valid' in openbao_state.stdout_lines
-      - not openbao_tls_address or 'tls_key_owner=root:openbao:640' in openbao_state.stdout_lines
+      - not (openbao_tls_active | bool) or 'tls_cert=valid' in openbao_state.stdout_lines
+      - not (openbao_tls_active | bool) or 'tls_key_owner=root:openbao:640' in openbao_state.stdout_lines
       - >-
-        not openbao_tls_address
+        not (openbao_tls_active | bool)
         or 'tls_health=sealed' in openbao_state.stdout_lines
         or 'tls_health=unsealed' in openbao_state.stdout_lines
-      - not openbao_tls_address or 'tls12=refused' in openbao_state.stdout_lines
-    fail_msg: "{{ openbao_state.stdout_lines }}"
+      - not (openbao_tls_active | bool) or 'tls12=refused' in openbao_state.stdout_lines
+    fail_msg: >-
+      {{ openbao_state.stdout_lines }}. A missing TLS listener right after a change of
+      configuration means OpenBao was not restarted yet (runbook core.md).
+    quiet: true
+  when: not ansible_check_mode
+
+- name: Stop until OpenBao's certificate is issued
+  ansible.builtin.assert:
+    that:
+      - openbao_tls_active | bool or not openbao_tls_address
+    fail_msg: >-
+      OpenBao runs on loopback only: {{ openbao_tls_dir }}/openbao.crt is missing. Issue it with
+      akasha-bao-tls (runbook core.md, "OpenBao's certificate"), run the role again, then
+      restart OpenBao and unseal it.
     quiet: true
   when: not ansible_check_mode

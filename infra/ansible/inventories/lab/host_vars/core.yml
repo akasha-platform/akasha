@@ -1,14 +1,15 @@
 ---
 # core: OpenBao (ADR-0039, ADR-0045, ADR-0047).
 
-# OpenBao's TLS listener on the lab address, for the bastion (Kolla, OpenTofu in P2-P3) and the
-# owner's laptop through the tailnet. The admin may still log in from 127.0.0.1 only (ADR-0047).
+# OpenBao's TLS listener on the lab address, for the bastion only (Kolla, OpenTofu in P2-P3).
+# Not 10.255.255.1: it is the tailnet AND every process of insa, the school's host, and anyone
+# reaching the userpass login can lock the admin out (ADR-0047). The laptop reaches OpenBao
+# through SSH (loopback) instead. The admin logs in from 127.0.0.1 only.
 vm_firewall_tcp_services:
   - port: 8200
     sources:
       - 10.10.0.10/32
-      - 10.255.255.1/32
-    comment: OpenBao API over TLS, from the bastion and the tailnet (ADR-0047)
+    comment: OpenBao API over TLS, from the bastion only (ADR-0047)
 
 openbao_tls_address: 10.10.0.12:8200
 openbao_tls_names:

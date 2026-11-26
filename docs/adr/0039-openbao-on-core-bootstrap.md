@@ -182,5 +182,4 @@ Applied from PR #69.
   open question B16). The SHA-256, the publication time and the signature check stay manual.
 * 2026-11-26 (step 7d-2, [ADR-0047](0047-openbao-tls-and-network-access.md)): OpenBao also
   listens on `10.10.0.12:8200` with TLS 1.3 and a certificate from its own PKI. The firewall of
-  `core` accepts that port from the bastion and the tailnet. The loopback listener without
-  TLS stays.
+  `core` accepts that port from the bastion only. The loopback listener without TLS stays.

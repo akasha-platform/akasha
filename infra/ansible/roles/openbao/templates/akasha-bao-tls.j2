@@ -6,7 +6,9 @@
 # chain against the root CA in the system trust store and that the key matches, then puts the
 # key (root:openbao 0640) and the certificate with its intermediate in {{ openbao_tls_dir }}.
 # A running OpenBao is reloaded (SIGHUP reloads the listener's certificate). The key exists
-# only in memory and in that file; the token never appears on a command line.
+# only in memory and in that file; the token never appears on a command line, and is revoked
+# at the end. The two files are replaced one after the other: a restart in that instant would
+# find them mismatched (accepted, ADR-0047).
 set -euo pipefail
 umask 077
 
@@ -21,6 +23,9 @@ if [ -z "$BAO_TOKEN" ]; then
   exit 1
 fi
 export BAO_TOKEN BAO_ADDR=http://{{ openbao_api_address }}
+work=$(mktemp -d)
+# The token is not needed afterwards: revoke it, whatever happens.
+trap 'rm -rf "$work"; bao token revoke -self >/dev/null 2>&1 || true' EXIT
 if [ ! -s "$root_ca" ]; then
   echo "$root_ca is missing: run the role lab_trust first" >&2
   exit 1
@@ -30,8 +35,6 @@ response=$(bao write -format=json pki/issue/server common_name="${names%%,*}" \
   alt_names="$names" ip_sans="$ips" ttl=8760h)
 field() { printf '%s' "$response" | python3 -c "import json, sys; print(json.load(sys.stdin)['data']['$1'])"; }
 
-work=$(mktemp -d)
-trap 'rm -rf "$work"' EXIT
 field certificate > "$work/leaf.pem"
 field issuing_ca > "$work/intermediate.pem"
 field private_key > "$work/openbao.key"

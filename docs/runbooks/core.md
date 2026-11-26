@@ -21,6 +21,7 @@ systemctl is-active openbao nftables             # active active
 BAO_ADDR=http://127.0.0.1:8200 bao status        # Initialized true, Sealed false (true after a reboot), Total Shares 3, Threshold 2
 sudo ls -l /srv/openbao/audit                    # audit.log, openbao, 0600; rotated files .1, .2.gz, ...
 sudo ss -lntp | grep bao                         # 10.10.0.12:8200 and loopback 8200-8202 only
+sudo ls -l /srv/openbao/tls                      # openbao.crt, openbao.key (root:openbao 0640)
 findmnt /srv; sudo ls -ld /srv/openbao/raft      # ext4 akasha-data; openbao 0700
 sudo nft list ruleset | head -20                 # table inet akasha, input policy drop
 ```
@@ -102,10 +103,11 @@ OpenTofu's tunnel, never through the TLS listener. A root token is never kept: i
 
 ## OpenBao's certificate (issue or renew)
 
-`/etc/openbao/tls/openbao.crt` (leaf and intermediate) and `openbao.key` (root:openbao 0640),
-one year, from the PKI role `server` (runbook `openbao-pki.md`). The role fails when fewer than
-30 days remain. Renew from the laptop; the admin logs in on `core` and its token goes straight
-into the helper, which reloads OpenBao (SIGHUP: no seal, no restart):
+`/srv/openbao/tls/openbao.crt` (leaf and intermediate) and `openbao.key` (root:openbao 0640), on
+the data disk, one year, from the PKI role `server` (runbook `openbao-pki.md`). The role fails
+when fewer than 30 days remain. Issue or renew from the laptop: the admin logs in on `core`,
+its token goes straight into the helper, which reloads OpenBao (SIGHUP: no seal, no restart)
+and revokes the token:
 
 ```bash
 "$AGE" -d -i $P/identity.age $P/admin-password.age | ssh -o BatchMode=yes debian@10.10.0.12 \
@@ -116,21 +118,49 @@ It prints the new certificate's subject, end date, fingerprint and names. `akash
 refuses an empty token and stops when the chain does not verify against the system trust store
 (role `lab_trust`) or the key does not match.
 
+**Without a certificate** (the first time, or a new data disk), the role configures loopback
+only, OpenBao keeps running, and the run ends with "openbao.crt is missing". Then: issue the
+certificate (above), run `core.yml --tags openbao` again (it writes the TLS listener and stops
+with "restart it by hand"), restart OpenBao and unseal it, run the role once more. A rebuild of
+`core` that keeps the data disk keeps the certificate: nothing to do.
+
 ## Reach OpenBao over TLS
 
 `https://core.akasha.internal:8200` (or `https://10.10.0.12:8200`), TLS 1.3 only. The firewall
-of `core` accepts port 8200 from the bastion and the tailnet only (`host_vars/core.yml`). The
-bastion and `core` trust the root (role `lab_trust`); the laptop uses `--cacert`:
+of `core` accepts port 8200 from the bastion only (`host_vars/core.yml`). Not from the tailnet:
+`10.255.255.1` is also every process of `insa`, and anyone reaching the userpass login can lock
+the admin out with wrong passwords (ADR-0047). The laptop uses SSH to `core` (loopback) or
+checks through the bastion, which trusts the root (role `lab_trust`):
 
 ```bash
-# from the bastion
-curl -sS https://core.akasha.internal:8200/v1/sys/seal-status | jq -c '{sealed, version}'
-# from the laptop (tailnet)
-curl -sS --cacert infra/pki/akasha-root-ca.crt https://10.10.0.12:8200/v1/sys/seal-status | jq -c '{sealed, version}'
+ssh debian@10.10.0.10 'curl -sS https://core.akasha.internal:8200/v1/sys/seal-status' | jq -c '{sealed, version}'
 ```
 
-Adding a client (P2 onwards): `lab_trust` on it, and its address in `vm_firewall_tcp_services`
-of `core`.
+Python `requests`/`httpx` in a virtual environment use certifi, not the system store: set
+`REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt` (Kolla, P2). Adding a client: `lab_trust`
+on it, and its address in `vm_firewall_tcp_services` of `core`.
+
+## Admin locked out (break-glass)
+
+The admin is locked for 15 minutes after 5 wrong passwords (per user, from any source): wait.
+If its password or binding is lost, make a root token from two shares, on `core`'s loopback,
+where the unauthenticated `generate-root` endpoints are enabled (ADR-0047):
+
+```bash
+ssh -t debian@10.10.0.12
+export BAO_ADDR=http://127.0.0.1:8200
+otp=$(bao operator generate-root -generate-otp); bao operator generate-root -init -otp="$otp"
+bao operator generate-root                # once per share, at the prompt (two shares)
+bao operator generate-root -decode=<encoded token> -otp="$otp"   # the root token
+# fix (for example `bao write auth/userpass/users/admin password=-`), then revoke it:
+BAO_TOKEN=<root token> bao token revoke -self
+```
+
+The prompt hides what is typed, but the share must be read from somewhere: decrypt it in
+another terminal (`"$AGE" -d -i $P/identity.age $P/share-1.age`), type it, then
+`clear; printf '\e[3J'`. This is the one procedure where a share shows on a screen; it is
+rare, and it was not rehearsed (only the loopback endpoint's answer was checked, ADR-0047).
+Record the event in an ADR update.
 
 ## Audit log
 
@@ -213,7 +243,7 @@ grep "openbao_${v}_linux_amd64.deb$" checksums.txt               # the new SHA-2
 The same commit-confirmed loading as the router's (runbook `router.md`, "Firewall and
 forwarding"). Input accepts:
 * SSH from the bastion (`10.10.0.10`) and the tailnet (`10.255.255.1`) only;
-* OpenBao's TLS port 8200 from the same two sources (ADR-0047);
+* OpenBao's TLS port 8200 from the bastion only (ADR-0047);
 * ping from `br-mgmt` and the tailnet;
 * nothing else.
 
