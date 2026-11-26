@@ -1,0 +1,4 @@
+---
+# The lab's root CA in the system trust store (ADR-0047): the public certificate of the offline
+# root (ADR-0044), from the repository.
+lab_trust_root_ca_src: "{{ role_path }}/../../../pki/akasha-root-ca.crt"

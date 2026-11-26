@@ -189,3 +189,9 @@ Run on `core` from PR #78, with the laptop's swap off.
   (`docs/configuration/audit.mdx`); `internal/command/operator_unseal.go`.
 * age: https://github.com/FiloSottile/age (passphrase-protected key files).
 * ADR-0011, ADR-0038, ADR-0039, ADR-0044.
+
+## Updates
+
+* 2026-11-26 (step 7d-2, [ADR-0047](0047-openbao-tls-and-network-access.md)): the note for step
+  7d is settled. The user `admin` logs in from 127.0.0.1 only (`token_bound_cidrs`). Its token
+  settings are now written by the OpenTofu stack `openbao`, still without its password.

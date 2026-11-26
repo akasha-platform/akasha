@@ -167,9 +167,11 @@ Done when: an empty PR passes every check; actions are SHA-pinned; `main` is pro
        `hashicorp/vault` 5.13.0 through an SSH tunnel, state in the L0 bucket under its own
        key and passphrase, P-384 key inside OpenBao signed offline by the root (5 years),
        role `server` limited to akasha.internal and 10.0.0.0/8; a second plan was empty.
-     * 7d-2: OpenBao's TLS certificate and listener, port 8200 for the bastion and the
-       tailnet, the root CA in the trust stores of the bastion and `core`, the admin bound
-       to 127.0.0.1.
+     * 7d-2 ✅ 2026-11-26: OpenBao's TLS 1.3 listener on 10.10.0.12:8200 with a certificate
+       from its own PKI (on the data disk), port 8200 for the bastion only, the root CA in
+       the trust stores of the bastion and `core` (role `lab_trust`), the admin bound to
+       127.0.0.1, break-glass `generate-root` on loopback (ADR-0047). Independent review:
+       no blocker; three design points decided by the owner.
    * 7e: restic to AWS S3 with Object Lock (design + test A13).
 
 Done when: the L0 stack rebuilds from zero, lab traffic cannot reach the campus LAN, the

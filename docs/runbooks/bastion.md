@@ -2,10 +2,12 @@
 
 Design:
 * [ADR-0040](../adr/0040-bastion-toolchain.md): toolchain, user, code;
-* [ADR-0039](../adr/0039-openbao-on-core-bootstrap.md): host firewall defaults.
+* [ADR-0039](../adr/0039-openbao-on-core-bootstrap.md): host firewall defaults;
+* [ADR-0047](../adr/0047-openbao-tls-and-network-access.md): the lab's root CA in the trust store.
 
 Managed by `infra/ansible/playbooks/bastion.yml`, through the roles `vm_firewall` (tag
-`firewall`) and `bastion_toolchain` (tag `toolchain`).
+`firewall`), `lab_trust` (tag `trust`) and `bastion_toolchain` (tag `toolchain`). OpenBao is at
+`https://core.akasha.internal:8200` (runbook `core.md`, "Reach OpenBao over TLS").
 
 ## Use the bastion
 

@@ -1,6 +1,7 @@
 # OpenBao's configuration with OpenTofu: the intermediate CA
 
-Design: [ADR-0046](../adr/0046-openbao-pki-intermediate.md). Stack
+Design: [ADR-0046](../adr/0046-openbao-pki-intermediate.md); the admin's token settings:
+[ADR-0047](../adr/0047-openbao-tls-and-network-access.md). Stack
 `infra/opentofu/live/openbao/`, applied by the owner only, from the laptop, through an SSH
 tunnel to OpenBao's loopback listener on `core`. The state lives in the L0 bucket under
 `openbao/terraform.tfstate`, encrypted with the passphrase `openbao` of the desktop keyring.
@@ -137,6 +138,12 @@ check each against OpenBao before merging (OpenBao is not Vault: ADR-0046).
 
 ## Failure modes
 
+* **The admin's settings** (`auth.tf`): the stack writes the token fields of the user `admin`
+  (bound to 127.0.0.1, TTLs, policy), never its password, and never deletes it. A wrong
+  `token_bound_cidrs` would lock the admin out of every path, the tunnel included: then make a
+  root token from two shares on `core` (runbook `core.md`, "Admin locked out"), fix, revoke it.
+  The plan shows `data_json` as `(sensitive value)`; check the values with
+  `bao read auth/userpass/users/admin` on `core`.
 * **`tofu` cannot reach OpenBao**: the tunnel is down (`ss -ltn | grep 8200`), or OpenBao is
   sealed (runbook `core.md`, "Unseal").
 * **403 permission denied**: the token expired (1 h, 4 h at most); log in again.

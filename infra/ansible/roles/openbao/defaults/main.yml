@@ -28,6 +28,17 @@ openbao_audit_keep_days: 30
 openbao_api_address: 127.0.0.1:8200
 openbao_cluster_address: 127.0.0.1:8201
 
+# The network listener with TLS (ADR-0047), empty for none. Its certificate comes from
+# OpenBao's PKI (role `server`), issued on core by akasha-bao-tls for these names and
+# addresses (the first name is the advertised api_addr). The listener is configured once the
+# certificate exists; a run fails when it expires within openbao_tls_min_days.
+openbao_tls_address: ""
+openbao_tls_names: []
+openbao_tls_ips: []
+openbao_tls_cluster_address: 127.0.0.1:8202
+openbao_tls_dir: "{{ openbao_data_dir }}/tls" # on the data disk: survives a rebuild
+openbao_tls_min_days: 30
+
 # Fixed uid and gid of the openbao user: its data lives on a disk that outlives the VM
 # (ADR-0038), so a rebuilt VM must own it under the same ids. Created before the package,
 # whose preinst then skips its own `useradd`.

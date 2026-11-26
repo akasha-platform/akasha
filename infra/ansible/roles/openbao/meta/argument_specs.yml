@@ -1,7 +1,7 @@
 ---
 argument_specs:
   main:
-    short_description: OpenBao on core, pinned package, localhost only until step 7 (ADR-0039)
+    short_description: OpenBao on core, pinned package, loopback listener and optional TLS listener (ADR-0039, ADR-0047)
     description:
       - Installs the pinned official package after its SHA-256 is checked, configures Raft
         storage on the data disk and a localhost listener without TLS, makes the service wait
@@ -38,6 +38,26 @@ argument_specs:
       openbao_node_id:
         type: str
         description: Raft node id.
+      openbao_tls_address:
+        type: str
+        description: Address of the TLS listener (empty for none, ADR-0047).
+      openbao_tls_names:
+        type: list
+        elements: str
+        description: DNS names of OpenBao's certificate; the first is the advertised api_addr.
+      openbao_tls_ips:
+        type: list
+        elements: str
+        description: IP addresses of OpenBao's certificate.
+      openbao_tls_cluster_address:
+        type: str
+        description: Cluster port of the TLS listener, kept on loopback (every TCP listener opens one).
+      openbao_tls_dir:
+        type: str
+        description: Directory of OpenBao's certificate and key.
+      openbao_tls_min_days:
+        type: int
+        description: A run fails when the certificate expires within this many days.
       openbao_audit_dir:
         type: str
         description: Directory of the audit log on the data disk (ADR-0045).

@@ -53,3 +53,4 @@ its status changed or a dated note pointing to the new one. Only dated sections 
 | [0044](0044-offline-root-ca.md) | The lab's offline root CA | accepted |
 | [0045](0045-openbao-initialisation-and-administration.md) | OpenBao: initialisation, unseal shares, audit log and administrator | accepted |
 | [0046](0046-openbao-pki-intermediate.md) | OpenBao's intermediate CA, configured with OpenTofu | accepted |
+| [0047](0047-openbao-tls-and-network-access.md) | OpenBao's TLS listener, its certificate and who may reach it | accepted |
