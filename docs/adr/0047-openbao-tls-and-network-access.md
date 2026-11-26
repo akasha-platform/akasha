@@ -186,6 +186,40 @@ On `core` and the bastion:
 * the unauthenticated `generate-root` status answers on loopback, and not over TLS;
 * a second plan of the stack `openbao` shows no changes.
 
+### Implementation (2026-11-26)
+
+Applied from PR #80.
+* **Dry runs** of `bastion.yml` and `core.yml` showed the expected diffs:
+  * the nftables line `ip saddr { 10.10.0.10/32 } tcp dport 8200 accept`;
+  * the root CA file and the helper;
+  * the break-glass flag on loopback, and no TLS listener yet;
+  * the warning about the restart, and `failed=0`.
+* **First run of `core.yml`.**
+  * The firewall was loaded commit confirmed. `lab_trust` and the helpers were installed, and
+    `openbao.hcl` was written with the break-glass flag.
+  * The run stopped at the restart guard, as planned. OpenBao was not restarted yet.
+* **Certificate.** `akasha-bao-tls`, fed by an admin login on `core`, issued
+  `CN=core.akasha.internal`:
+  * `DNS:core.akasha.internal, IP:10.10.0.12`, valid until 2027-11-26;
+  * SHA-256 `29:DE:54:F1:…:0B:15:63`;
+  * in `/srv/openbao/tls`, the key `root:openbao 0640`, the directory 0750.
+* **Second run** wrote the TLS listener and `api_addr`, then stopped at the restart guard.
+* **Restart and unseal** with shares 1 and 2. The listening ports:
+  * `10.10.0.12:8200` and `127.0.0.1:8200` while sealed;
+  * then `127.0.0.1:8201` and `127.0.0.1:8202`.
+* **Third run.** `core.yml` and `bastion.yml` reported `changed=0`. Every check passed,
+  including TLS 1.3 through the system trust store and TLS 1.2 refused.
+* **OpenTofu.**
+  * One resource added (`admin_user`), and the next plan was empty.
+  * The user reads `token_bound_cidrs ["127.0.0.1"]`, policy `admin`, TTL 1 h, 4 h at most.
+  * A login on `core`'s loopback still works. An off-AWS copy of the encrypted state was
+    taken.
+* **From outside.**
+  * The bastion read `sys/seal-status` over TLS through its trust store.
+  * The admin's correct password through the TLS listener got `403 permission denied`.
+  * `generate-root/attempt` answered on loopback and returned 405 over TLS.
+  * From `os-ctl01`, port 8200 timed out (dropped).
+
 ## More Information
 
 * Runbooks: [core.md](../runbooks/core.md) ("OpenBao's certificate", "Reach OpenBao over
