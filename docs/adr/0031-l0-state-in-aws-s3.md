@@ -173,3 +173,7 @@ and are carried into the step-6 design (open question A23):
   the object in S3 holding only `encrypted_data`, `encryption_version`, `lineage`, `meta`
   (`l0-passphrase`, `l0-pbkdf2`) and `serial`; a second terminal got `Error acquiring the state
   lock` while `tofu console` held it; an off-AWS copy of the encrypted object was made.
+* 2026-11-26 (step 7d-1, [ADR-0046](0046-openbao-pki-intermediate.md)): the bucket also holds
+  the state of the stack `openbao` under `openbao/terraform.tfstate`, encrypted with its own
+  passphrase. The policy `akasha-l0-state` of `akasha-l0` now allows that key and its lock too
+  (a new policy version; the previous one stays for a rollback).

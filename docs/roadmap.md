@@ -162,7 +162,11 @@ Done when: an empty PR passes every check; actions are SHA-pinned; `main` is pro
        auto-unseal, ADR-0011 Updates): 3 shares / threshold 2 piped straight into age files,
        audit log on the data disk, userpass `admin`, root token revoked. Independent review:
        2 blockers fixed before running. Every share unsealed; role `changed=0`.
-   * 7d: OpenBao's intermediate CA, its TLS certificate, and port 8200 opened.
+   * 7d: split by the owner on 2026-11-26.
+     * 7d-1: OpenBao's intermediate CA, configured with OpenTofu (ADR-0046).
+     * 7d-2: OpenBao's TLS certificate and listener, port 8200 for the bastion and the
+       tailnet, the root CA in the trust stores of the bastion and `core`, the admin bound
+       to 127.0.0.1.
    * 7e: restic to AWS S3 with Object Lock (design + test A13).
 
 Done when: the L0 stack rebuilds from zero, lab traffic cannot reach the campus LAN, the

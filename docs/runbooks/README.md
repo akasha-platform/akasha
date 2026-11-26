@@ -25,6 +25,8 @@ One runbook per alert or known failure mode, written when the failure mode is in
   safely, overlay MTU, NetworkManager taking a bridge
 * [aws-l0-state.md](aws-l0-state.md) — AWS bucket and IAM users for the L0 OpenTofu state:
   administrator user, bucket, least-privilege user, read-back, checks, roll back
+* [openbao-pki.md](openbao-pki.md) — OpenBao's configuration with OpenTofu: AWS policy and
+  passphrase, session (tunnel, token), the intermediate CA, checks, off-AWS copy, failure modes
 * [pki-root-ca.md](pki-root-ca.md) — offline root CA: files, check, use the key, make the root,
   lost passphrase or laptop, leaked key, constraint violations, expiry
 * [host-oom-order.md](host-oom-order.md) — OOM order of the lab VMs: values, run, check,

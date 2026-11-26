@@ -1,0 +1,7 @@
+# Extensions the offline root gives OpenBao's intermediate CA (ADR-0046, runbook
+# openbao-pki.md): a CA that issues end-entity certificates only. The root's name constraints
+# still apply below it.
+basicConstraints       = critical, CA:true, pathlen:0
+keyUsage               = critical, keyCertSign, cRLSign
+subjectKeyIdentifier   = hash
+authorityKeyIdentifier = keyid:always
