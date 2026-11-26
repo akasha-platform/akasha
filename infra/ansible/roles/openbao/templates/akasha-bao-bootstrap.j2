@@ -1,0 +1,56 @@
+#!/bin/bash
+# {{ ansible_managed }}
+# One-time setup of a freshly initialised OpenBao (ADR-0045, runbook core.md): the `admin`
+# policy, the userpass auth method and its user `admin`; then the root token revokes itself.
+# Reads the root token (first line) and the admin password (second line) from standard input,
+# so that neither appears on a command line. Safe to run again until the root token is revoked.
+set -euo pipefail
+export BAO_ADDR=http://{{ openbao_api_address }}
+IFS= read -r BAO_TOKEN || true
+IFS= read -r password || true
+export BAO_TOKEN
+if [ -z "$BAO_TOKEN" ] || [ -z "$password" ]; then
+  echo "expected the root token and the admin password on standard input" >&2
+  exit 1
+fi
+if ! lookup=$(bao token lookup -format=json 2>/dev/null); then
+  echo "the first line is not a valid token (already revoked?)" >&2
+  exit 1
+fi
+policies=$(printf '%s' "$lookup" | python3 -c 'import json, sys; print(",".join(json.load(sys.stdin)["data"]["policies"]))')
+if [ "$policies" != root ]; then
+  echo "the first line is not a root token (policies: $policies)" >&2
+  exit 1
+fi
+
+# The admin policy: every path and capability, through the short-lived, revocable tokens of
+# the userpass user `admin` instead of a root token.
+bao policy write admin - <<'POLICY'
+path "*" {
+  capabilities = ["create", "read", "update", "patch", "delete", "list", "sudo"]
+}
+POLICY
+if ! bao auth list -format=json | python3 -c 'import json, sys; sys.exit(0 if "userpass/" in json.load(sys.stdin) else 1)'; then
+  bao auth enable -description="Administrators (ADR-0045)" userpass
+fi
+printf '%s' "$password" | bao write auth/userpass/users/admin password=- \
+  token_policies=admin token_ttl=1h token_max_ttl=4h token_type=service
+
+# Prove that the admin can log in, and holds the admin policy, before the root token goes.
+login=$(printf '%s' "$password" | BAO_TOKEN='' bao login -no-store -format=json \
+  -method=userpass username=admin password=-)
+admin_policies=$(printf '%s' "$login" | python3 -c 'import json, sys; print(",".join(json.load(sys.stdin)["auth"]["token_policies"]))')
+# The test login's token is not needed: revoke it (through the environment, never argv).
+BAO_TOKEN=$(printf '%s' "$login" | python3 -c 'import json, sys; print(json.load(sys.stdin)["auth"]["client_token"])') \
+  bao token revoke -self >/dev/null
+case ",$admin_policies," in
+  *,admin,*) ;;
+  *) echo "admin login has policies '$admin_policies', expected admin: root token kept" >&2; exit 1 ;;
+esac
+
+bao token revoke -self
+if bao token lookup >/dev/null 2>&1; then
+  echo "the root token still works" >&2
+  exit 1
+fi
+echo "admin created (policies: $admin_policies); root token revoked"

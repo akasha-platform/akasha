@@ -18,3 +18,14 @@ listener "tcp" {
 
 api_addr     = "http://{{ openbao_api_address }}"
 cluster_addr = "https://{{ openbao_cluster_address }}"
+
+# Every request and response, with secrets HMAC'd, on the data disk (ADR-0045). Declared here:
+# OpenBao refuses API-created audit devices (2.3.2+). It enables the device at each unseal, and
+# answers no request it cannot audit. logrotate rotates the file and sends SIGHUP to reopen it.
+audit "file" "file" {
+  description = "Every request and response, on the data disk (ADR-0045)."
+  options {
+    file_path = "{{ openbao_audit_dir }}/audit.log"
+    mode      = "0600"
+  }
+}

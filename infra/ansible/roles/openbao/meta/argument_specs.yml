@@ -38,6 +38,12 @@ argument_specs:
       openbao_node_id:
         type: str
         description: Raft node id.
+      openbao_audit_dir:
+        type: str
+        description: Directory of the audit log on the data disk (ADR-0045).
+      openbao_audit_keep_days:
+        type: int
+        description: Days of rotated audit log kept by logrotate.
       openbao_api_address:
         type: str
         description: Listener address (localhost until step 7).

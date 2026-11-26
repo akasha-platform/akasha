@@ -4,7 +4,9 @@ Design:
 * [ADR-0011](../adr/0011-openbao-secrets-and-pki.md): OpenBao, Shamir;
 * [ADR-0038](../adr/0038-data-disks-outlive-vms.md): the data disk on `/srv`;
 * [ADR-0039](../adr/0039-openbao-on-core-bootstrap.md): pinned package, localhost until
-  step 7, host firewall.
+  step 7, host firewall;
+* [ADR-0045](../adr/0045-openbao-initialisation-and-administration.md): initialisation, unseal
+  shares, audit log, administrator.
 
 Managed by `infra/ansible/playbooks/core.yml`, through the roles `vm_firewall` (tag `firewall`)
 and `openbao` (tag `openbao`). Commands run on `core` (`ssh debian@10.10.0.12`) unless stated
@@ -14,7 +16,8 @@ otherwise.
 
 ```bash
 systemctl is-active openbao nftables             # active active
-BAO_ADDR=http://127.0.0.1:8200 bao status        # Initialized false, Sealed true, Storage Type raft (until step 7)
+BAO_ADDR=http://127.0.0.1:8200 bao status        # Initialized true, Sealed false (true after a reboot), Total Shares 3, Threshold 2
+sudo ls -l /srv/openbao/audit                    # audit.log, openbao, 0600; rotated files .1, .2.gz, ...
 sudo ss -lntp | grep bao                         # 127.0.0.1:8200 only (8201 too once unsealed)
 findmnt /srv; sudo ls -ld /srv/openbao/raft      # ext4 akasha-data; openbao 0700
 sudo nft list ruleset | head -20                 # table inet akasha, input policy drop
@@ -35,16 +38,107 @@ sudo nft list ruleset | head -20                 # table inet akasha, input poli
 - **Mitigation:** mount the disk (`sudo mount /srv`) or fix the role and run
   `core.yml --tags openbao`.
 
-## Restart an initialised OpenBao (from step 7 on)
+## Secrets on the laptop
 
-A restart **seals** OpenBao, and nothing that depends on it works until it is unsealed with
-the Shamir shares (ADR-0011). The role never restarts an initialised OpenBao: when its
-configuration changed, the run stops with "restart it by hand and unseal it". Then:
+In `~/akasha-private/openbao/` (ADR-0045), read-only (`chmod 400`). Never commit them, never
+print them. The commands below run **on the laptop**, in a shell where these are set, from the
+repository (mise finds age there):
 
 ```bash
-sudo systemctl restart openbao
-BAO_ADDR=http://127.0.0.1:8200 bao operator unseal    # once per share, up to the threshold
+cd ~/Documents/dev/Projets/akasha && P=~/akasha-private/openbao && AGE=$(mise which age) \
+  && KEYGEN=$(dirname "$AGE")/age-keygen && set -o pipefail
+ssh -o BatchMode=yes debian@10.10.0.12 true && echo "ssh ok"   # else ssh-add first: only age may prompt
 ```
+
+Each decryption asks for the passphrase of ADR-0044 once.
+
+| File | Content |
+|---|---|
+| `identity.age` | the age identity, encrypted with the passphrase |
+| `recipient.txt` | its public key |
+| `share-1.age`, `share-2.age`, `share-3.age` | the three unseal shares (any two unseal) |
+| `admin-password.age` | the password of the userpass user `admin` |
+
+## Unseal (after each reboot or restart of core)
+
+A restart **seals** OpenBao, and nothing that depends on it works until it is unsealed
+(ADR-0011). Two shares, each through a pipe, never on a screen:
+
+```bash
+"$AGE" -d -i $P/identity.age $P/share-1.age | ssh -o BatchMode=yes debian@10.10.0.12 akasha-bao-unseal   # sealed=true progress=1/2
+"$AGE" -d -i $P/identity.age $P/share-2.age | ssh -o BatchMode=yes debian@10.10.0.12 akasha-bao-unseal   # sealed=false
+```
+
+Any two shares work. A share given to an unsealed OpenBao only prints `sealed=false`.
+"unseal refused" names the reason, such as a wrong share. `bao operator unseal -reset` on `core`
+restarts a half-done unseal.
+
+## Restart an initialised OpenBao
+
+The role never restarts an initialised OpenBao: when its configuration changed, the run stops
+with "restart it by hand and unseal it". **Do it the same day**: the new file is already on
+disk, and logrotate's daily reload (SIGHUP) would apply its audit stanza without the restart
+(ADR-0045). Then `sudo systemctl restart openbao` on `core`, unseal (above), and run the role
+again.
+
+## Log in as admin
+
+```bash
+"$AGE" -d -i $P/identity.age $P/admin-password.age \
+  | ssh -o BatchMode=yes debian@10.10.0.12 'BAO_ADDR=http://127.0.0.1:8200 bao login -method=userpass username=admin password=- >/dev/null && echo logged-in'
+ssh debian@10.10.0.12
+export BAO_ADDR=http://127.0.0.1:8200
+bao token lookup | grep -E 'policies|ttl'          # [admin default], about 1h
+# ... the work ...
+bao token revoke -self                               # the token is kept in ~/.vault-token until then
+```
+
+A token lives 1 h, and 4 h at most with renewals. A root token is never kept: if one is needed,
+`bao operator generate-root` makes it from two shares; revoke it after use.
+
+## Audit log
+
+`/srv/openbao/audit/audit.log` on the data disk, mode 0600, secrets HMAC'd. logrotate rotates
+it daily and keeps 30 days; `systemctl reload openbao` makes OpenBao reopen the file (it stays
+unsealed). OpenBao answers **no request** it cannot audit: when requests fail or hang, check
+the disk first.
+
+```bash
+df -h /srv; sudo tail -n 2 /srv/openbao/audit/audit.log | python3 -m json.tool | head -20
+```
+
+## Initialise OpenBao (done once, step 7c-2)
+
+On the laptop, with the variables above, swap off (`sudo swapoff -a`), one command at a time.
+Each command checks its inputs and refuses to overwrite a file. Until a secret is stored, a
+failed initialisation is undone by wiping the data on `core` (`sudo systemctl stop openbao &&
+sudo rm -rf /srv/openbao/raft /srv/openbao/audit`), running `core.yml --tags openbao`, and
+deleting the laptop's files.
+
+```bash
+# 1. The age identity, protected by the passphrase; its public key
+umask 077; mkdir -p $P && test ! -e $P/identity.age && "$KEYGEN" | tee >("$KEYGEN" -y > $P/recipient.txt) \
+  | "$AGE" -p -o $P/identity.age && chmod 400 $P/identity.age
+chmod 400 $P/recipient.txt; "$AGE" -d $P/identity.age | "$KEYGEN" -y | cmp - $P/recipient.txt && echo "identity matches recipient"
+# 2. Initialise: the JSON goes straight into age
+test -n "$P" && test -s $P/recipient.txt && test ! -e $P/init.json.age \
+  && ssh -o BatchMode=yes debian@10.10.0.12 'BAO_ADDR=http://127.0.0.1:8200 bao operator init -key-shares=3 -key-threshold=2 -format=json' \
+  | "$AGE" -R $P/recipient.txt -o $P/init.json.age && chmod 400 $P/init.json.age && echo "init saved"
+"$AGE" -d -i $P/identity.age $P/init.json.age | jq -r '"shares=\(.unseal_keys_b64|length) threshold=\(.unseal_threshold) root_token=\(.root_token|length>0)"'
+# 3. One file per share
+for i in 1 2 3; do test ! -e $P/share-$i.age && "$AGE" -d -i $P/identity.age $P/init.json.age | jq -er ".unseal_keys_b64[$((i-1))]" \
+  | tr -d '\n' | "$AGE" -R $P/recipient.txt -o $P/share-$i.age && chmod 400 $P/share-$i.age || { echo "stopped at share $i"; break; }; done
+# 4. Unseal with shares 1 and 2 (section "Unseal")
+# 5. The admin's password, then the bootstrap: root token on line 1, password on line 2
+test ! -e $P/admin-password.age && openssl rand -base64 32 | tr -d '\n' | "$AGE" -R $P/recipient.txt -o $P/admin-password.age \
+  && chmod 400 $P/admin-password.age && echo "password saved"
+{ "$AGE" -d -i $P/identity.age $P/init.json.age | jq -r .root_token; "$AGE" -d -i $P/identity.age $P/admin-password.age; } \
+  | ssh -o BatchMode=yes debian@10.10.0.12 akasha-bao-bootstrap
+# 6. Checks (admin login, seal, unseal with shares 3 and 1), then: shred -u $P/init.json.age
+```
+
+`akasha-bao-bootstrap` ends with "admin created (policies: admin,default); root token revoked".
+It can run again until the root token is revoked; after that it refuses the token.
 
 ## Bump the pinned OpenBao version
 
@@ -103,8 +197,8 @@ the role and run it again.
 
 ## Roll back
 
-**Before step 7 only**: once OpenBao is initialised, `/srv/openbao` holds every secret of the
-lab. Never delete it without a verified backup.
+Since step 7c-2, `/srv/openbao` holds every secret of the lab: never delete it without a
+verified backup.
 
 ```bash
 sudo systemctl disable --now openbao && sudo apt purge openbao
