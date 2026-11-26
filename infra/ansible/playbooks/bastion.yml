@@ -28,5 +28,7 @@
       tags: [swap]
     - role: vm_firewall
       tags: [firewall]
+    - role: lab_trust
+      tags: [trust]
     - role: bastion_toolchain
       tags: [toolchain]

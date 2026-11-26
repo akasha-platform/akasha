@@ -1,0 +1,11 @@
+---
+argument_specs:
+  main:
+    short_description: The lab's root CA in the system trust store of a VM (ADR-0047)
+    description:
+      - Installs the offline root's public certificate in /usr/local/share/ca-certificates,
+        updates the system trust store, and checks that OpenSSL trusts the root through it.
+    options:
+      lab_trust_root_ca_src:
+        type: str
+        description: Path of the root CA certificate on the controller.

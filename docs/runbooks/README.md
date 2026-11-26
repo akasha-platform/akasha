@@ -43,7 +43,8 @@ One runbook per alert or known failure mode, written when the failure mode is in
 * [bastion.md](bastion.md) — bastion: the `akasha` user, update the code, run a playbook from
   the bastion, bump the pinned mise
 * [core.md](core.md) — `core`: OpenBao (state, checks, secrets on the laptop, unseal, restart,
-  admin login, audit log, initialisation, bump the pinned version), host firewall
+  admin login, its TLS certificate, reach it over TLS, audit log, initialisation, bump the
+  pinned version), host firewall
 * [router.md](router.md) — edge router DNS (Unbound), time (chrony), firewall and forwarding:
   run, check, DNS not answering, add a name, lost time sources, commit-confirmed loading,
   locked out, fake-client test, roll back

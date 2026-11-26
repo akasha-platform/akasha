@@ -165,6 +165,40 @@
         - "{{ openbao_data_dir }}/raft"
         - "{{ openbao_audit_dir }}"
 
+    # Initialisation and unseal from the laptop through pipes, the one-time setup of the admin
+    # (ADR-0045), and OpenBao's own certificate (ADR-0047; runbook core.md). No script holds
+    # a secret: they read it from stdin.
+    # /usr/local/bin: Debian's sshd PATH for non-root users has no sbin directory.
+    - name: Install the unseal, bootstrap and certificate helpers
+      ansible.builtin.template:
+        src: "{{ item }}.j2"
+        dest: /usr/local/bin/{{ item }}
+        owner: root
+        group: root
+        mode: "0755"
+      loop:
+        - akasha-bao-unseal
+        - akasha-bao-bootstrap
+        - akasha-bao-tls
+
+    # The TLS listener needs its certificate before OpenBao starts with it: the first run with
+    # openbao_tls_address set stops here, after installing akasha-bao-tls (runbook core.md).
+    - name: Look for OpenBao's certificate
+      ansible.builtin.stat:
+        path: "{{ openbao_tls_dir }}/openbao.crt"
+      register: openbao_tls_cert
+      when: openbao_tls_address | length > 0
+
+    - name: Stop until OpenBao's certificate is issued
+      ansible.builtin.assert:
+        that:
+          - openbao_tls_cert.stat.exists
+        fail_msg: >-
+          {{ openbao_tls_dir }}/openbao.crt is missing: issue it with akasha-bao-tls
+          (runbook core.md, "OpenBao's certificate"), then run the role again.
+        quiet: true
+      when: openbao_tls_address | length > 0 and not ansible_check_mode
+
     - name: Write OpenBao's configuration
       ansible.builtin.template:
         src: openbao.hcl.j2
@@ -194,20 +228,6 @@
       notify:
         - Reload systemd
         - Restart OpenBao
-
-    # Initialisation and unseal from the laptop through pipes, and the one-time setup of the
-    # admin (ADR-0045, runbook core.md). Neither script holds a secret: they read it from stdin.
-    # /usr/local/bin: Debian's sshd PATH for non-root users has no sbin directory.
-    - name: Install the unseal and bootstrap helpers
-      ansible.builtin.template:
-        src: "{{ item }}.j2"
-        dest: /usr/local/bin/{{ item }}
-        owner: root
-        group: root
-        mode: "0755"
-      loop:
-        - akasha-bao-unseal
-        - akasha-bao-bootstrap
 
     - name: Install logrotate
       ansible.builtin.apt:
@@ -261,6 +281,30 @@
     echo "data_owner=$(stat -c %u:%g:%a {{ openbao_data_dir }}/raft)"
     echo "audit_owner=$(stat -c %u:%g:%a {{ openbao_audit_dir }})"
     test -f {{ openbao_audit_dir }}/audit.log && echo audit_log=present || echo audit_log=absent
+    {% if openbao_tls_address %}
+    c={{ openbao_tls_dir }}/openbao.crt
+    openssl x509 -in "$c" -noout -checkend {{ openbao_tls_min_days * 86400 }} >/dev/null \
+      && echo tls_cert=valid || echo "tls_cert=expiring $(openssl x509 -in "$c" -noout -enddate)"
+    echo "tls_key_owner=$(stat -c %U:%G:%a {{ openbao_tls_dir }}/openbao.key)"
+    # Through the TLS listener by IP address (a SAN of the certificate), verified against the
+    # system trust store (role lab_trust); TLS 1.2 must be refused.
+    python3 - <<'PY'
+    import json, ssl, urllib.request
+    url = "https://{{ openbao_tls_address }}/v1/sys/seal-status"
+    try:
+        with urllib.request.urlopen(url, timeout=5) as response:
+            print("tls_health=" + ("sealed" if json.load(response)["sealed"] else "unsealed"))
+    except Exception as error:
+        print(f"tls_health=error {error}")
+    old = ssl.create_default_context()
+    old.maximum_version = ssl.TLSVersion.TLSv1_2
+    try:
+        urllib.request.urlopen(url, timeout=5, context=old)
+        print("tls12=accepted")
+    except Exception:
+        print("tls12=refused")
+    PY
+    {% endif %}
   args:
     executable: /bin/bash
   register: openbao_state
@@ -270,17 +314,20 @@
 
 # Before step 7 OpenBao must be uninitialised and sealed; a kept data disk from an initialised
 # OpenBao (after a rebuild) shows initialized=true, which is fine.
-- name: Check that OpenBao runs on localhost only, at the pinned version, with Raft
+- name: Check that OpenBao listens where it should, at the pinned version, with Raft
   ansible.builtin.assert:
     that:
       - "'unit=active enabled=enabled' in openbao_state.stdout_lines"
       - ('server_version=' ~ openbao_version) in openbao_state.stdout_lines
-      # The API listener always; the Raft cluster listener opens only once OpenBao is unsealed
-      # (an uninitialised one listens on the API address alone). Nothing else, never 0.0.0.0.
+      # The API listener always, the TLS listener when set; the Raft cluster listener opens only
+      # once OpenBao is unsealed (an uninitialised one listens on the API address alone).
+      # Nothing else, never 0.0.0.0.
       - ('listen=' ~ openbao_api_address) in openbao_state.stdout_lines
+      - not openbao_tls_address or ('listen=' ~ openbao_tls_address) in openbao_state.stdout_lines
       - >-
         openbao_state.stdout_lines | select('match', 'listen=')
-        | difference(['listen=' ~ openbao_api_address, 'listen=' ~ openbao_cluster_address])
+        | difference(['listen=' ~ openbao_api_address, 'listen=' ~ openbao_cluster_address,
+                      'listen=' ~ openbao_tls_address, 'listen=' ~ openbao_tls_cluster_address])
         | length == 0
       - "'storage=raft' in openbao_state.stdout_lines"
       - ('data_owner=' ~ openbao_uid ~ ':' ~ openbao_gid ~ ':700') in openbao_state.stdout_lines
@@ -290,6 +337,15 @@
       - >-
         'initialized=true' in openbao_state.stdout_lines
         or ('initialized=false' in openbao_state.stdout_lines and 'sealed=true' in openbao_state.stdout_lines)
+      # TLS (ADR-0047): a certificate valid for openbao_tls_min_days more, a key readable by
+      # OpenBao only, a verified TLS 1.3 connection, and TLS 1.2 refused.
+      - not openbao_tls_address or 'tls_cert=valid' in openbao_state.stdout_lines
+      - not openbao_tls_address or 'tls_key_owner=root:openbao:640' in openbao_state.stdout_lines
+      - >-
+        not openbao_tls_address
+        or 'tls_health=sealed' in openbao_state.stdout_lines
+        or 'tls_health=unsealed' in openbao_state.stdout_lines
+      - not openbao_tls_address or 'tls12=refused' in openbao_state.stdout_lines
     fail_msg: "{{ openbao_state.stdout_lines }}"
     quiet: true
   when: not ansible_check_mode

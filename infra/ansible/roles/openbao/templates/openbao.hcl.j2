@@ -9,14 +9,33 @@ storage "raft" {
   node_id = "{{ openbao_node_id }}"
 }
 
-# Localhost only and no TLS until step 7 (no secret exists before the initialisation).
+# Loopback, without TLS: the unseal and bootstrap helpers, the admin over SSH and OpenTofu's
+# SSH tunnel (ADR-0039, ADR-0046). A certificate cannot name 127.0.0.1 (the root's name
+# constraints, ADR-0044), and nothing but core itself reaches this address.
 listener "tcp" {
   address         = "{{ openbao_api_address }}"
   cluster_address = "{{ openbao_cluster_address }}"
   tls_disable     = true
 }
+{% if openbao_tls_address %}
+
+# The lab's address, TLS 1.3 only, with a certificate from OpenBao's own PKI, issued by
+# akasha-bao-tls (ADR-0047). The firewall of core lets only the bastion and the tailnet in.
+# Every TCP listener opens a cluster port too (its port + 1 by default): keep it on loopback,
+# apart from the first listener's.
+listener "tcp" {
+  address         = "{{ openbao_tls_address }}"
+  cluster_address = "{{ openbao_tls_cluster_address }}"
+  tls_cert_file   = "{{ openbao_tls_dir }}/openbao.crt"
+  tls_key_file    = "{{ openbao_tls_dir }}/openbao.key"
+  tls_min_version = "tls13"
+}
+
+api_addr     = "https://{{ openbao_tls_names[0] }}:{{ openbao_tls_address.split(':')[1] }}"
+{% else %}
 
 api_addr     = "http://{{ openbao_api_address }}"
+{% endif %}
 cluster_addr = "https://{{ openbao_cluster_address }}"
 
 # Every request and response, with secrets HMAC'd, on the data disk (ADR-0045). Declared here:
