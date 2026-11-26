@@ -163,7 +163,10 @@ Done when: an empty PR passes every check; actions are SHA-pinned; `main` is pro
        audit log on the data disk, userpass `admin`, root token revoked. Independent review:
        2 blockers fixed before running. Every share unsealed; role `changed=0`.
    * 7d: split by the owner on 2026-11-26.
-     * 7d-1: OpenBao's intermediate CA, configured with OpenTofu (ADR-0046).
+     * 7d-1 ✅ 2026-11-26: OpenBao's intermediate CA, configured with OpenTofu (ADR-0046):
+       `hashicorp/vault` 5.13.0 through an SSH tunnel, state in the L0 bucket under its own
+       key and passphrase, P-384 key inside OpenBao signed offline by the root (5 years),
+       role `server` limited to akasha.internal and 10.0.0.0/8; a second plan was empty.
      * 7d-2: OpenBao's TLS certificate and listener, port 8200 for the bastion and the
        tailnet, the root CA in the trust stores of the bastion and `core`, the admin bound
        to 127.0.0.1.

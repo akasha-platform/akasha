@@ -129,6 +129,37 @@ The container test above, then on `core`:
 * `example.com` is refused;
 * the state object in S3 is encrypted, and an off-AWS copy is taken.
 
+### Implementation (2026-11-26)
+
+Applied from PR #79.
+* **AWS.** The policy `akasha-l0-state` went to version `v2`, with the `l0` and `openbao`
+  state keys and their locks. `v1` is kept for a rollback.
+  * `aws login --profile akasha-admin` had first reused the browser's `akasha-l0` console
+    session. The commands now stop unless the caller is `akasha-admin`, and mask stderr too.
+* **Passphrase `openbao`.**
+  * A first random passphrase was pasted into the conversation by mistake. Nothing was
+    encrypted with it yet; it was deleted from the keyring and replaced.
+  * The new one was checked against its paper copy.
+  * Note: OpenTofu refuses passphrases shorter than 16 characters
+    (`MinimumPassphraseLength`, v1.13.9). The script asks for 32 and ignores spaces.
+* **Apply 1** created the mount, the URLs, the role and the CSR: P-384,
+  `O=akasha, CN=akasha Intermediate CA`. The first SSH tunnel had died while the laptop was
+  idle; the session now uses `ServerAliveInterval=30`.
+* **Offline signature**, with swap off.
+  * The intermediate certificate: serial `7EE30510…`, SHA-256 fingerprint `FB:CD:CF:09:…:A9:4C:06`,
+    valid until 2031-11-26.
+  * It verifies against the root, its public key equals the CSR's, and its authority key
+    identifier is the root's.
+* **Apply 2** imported two issuers: the intermediate, which holds the key and is the default
+  issuer, and the root, without a key.
+* **Checks.**
+  * A one-hour certificate for `test.akasha.internal` verified against the root through the
+    chain, server authentication only, and was then revoked.
+  * `example.com`, `192.168.1.1` and `localhost` were refused.
+  * A third plan showed no changes.
+  * The S3 object holds only `encrypted_data` and the metadata `openbao-passphrase` and
+    `openbao-pbkdf2`. An off-AWS copy was taken.
+
 ## More Information
 
 * Runbook: [openbao-pki.md](../runbooks/openbao-pki.md).
