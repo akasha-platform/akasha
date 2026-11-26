@@ -1,0 +1,39 @@
+#!/usr/bin/python3
+# {{ ansible_managed }}
+"""Give OpenBao one Shamir unseal share, read from standard input (ADR-0045, runbook core.md).
+
+`bao operator unseal` reads a share only from a terminal or from its command line, which other
+processes can read. This calls the API instead, so that the share can come through a pipe from
+`age -d` on the laptop and never appears on a screen or a command line.
+"""
+import json
+import sys
+import urllib.error
+import urllib.request
+
+ADDRESS = "http://{{ openbao_api_address }}"
+
+share = sys.stdin.readline().strip()
+if not share:
+    sys.exit("no share on standard input")
+request = urllib.request.Request(
+    ADDRESS + "/v1/sys/unseal",
+    data=json.dumps({"key": share}).encode(),
+    headers={"Content-Type": "application/json"},
+    method="PUT",
+)
+try:
+    with urllib.request.urlopen(request, timeout=10) as response:
+        status = json.load(response)
+except urllib.error.HTTPError as error:
+    try:
+        reasons = json.load(error).get("errors", [])
+    except ValueError:
+        reasons = []
+    sys.exit("unseal refused: " + ("; ".join(reasons) or str(error)))
+except (urllib.error.URLError, OSError) as error:
+    sys.exit(f"cannot reach OpenBao at {ADDRESS}: {error}")
+if status["sealed"]:
+    print(f"sealed=true progress={status['progress']}/{status['t']}")
+else:
+    print("sealed=false")

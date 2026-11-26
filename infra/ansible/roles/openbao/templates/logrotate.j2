@@ -1,0 +1,14 @@
+# {{ ansible_managed }}
+# OpenBao's audit log (ADR-0045): daily, {{ openbao_audit_keep_days }} days kept. The package's
+# ExecReload sends SIGHUP, which makes OpenBao reopen the file; it neither seals nor restarts it.
+{{ openbao_audit_dir }}/audit.log {
+    daily
+    rotate {{ openbao_audit_keep_days }}
+    compress
+    delaycompress
+    missingok
+    notifempty
+    postrotate
+        systemctl is-active --quiet openbao.service && systemctl reload openbao.service || true
+    endscript
+}

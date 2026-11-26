@@ -1,6 +1,7 @@
 ---
 # OpenBao on core (ADR-0011, ADR-0039): the pinned official package, Raft storage on the data
-# disk, listening on localhost only, left uninitialised and sealed for step 7.
+# disk, listening on localhost only. ADR-0045: an audit log on the data disk, rotated by
+# logrotate, and the helpers that initialise, unseal and set up OpenBao from the laptop.
 
 - name: Check that the pinned release is past the cooldown (ADR-0022)
   ansible.builtin.assert:
@@ -162,6 +163,7 @@
       loop:
         - "{{ openbao_data_dir }}"
         - "{{ openbao_data_dir }}/raft"
+        - "{{ openbao_audit_dir }}"
 
     - name: Write OpenBao's configuration
       ansible.builtin.template:
@@ -192,6 +194,33 @@
       notify:
         - Reload systemd
         - Restart OpenBao
+
+    # Initialisation and unseal from the laptop through pipes, and the one-time setup of the
+    # admin (ADR-0045, runbook core.md). Neither script holds a secret: they read it from stdin.
+    # /usr/local/bin: Debian's sshd PATH for non-root users has no sbin directory.
+    - name: Install the unseal and bootstrap helpers
+      ansible.builtin.template:
+        src: "{{ item }}.j2"
+        dest: /usr/local/bin/{{ item }}
+        owner: root
+        group: root
+        mode: "0755"
+      loop:
+        - akasha-bao-unseal
+        - akasha-bao-bootstrap
+
+    - name: Install logrotate
+      ansible.builtin.apt:
+        name: logrotate
+        state: present
+
+    - name: Rotate the audit log
+      ansible.builtin.template:
+        src: logrotate.j2
+        dest: /etc/logrotate.d/openbao
+        owner: root
+        group: root
+        mode: "0644"
 
     - name: Enable and start OpenBao
       ansible.builtin.systemd_service:
@@ -230,6 +259,8 @@
     print("sealed=" + str(s["sealed"]).lower())
     print("storage=" + s["storage_type"])'
     echo "data_owner=$(stat -c %u:%g:%a {{ openbao_data_dir }}/raft)"
+    echo "audit_owner=$(stat -c %u:%g:%a {{ openbao_audit_dir }})"
+    test -f {{ openbao_audit_dir }}/audit.log && echo audit_log=present || echo audit_log=absent
   args:
     executable: /bin/bash
   register: openbao_state
@@ -253,6 +284,9 @@
         | length == 0
       - "'storage=raft' in openbao_state.stdout_lines"
       - ('data_owner=' ~ openbao_uid ~ ':' ~ openbao_gid ~ ':700') in openbao_state.stdout_lines
+      - ('audit_owner=' ~ openbao_uid ~ ':' ~ openbao_gid ~ ':700') in openbao_state.stdout_lines
+      # An unsealed OpenBao has enabled its audit device, which creates the file.
+      - "'sealed=true' in openbao_state.stdout_lines or 'audit_log=present' in openbao_state.stdout_lines"
       - >-
         'initialized=true' in openbao_state.stdout_lines
         or ('initialized=false' in openbao_state.stdout_lines and 'sealed=true' in openbao_state.stdout_lines)

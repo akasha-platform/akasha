@@ -18,6 +18,10 @@ openbao_deb_url: https://github.com/openbao/openbao/releases/download/v{{ openba
 openbao_data_dir: /srv/openbao
 openbao_node_id: core
 
+# The audit log, on the data disk too, rotated daily by logrotate (ADR-0045).
+openbao_audit_dir: "{{ openbao_data_dir }}/audit"
+openbao_audit_keep_days: 30
+
 # Until step 7 OpenBao listens on localhost only, without TLS: it holds no secret before its
 # initialisation, which runs on core over SSH so that the unseal shares never cross the
 # network. Step 7 adds TLS and opens the port on purpose (ADR-0039).

@@ -158,8 +158,10 @@ Done when: an empty PR passes every check; actions are SHA-pinned; `main` is pro
      * 7c-1 ✅ 2026-11-25: offline root CA (ADR-0044): ECDSA P-384, 10 years, name
        constraints `akasha.internal`, `cluster.local`, `10.0.0.0/8`; key encrypted with age,
        made with swap off.
-     * 7c-2: OpenBao initialisation, by hand (A14 answered on 2026-11-25: self-init needs
-       auto-unseal, ADR-0011 Updates); the root token is revoked after the first setup.
+     * 7c-2 ✅ 2026-11-26: OpenBao initialised by hand (ADR-0045; A14: self-init needs
+       auto-unseal, ADR-0011 Updates): 3 shares / threshold 2 piped straight into age files,
+       audit log on the data disk, userpass `admin`, root token revoked. Independent review:
+       2 blockers fixed before running. Every share unsealed; role `changed=0`.
    * 7d: OpenBao's intermediate CA, its TLS certificate, and port 8200 opened.
    * 7e: restic to AWS S3 with Object Lock (design + test A13).
 
