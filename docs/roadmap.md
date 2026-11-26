@@ -153,8 +153,13 @@ Done when: an empty PR passes every check; actions are SHA-pinned; `main` is pro
      * Second run `changed=0`; the OOM scores rise from the router (873) to os-cmp02 (1346).
      * A value reset by hand came back within 35 s, with one journal line and no systemd
        "Started/Finished" line.
-   * 7c: offline root CA and OpenBao initialisation, by hand (A14 answered on 2026-11-25:
-     self-init needs auto-unseal, ADR-0011 Updates).
+   * 7c: split by the owner on 2026-11-25. Storage: age files in `~/akasha-private`; the
+     copy off the laptop comes with 7e.
+     * 7c-1 ✅ 2026-11-25: offline root CA (ADR-0044): ECDSA P-384, 10 years, name
+       constraints `akasha.internal`, `cluster.local`, `10.0.0.0/8`; key encrypted with age,
+       made with swap off.
+     * 7c-2: OpenBao initialisation, by hand (A14 answered on 2026-11-25: self-init needs
+       auto-unseal, ADR-0011 Updates); the root token is revoked after the first setup.
    * 7d: OpenBao's intermediate CA, its TLS certificate, and port 8200 opened.
    * 7e: restic to AWS S3 with Object Lock (design + test A13).
 

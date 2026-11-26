@@ -1,0 +1,24 @@
+# OpenSSL configuration of akasha's offline root CA (ADR-0044, runbook pki-root-ca.md).
+# Used once, on the owner's laptop: `openssl req -x509 -config infra/pki/root-ca.cnf ...`.
+# The key never lives on disk in clear text; it is kept encrypted with age.
+
+[ req ]
+prompt             = no
+utf8               = yes
+string_mask        = utf8only
+distinguished_name = root_ca_dn
+x509_extensions    = root_ca_ext
+
+[ root_ca_dn ]
+O  = akasha
+CN = akasha Root CA
+
+[ root_ca_ext ]
+# One CA level below: OpenBao's intermediate (step 7d), which issues end-entity certificates.
+basicConstraints     = critical, CA:true, pathlen:1
+keyUsage             = critical, keyCertSign, cRLSign
+subjectKeyIdentifier = hash
+# Every certificate below this root may only name the lab: akasha.internal and its
+# subdomains, Kubernetes' internal names, and the 10.0.0.0/8 addresses. Any other DNS name or
+# IP address fails verification (Go crypto/x509 and OpenSSL check the root's constraints).
+nameConstraints      = critical, permitted;DNS:akasha.internal, permitted;DNS:cluster.local, permitted;IP:10.0.0.0/255.0.0.0

@@ -8,3 +8,4 @@ Infrastructure as code, organised by tool and by layer (see
 | [opentofu/](opentofu/README.md) | OpenTofu | L0 host VMs (L1 OpenStack VMs merged into it), L2 OpenStack resources, L3 K8s VMs | P1 |
 | [ansible/](ansible/README.md) | Ansible | host, bastion, core, K3s | P1 |
 | [kolla/](kolla/README.md) | Kolla-Ansible 2026.1 | L1 OpenStack services | P2 |
+| [pki/](../docs/runbooks/pki-root-ca.md) | OpenSSL, age | the lab's offline root CA: configuration and public certificate (ADR-0044) | P1 |
