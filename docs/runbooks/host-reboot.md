@@ -1,9 +1,24 @@
 # Reboot insa
 
-Policy (open question C6, decided by the owner on 2026-11-27): `insa` is rebooted only while the
-owner is on campus, near the machine. If Tailscale or SSH does not come back, the only way in is
-its own screen and keyboard. Unattended upgrades never reboot; `/var/run/reboot-required` says
-when a new kernel waits. The VMs never start with the host (ADR-0033): the owner starts them by
+Policy (open question C6, decided by the owner on 2026-11-27, revised the same day). If
+Tailscale or SSH does not come back, the only way in is `insa`'s own screen and keyboard.
+Unattended upgrades never reboot; `/var/run/reboot-required` says when a new kernel waits.
+* **No new kernel waiting** (`reboot_required=no`: the same kernel that already booted): the
+  owner may reboot remotely, the day before a day on campus, so that a host that does not come
+  back is fixed the next day.
+* **A new kernel waiting** (`reboot_required=yes`): only while the owner is on campus, near the
+  machine.
+
+What supports a remote reboot (checked on 2026-11-27):
+* `ssh`, `tailscaled` and `NetworkManager` are enabled;
+* three earlier remote reboots (2026-11-05 and 2026-11-13) came back over Tailscale;
+* GRUB waits 5 s;
+* `inet akasha` accepts all input outside the lab's bridges, so it cannot block SSH or
+  Tailscale;
+* the akasha LV is mounted `nofail`.
+
+The school's NFS mount has no `nofail`. INFERRED from `systemd.mount(5)`: a failed network mount
+fails `remote-fs.target`, which `multi-user.target` only wants, so the boot goes on. The VMs never start with the host (ADR-0033): the owner starts them by
 hand, router first, then unseals OpenBao (ADR-0011).
 
 Every command runs on the laptop, from the repository, one at a time. Any command that prints
@@ -23,7 +38,8 @@ lv() { ssh -o BatchMode=yes -o LogLevel=error insa "LC_ALL=C virsh -c qemu:///sy
 
 ## 1. Before: who is on the machine, and the lab's state
 
-The snapshot first. Its name stays in a file, for a new terminal after the reboot.
+The snapshot first. Its name stays in a file, for a new terminal after the reboot. From home,
+go on only if it says `reboot_required=no` and the next day is a day on campus (policy above).
 
 ```bash
 echo "$(date -u +%Y%m%dT%H%MZ)" > ~/akasha-private/reboot/current; state "$(cat ~/akasha-private/reboot/current)-before"
@@ -62,7 +78,8 @@ until ! ssh -o BatchMode=yes -o ConnectTimeout=5 -o LogLevel=error insa true 2>/
 until ssh -o BatchMode=yes -o ConnectTimeout=5 -o LogLevel=error insa true 2>/dev/null; do sleep 10; done; echo "insa is back"
 ```
 
-If it is not back within 15 minutes, go to the machine.
+If it is not back within 15 minutes, go to the machine: at once when on campus, else the next
+day.
 
 ## 3. After: compare
 
