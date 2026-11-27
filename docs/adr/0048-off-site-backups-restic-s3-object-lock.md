@@ -149,6 +149,31 @@ Before relying on it:
   as `akasha-backup` is refused (append-only);
 * undoing an attack (copying back older versions) is not rehearsed yet.
 
+### Implementation (2026-11-27)
+
+Made by hand from PR #81, following runbook `backups.md`.
+* **The bucket.** Versioning Enabled; Object Lock COMPLIANCE for 90 days; lifecycle rules
+  `locks-laptop` (prefix `laptop/locks/`) and `abort-multipart`.
+* **The user `akasha-backup`.** Policies `akasha-backup-repo` and
+  `SignInLocalDevelopmentAccess`, one MFA device, no forced password reset. The admin session
+  was closed afterwards.
+* **The paper sheet.** It holds the restic password, the bucket name and the account ID; the
+  password was checked against the keyring.
+* **The repository.** `restic init` created `laptop`, the point of no return. The first
+  backup took 44 files (485 KiB; 319 KiB stored), and `restic check` found no errors. It took
+  and removed an exclusive lock, so the append-only policy is enough for restic.
+* **Restores.**
+  * A restore to a temporary directory was identical to `~/akasha-private` (`diff -r`).
+  * restic opened the repository with the password typed from paper, without the keyring.
+* **The lock**, on a canary object `lock-canary-20261127`:
+  * its retention read COMPLIANCE until 2027-02-25;
+  * deleting its version as `akasha-backup` was refused by the explicit deny on
+    `s3:DeleteObjectVersion`;
+  * deleting `laptop/config` was refused, because no policy allows `s3:DeleteObject` outside
+    `locks/`;
+  * as `akasha-admin`, the refusal read "Access Denied because object protected by object
+    lock".
+
 ## More Information
 
 * AWS: https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock.html,

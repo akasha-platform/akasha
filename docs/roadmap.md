@@ -173,8 +173,11 @@ Done when: an empty PR passes every check; actions are SHA-pinned; `main` is pro
        127.0.0.1, break-glass `generate-root` on loopback (ADR-0047). Independent review:
        no blocker; three design points decided by the owner.
    * 7e: split by the owner on 2026-11-26.
-     * 7e-1: restic to AWS S3 with Object Lock (A13 answered, ADR-0048): the bucket, the user
-       `akasha-backup`, and `~/akasha-private` backed up and restored.
+     * 7e-1 ✅ 2026-11-27: restic to AWS S3 with Object Lock (A13 answered, ADR-0048): bucket in
+       compliance mode for 90 days, append-only user `akasha-backup`, `~/akasha-private`
+       backed up and restored identically, password from paper checked, lock refused the
+       backup user and the admin alike. Independent review: one blocker fixed before
+       anything was created.
      * 7e-2: OpenBao's Raft snapshots from `core` to their own repository.
 
 Done when: the L0 stack rebuilds from zero, lab traffic cannot reach the campus LAN, the

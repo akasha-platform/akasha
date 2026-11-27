@@ -149,6 +149,9 @@ creds && restic snapshots 2>&1 | mb
 
 A run interrupted by an expired session leaves a stale lock: `creds && restic unlock`.
 
+End of session:
+`aws logout --profile akasha-backup; unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN RESTIC_PASSWORD_COMMAND RESTIC_REPOSITORY`.
+
 ## Restore
 
 ```bash
