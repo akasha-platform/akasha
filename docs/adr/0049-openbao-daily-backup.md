@@ -131,6 +131,39 @@ On `core`:
 From the laptop: restore the newest snapshot of `core` and check its size and date (the full
 restore into a fresh OpenBao was tested in a container).
 
+### Implementation (2026-11-27)
+
+Applied from PR #82.
+* **AWS.**
+  * Policy `akasha-backup-core-repo` and user `akasha-backup-core` were created, and the
+    lifecycle now holds `locks-laptop`, `locks-core` and `abort-multipart`.
+  * The access key and a random repository password went straight into
+    `backup_core.yml` (0600): four fields, checked by shape without printing them.
+  * The laptop was backed up again (snapshot `008564ef`, with the new file).
+* **OpenTofu.** `approle.tf` added three resources, and the next plan was empty. The role
+  reads policies `raft-snapshot`, TTL 300/600 s, token bound `127.0.0.1`, secret ID bound
+  `127.0.0.1/32`.
+* **Role `openbao_backup`.**
+  * The dry run showed the expected changes, with `failed=0`.
+  * The first run installed restic 0.20.0, the root-only files, the script, the helper and
+    the enabled timer, then stopped for the AppRole as planned.
+  * `akasha-bao-approle` wrote the role ID and the secret ID (root 0600). There was no older
+    secret ID to destroy.
+* **Repository.**
+  * `--init` created `core`.
+  * The first run under the systemd sandbox succeeded. Snapshot `40cbf621` (host `core`, tag
+    `openbao`) holds 40 KiB.
+  * The second role run reported `changed=0` and every check passed.
+* **Restore from the laptop.** As `akasha-backup`, with the password from `backup_core.yml`,
+  the snapshot restored complete: `SHA256SUMS.sealed` is present.
+* **A secret seen by the assistant, accepted by the owner.**
+  * `backup_core.yml` was opened in the IDE, whose Claude Code extension sent its content into
+    the session: the access key and the repository password.
+  * The owner chose not to rotate them. The key can only add within `core/`, and the
+    repository holds snapshots that OpenBao's barrier still seals.
+  * Rotation stays available (runbook, "Rotate the access key"). Files of `~/akasha-private`
+    are no longer opened in the IDE.
+
 ## More Information
 
 * The independent review (2026-11-27) found no blocker. Its findings were fixed before
