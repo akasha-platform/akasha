@@ -106,3 +106,12 @@ plan; the owner still decides.
 
 Each étape plan on `insa` from step 4b on contains the blast-radius table and the "what can
 go wrong" section, and risky plans carry the independent review's findings.
+
+## Updates
+
+* 2026-11-27 (open question B9, decided by the owner): the school's
+  `/etc/sysctl.d/99-disable-ipv6.conf` on `insa` stays as it is. It holds `sysctl -w …` shell
+  lines that `systemd-sysctl` cannot parse, so host-wide IPv6 stays on (checked 2026-11-14).
+  * The file and the host-wide setting are the school's, so akasha touches neither.
+  * The lab is not affected: IPv6 is off on every lab bridge (ADR-0008), and the lab is
+    IPv4-only.

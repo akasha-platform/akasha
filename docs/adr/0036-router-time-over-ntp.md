@@ -169,3 +169,14 @@ Unbound and chrony together raised the router's used memory from 97 to 111 MiB (
   (allowed by the AppArmor profile, `/etc/chrony.* r`), no longer in `/run/chrony`. That
   runtime directory exists only while chronyd runs, so a stopped chronyd could not be
   repaired by the role (independent review of step 6c-1).
+* 2026-11-27 (open question A18, every source lost): measured on the router with
+  `chronyc offline` for about 6 minutes (no firewall change; a 10-minute systemd timer would
+  have put the sources back online by itself).
+  * The router's root dispersion grew from 2.172 ms to 2.604 ms, +0.432 ms in about 366 s,
+    that is **about 1.2 ppm**, in line with chrony's `maxclockerror` of 1 ppm.
+  * Its stratum stayed 4 and its leap status Normal: it kept serving.
+  * `core` stayed synchronised to it (stratum 5).
+  * At that rate the router's root distance reaches the clients' 3 s `maxdistance` after about
+    (3 − 0.0026) s / 1.2 ppm ≈ 2.5 × 10⁶ s, **about 29 days**. That confirms the "about a month"
+    above, which was INFERRED.
+  * `chronyc online` brought the sources back: one selected, four candidates, one outlier.
