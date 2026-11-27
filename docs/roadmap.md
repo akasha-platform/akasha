@@ -184,8 +184,16 @@ Done when: an empty PR passes every check; actions are SHA-pinned; `main` is pro
        restored complete from the laptop; a full restore into a fresh OpenBao was tested in a
        container.
 
+8. ✅ 2026-11-27 P1's open questions closed:
+   * C7, C8 and A20 (PR #83);
+   * A23, the L0 state-loss drill (PR #84);
+   * B9, and A18 narrowed to P2 (PR #85);
+   * A17, the first reboot of `insa` with the lab in place;
+   * C6, the reboot policy (PRs #86, #88; ADR-0008 and ADR-0027 Updates).
+
 Done when: the L0 stack rebuilds from zero, lab traffic cannot reach the campus LAN, the
 laptop reaches the lab only through Tailscale.
+**P1 done on 2026-11-27.**
 
 ## P2 — L1 OpenStack (Kolla-Ansible 2026.1)
 
@@ -197,7 +205,7 @@ Kolla configuration as code (pinned kolla-ansible), passwords from OpenBao KV v2
 Done when: `openstack` CLI smoke tests pass, cold boot recovers by the runbook, measured
 `reserved_host_memory_mb` is set.
 
-Split by the owner on 2026-11-27 into eight steps, one pull request each, run once P1 is closed:
+Split by the owner on 2026-11-27 into eight steps, one pull request each:
 1. 🔄 SSH from the bastion to the nodes with 8-hour certificates from OpenBao's SSH CA
    (ADR-0050): the operator's userpass login from the bastion only, the CA trusted by the nodes,
    their host keys copied from the laptop. Code tested in containers; not yet applied.

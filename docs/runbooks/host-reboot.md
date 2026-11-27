@@ -97,7 +97,10 @@ finding:
   `host-firewall.md`);
 * Tailscale not advertising both lab routes.
 
-Then the host's roles, dry run first. `oom` comes after the VMs (its checks need them).
+Then the host's roles, dry run first. `oom` comes after the VMs (its checks need them). The dry
+run's diff shows the firewall's whole rule file, including the campus prefix of the private
+file: leave that part out of anything shared. In a dry run, `changed=3` is the temporary file
+that `nft` checks, not a change.
 
 ```bash
 cd infra/ansible
