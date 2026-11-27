@@ -172,6 +172,8 @@ def main() -> None:
                         help=f"keyring service (default {SERVICE}; akasha-restic for restic)")
     parser.add_argument("name", help="stack or repository name, e.g. l0, laptop")
     args = parser.parse_args()
+    if args.plain and args.service == SERVICE:
+        fail("--plain needs --service (it never prints OpenTofu's passphrases)")
     SERVICE = args.service
     if args.init:
         init(args.name)
