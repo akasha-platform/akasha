@@ -53,3 +53,9 @@ barman-cloud and K3s etcd-s3 uploads must succeed (A4); a restore drill must pas
   step 7) and a first user needs it (P4: etcd snapshots, CloudNativePG), decided by the owner
   in step 6c-2 ([ADR-0039](0039-openbao-on-core-bootstrap.md)). Its data will live on `core`'s
   data disk (`/srv`, ADR-0038).
+* 2026-11-26 (step 7e-1, open question A13): the off-site design is settled in
+  [ADR-0048](0048-off-site-backups-restic-s3-object-lock.md):
+  * Object Lock in compliance mode, 90 days;
+  * a backup user that may place delete markers but never delete a version;
+  * lifecycle cleanup once the lock has expired;
+  * one restic repository per source.

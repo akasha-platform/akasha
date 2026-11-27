@@ -77,6 +77,17 @@ checksum_source = "mise-versions"
 url = "https://github.com/opentofu/opentofu/releases/download/v1.13.9/tofu_1.13.9_linux_amd64.tar.gz"
 url_api = "https://api.github.com/repos/opentofu/opentofu/releases/assets/714326349"
 
+[[tools."aqua:restic/restic"]]
+version = "0.20.0"
+backend = "aqua:restic/restic"
+specifiers = ["0.20.0"]
+
+[tools."aqua:restic/restic"."platforms.linux-x64"]
+checksum = "sha256:0ccd9fa7885074a24603b051e01bf9bd8b5e45d6a1791e9d9887e9e9372107f7"
+checksum_source = "mise-versions"
+url = "https://github.com/restic/restic/releases/download/v0.20.0/restic_0.20.0_linux_amd64.bz2"
+url_api = "https://api.github.com/repos/restic/restic/releases/assets/767546139"
+
 [[tools."aqua:rhysd/actionlint"]]
 version = "1.7.12"
 backend = "aqua:rhysd/actionlint"

@@ -24,6 +24,13 @@ Modes, run in a desktop session (docs/runbooks/opentofu-l0.md):
 --init generates and stores a passphrase and shows it once, in groups, for the paper copy;
 --check tells whether it exists; --verify asks for it (typed from paper) and compares;
 --restore stores a passphrase typed from paper when the keyring lost it.
+
+The same keyring holds the password of the restic repositories (ADR-0048) under another
+service: `--service akasha-restic`, and `--plain` prints it on stdout as restic's
+RESTIC_PASSWORD_COMMAND expects:
+
+    RESTIC_PASSWORD_COMMAND="mise exec -- uv run --locked --quiet python \
+        infra/opentofu/scripts/tofu_passphrase.py --service akasha-restic --plain laptop"
 """
 
 import argparse
@@ -75,6 +82,11 @@ def read_passphrase(name: str) -> str:
     if len(value) < MIN_LENGTH:
         fail(f"the passphrase for '{name}' is shorter than {MIN_LENGTH} characters")
     return value
+
+
+def plain(name: str) -> None:
+    sys.stdout.write(read_passphrase(name) + "\n")
+    sys.stdout.flush()
 
 
 def provide(name: str) -> None:
@@ -147,14 +159,22 @@ def restore(name: str) -> None:
 
 
 def main() -> None:
+    global SERVICE  # noqa: PLW0603 - one service per run, read by every helper above
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--init", action="store_true", help="generate and store the passphrase")
     mode.add_argument("--check", action="store_true", help="check that the passphrase exists")
     mode.add_argument("--verify", action="store_true", help="compare a typed paper copy")
     mode.add_argument("--restore", action="store_true", help="store a typed paper copy")
-    parser.add_argument("name", help="stack name, e.g. l0")
+    mode.add_argument("--plain", action="store_true",
+                      help="print the passphrase on stdout (restic's RESTIC_PASSWORD_COMMAND)")
+    parser.add_argument("--service", default=SERVICE,
+                        help=f"keyring service (default {SERVICE}; akasha-restic for restic)")
+    parser.add_argument("name", help="stack or repository name, e.g. l0, laptop")
     args = parser.parse_args()
+    if args.plain and args.service == SERVICE:
+        fail("--plain needs --service (it never prints OpenTofu's passphrases)")
+    SERVICE = args.service
     if args.init:
         init(args.name)
     elif args.check:
@@ -163,6 +183,8 @@ def main() -> None:
         verify(args.name)
     elif args.restore:
         restore(args.name)
+    elif args.plain:
+        plain(args.name)
     else:
         provide(args.name)
 
