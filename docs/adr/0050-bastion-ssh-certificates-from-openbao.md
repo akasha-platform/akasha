@@ -174,6 +174,53 @@ These are refused:
 
 The laptop's key still opens every node.
 
+### Implementation (2026-11-28)
+
+Code from PR #87; applied on 2026-11-27 and 2026-11-28.
+
+* **The password is in the laptop's keyring only, with no paper copy** (the owner's choice,
+  2026-11-27, which replaces "copied on paper" above). If the keyring loses it, the admin sets
+  a new one (runbook). Nothing else depends on it: the owner's key and the serial console still
+  open the nodes.
+* **OpenBao.** `operator` was created by hand, bound to `10.10.0.10` from the start. The plan
+  added the five resources and a second plan was empty. The CA's public key
+  (`SHA256:uj+2k/wrD4GQWcKoIZB9umz8mKyCIq48viN3xUnkICI`) matches OpenBao's
+  `ssh-client-signer/public_key` and is committed as `infra/pki/ssh-user-ca.pub`.
+* **The nodes.** `ssh_user_ca` ran on `os-cmp02` first, then on the other two. A second run on
+  all three reported `changed=0`.
+* **The bastion.** `bastion.yml --tags toolchain,ssh` checked out `main` (the same commit as
+  GitHub) and installed `bao` 2.7.3. `akasha`'s key is
+  `SHA256:iyXOuub+7uIDRW0bYU97LRjI8QgFxuctZCS6Een9jO0`.
+* **The checks of Confirmation all passed on the lab:**
+  * `akasha-ssh-cert` printed the key ID `userpass-operator-node` and 8 hours plus 30 s of
+    validity;
+  * as `akasha`, `ssh debian@` each node, `ansible -m ping` and `ansible -b -a id`
+    (`uid=0(root)`) succeeded;
+  * each node's journal logged `ED25519-CERT … ID userpass-operator-node (serial …) CA ED25519
+    SHA256:uj+2k…`;
+  * the operator's token read back as `[default operator]`, 900 s, bound to `10.10.0.10`;
+  * refused:
+    * `ssh root@` with the certificate;
+    * the principals `debian` and `root`;
+    * a TTL of 9 h ("larger than maximum allowed");
+    * `permit-port-forwarding`;
+    * an RSA key;
+    * `secrets list` and reading the CA's configuration ("permission denied");
+    * a login as `operator` from the laptop through the tunnel ("permission denied");
+  * no `authorized_keys` on the nodes lists `akasha`'s key, and once the certificate was
+    deleted, that key alone was refused.
+* **Login order (VERIFIED, OpenBao's `builtin/credential/userpass/path_login.go`, and on the
+  lab).** userpass checks the password before the bound address:
+  * a wrong password gets "invalid username or password" from any address;
+  * only the right password from another address gets "permission denied".
+
+  So the binding does not stop guessing from elsewhere: the random password and OpenBao's
+  user lockout do. The first laptop test sent the password with `--plain`'s newline and was
+  refused for the wrong reason ("invalid username or password"). It was run again through
+  `tr -d '\n'`. The runbook's failure modes now tell the two messages apart.
+* **The certificate of the tests was deleted** from the bastion afterwards; the next session
+  asks for a new one.
+
 ## More Information
 
 * The independent review (2026-11-27) found one blocker, fixed before anything ran: `--plain`
