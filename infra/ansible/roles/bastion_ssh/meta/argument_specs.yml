@@ -27,4 +27,4 @@ argument_specs:
         description: The signing endpoint (mount and role).
       bastion_ssh_principal:
         type: str
-        description: The user the certificate logs in as.
+        description: The principal the certificate carries (the nodes map it to a user).

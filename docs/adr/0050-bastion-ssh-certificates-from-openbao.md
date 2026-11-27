@@ -23,16 +23,17 @@ So whatever the choice, the bastion first needs a way into `debian`.
 Facts checked on 2026-11-27, in Debian 13 containers with OpenBao 2.7.3 and Debian's OpenSSH:
 * **Signing.**
   * The `ssh` secrets engine generates an ed25519 CA key inside OpenBao.
-  * A role limited to `debian`, ed25519 keys, `permit-pty` and 8 hours signs a certificate that
-    sshd accepts through `TrustedUserCAKeys`.
+  * A role limited to the principal `os-node`, ed25519 keys, `permit-pty` and 8 hours signs a
+    certificate that sshd accepts for `debian` through `TrustedUserCAKeys` and an
+    `AuthorizedPrincipalsFile` that lists `os-node` for `debian`.
   * The certificate is valid from 30 s before signing (`not_before_duration`).
 * **Refusals.** OpenBao refuses:
-  * a certificate for `root`;
+  * a certificate with another principal (`root`, `debian`);
   * an RSA key;
   * a TTL above 8 h;
   * the extension `permit-port-forwarding`.
 
-  sshd refuses the certificate for another user (`root`, `other`).
+  sshd refuses the certificate for a user without a principals file (`root`, `other`).
 * **authorized_keys still works** next to the CA: the owner's key keeps opening the nodes.
 * **Login and token limits.**
   * A userpass login from an address outside `token_bound_cidrs` is refused ("permission
@@ -74,6 +75,10 @@ Facts checked on 2026-11-27, in Debian 13 containers with OpenBao 2.7.3 and Debi
 * **The `bao` CLI on the bastion:**
   * **pinned in `mise.toml`**;
   * none, with a curl-only helper.
+* **The certificate's principal** (raised by the independent review):
+  * **a name per group of VMs, `os-node`, mapped to `debian` on the nodes by
+    `AuthorizedPrincipalsFile`**;
+  * the Unix user name `debian`, which every VM that ever trusts the CA would accept.
 * **Scope of the step:**
   * **SSH only, the nodes' firewall after the deployment**;
   * also turn LLMNR off now.
@@ -86,8 +91,10 @@ Chosen by the owner on 2026-11-27 (the options in bold).
   * the mount `ssh-client-signer`;
   * an ed25519 CA generated inside OpenBao;
   * the role `node`:
-    * user `debian` only, ed25519 keys only, `permit-pty` only;
-    * no critical option, 8 hours;
+    * principal `os-node` only, ed25519 keys only, `permit-pty` only;
+    * 8 hours. `allowed_critical_options` is empty, which OpenBao reads as "any". OpenSSH's
+      critical options only restrict a certificate (`force-command`, `source-address`,
+      `verify-required`), so that grants nothing;
     * key ID `{{token_display_name}}-{{role_name}}`.
 
   The policy `operator` may only sign with that role. The userpass user `operator` gets tokens
@@ -99,7 +106,10 @@ Chosen by the owner on 2026-11-27 (the options in bold).
 * **The nodes** (role `ssh_user_ca`, playbook `openstack-nodes.yml`, tag `ssh_ca`):
   * the CA's public key, committed as `infra/pki/ssh-user-ca.pub`, goes to
     `/etc/ssh/akasha-user-ca.pub`;
-  * the drop-in `20-akasha-user-ca.conf` sets `TrustedUserCAKeys`;
+  * the drop-in `20-akasha-user-ca.conf` sets `TrustedUserCAKeys` and
+    `AuthorizedPrincipalsFile /etc/ssh/akasha-principals/%u`;
+  * `/etc/ssh/akasha-principals/debian` (root, 0644) lists `os-node`. Another user has no file
+    and accepts no certificate;
   * sshd checks it before it replaces anything, also in a dry run.
 
   A changed CA therefore needs a pull request.
@@ -129,8 +139,15 @@ Chosen by the owner on 2026-11-27 (the options in bold).
 * Bad, because no new certificate can be signed while OpenBao is sealed (after every reboot of
   `core`), so Kolla cannot run then.
 * Bad, because the password is a long-lived secret. Its reach is narrow: it works only from the
-  bastion's address and only signs `debian` certificates. Anyone who has root on the bastion and
-  the password is root on the nodes for 8 hours.
+  bastion's address and only signs `os-node` certificates. But whoever controls the bastion
+  catches it at its next use. That can be root, or code running as `akasha`, which owns the
+  `bao` binary and the repository. From then on they can sign new certificates every 8 hours
+  until the password changes. The response is in the runbook: remove the CA from the nodes,
+  end the open sessions, delete `operator`, rebuild the bastion, replace the CA.
+* Bad, because the address binding (`token_bound_cidrs`, `core`'s firewall) trusts
+  `br-mgmt`: root on another VM of that bridge could take 10.10.0.10 (ARP spoofing). libvirt
+  filters such as `clean-traffic` are not used. Accepted for the lab; the password is still
+  needed.
 * Bad, because a node whose host key changes (a rebuild) must first be verified on the laptop,
   then the bastion role run again.
 * Neutral: `bao` (the CLI) and `openbao` (the server, role `openbao`) are pinned in two places.
@@ -143,19 +160,33 @@ Before:
 * a second plan is empty;
 * the CA's public key matches OpenBao's `ssh-client-signer/public_key`.
 
-On the nodes, a second run of `ssh_user_ca` reports `changed=0` and `sshd -T` names the CA.
+On the nodes, a second run of `ssh_user_ca` reports `changed=0` and `sshd -T` names the CA
+and the principals' files.
 From the bastion, as `akasha`:
 * `akasha-ssh-cert` prints an 8-hour validity;
 * `ssh debian@<node>` and `ansible openstack_nodes -m ping` succeed;
 * a node's journal shows the certificate's key ID.
 
 These are refused:
-* a certificate for `root`;
+* a certificate with the principal `debian` or `root`;
+* the certificate for `root`;
 * a login as `operator` from the laptop through the tunnel.
 
 The laptop's key still opens every node.
 
 ## More Information
+
+* The independent review (2026-11-27) found one blocker, fixed before anything ran: `--plain`
+  ends the password with a newline, which `bao write … password=-` would have stored, so no
+  login would ever match. The runbook strips it with `tr -d '\n'`, and the container test
+  creates the user that way. Its other findings, also fixed:
+  * the helper refuses a terminal on stdin, so the password is never typed on the bastion;
+  * the runbook stops the token block before `openbao-pki.md`'s apply;
+  * it says to merge before the bastion's run;
+  * it gives a complete response to a stolen bastion;
+  * the principal `os-node`;
+  * the comment on critical options;
+  * the known_hosts markers.
 
 * OpenBao, "Signed SSH certificates":
   https://openbao.org/docs/secrets/ssh/signed-ssh-certificates/

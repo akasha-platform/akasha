@@ -6,14 +6,15 @@
   ansible.builtin.set_fact:
     ssh_user_ca_key: "{{ lookup('ansible.builtin.file', ssh_user_ca_src, errors='ignore') | default('', true) | trim }}"
 
-- name: Check the CA's public key
+- name: Check the CA's public key and the principals
   ansible.builtin.assert:
     that:
       - ssh_user_ca_key is match('^ssh-ed25519 [A-Za-z0-9+/]+=*( [^\n]*)?$')
+      - ssh_user_ca_principals | length > 0
     fail_msg: >-
-      {{ ssh_user_ca_src }} is missing or is not one ssh-ed25519 public key. Apply the stack
-      openbao and commit its output ssh_user_ca_public_key there first (runbook bastion.md).
-      Nothing was changed.
+      {{ ssh_user_ca_src }} must be one ssh-ed25519 public key (apply the stack openbao and
+      commit its output ssh_user_ca_public_key there first, runbook bastion.md), and
+      ssh_user_ca_principals must name at least one user. Nothing was changed.
     quiet: true
 
 - name: Install the CA's public key
@@ -23,6 +24,26 @@
     owner: root
     group: root
     mode: "0644"
+
+# Root-owned, like the CA: the user it lets in cannot change it.
+- name: Create the directory of the principals' files
+  ansible.builtin.file:
+    path: "{{ ssh_user_ca_principals_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: List the principals that may log in as each user
+  ansible.builtin.copy:
+    content: "{{ item.value | join('\n') }}\n"
+    dest: "{{ ssh_user_ca_principals_dir }}/{{ item.key }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ ssh_user_ca_principals | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
 
 # `validate:` does not run in check mode: check the drop-in with the VM's sshd in a temporary
 # copy, so the dry run already proves the syntax.
@@ -70,7 +91,8 @@
 - name: Read the CA sshd uses and its fingerprint
   ansible.builtin.shell: |
     set -o pipefail
-    /usr/sbin/sshd -T | awk '$1 == "trustedusercakeys" { print "trusted=" $2 }'
+    /usr/sbin/sshd -T | awk '$1 == "trustedusercakeys" { print "trusted=" $2 }
+      $1 == "authorizedprincipalsfile" { print "principals=" $2 }'
     ssh-keygen -l -f {{ ssh_user_ca_dest }} | awk '{ print "fingerprint=" $2 }'
   args:
     executable: /bin/bash
@@ -83,6 +105,7 @@
   ansible.builtin.assert:
     that:
       - ("trusted=" ~ ssh_user_ca_dest) in ssh_user_ca_state.stdout_lines
+      - ("principals=" ~ ssh_user_ca_principals_dir ~ "/%u") in ssh_user_ca_state.stdout_lines
     fail_msg: "{{ ssh_user_ca_state.stdout_lines }}"
     success_msg: "{{ ssh_user_ca_state.stdout_lines }}"
   when: not ansible_check_mode

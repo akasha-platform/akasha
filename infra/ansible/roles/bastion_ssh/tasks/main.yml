@@ -12,6 +12,8 @@
   delegate_to: localhost
   become: false
   changed_when: false
+  # 1: the host is unknown, reported by the next task.
+  failed_when: bastion_ssh_laptop_keys.rc not in [0, 1]
   check_mode: false
 
 - name: Check that the laptop knows every node
@@ -25,13 +27,13 @@
     quiet: true
 
 # "<address> <type> <key>" for every key of every node, whether the laptop's entry is hashed
-# or not.
+# or not. Markers (@cert-authority, @revoked) are skipped: the bastion learns plain keys only.
 - name: List the host keys for the bastion
   ansible.builtin.set_fact:
     bastion_ssh_known: >-
       {%- set lines = [] -%}
       {%- for r in bastion_ssh_laptop_keys.results -%}
-      {%- for l in r.stdout_lines if l and not l.startswith('#') -%}
+      {%- for l in r.stdout_lines if l and not l.startswith('#') and not l.startswith('@') -%}
       {%- set f = l.split() -%}
       {%- set _ = lines.append({'name': hostvars[r.item].ansible_host,
                                 'key': hostvars[r.item].ansible_host ~ ' ' ~ f[1] ~ ' ' ~ f[2]}) -%}
@@ -101,7 +103,7 @@
 
 # --- Checks ----------------------------------------------------------------------------------
 
-- name: Read the toolchain user's key and known hosts
+- name: Read the toolchain user's key
   ansible.builtin.command: >-
     ssh-keygen -l -f /home/{{ bastion_ssh_user }}/.ssh/id_ed25519.pub
   register: bastion_ssh_key

@@ -1,4 +1,6 @@
 # {{ ansible_managed }}
-# Certificates signed by OpenBao's SSH user CA (ADR-0050) log in as the user they name, in
-# addition to authorized_keys. The CA signs only `debian`, for 8 hours (stack openbao, ssh.tf).
+# Certificates signed by OpenBao's SSH user CA (ADR-0050) log in as a user only when one of their
+# principals is listed in that user's file, in addition to authorized_keys. A user without a
+# file accepts no certificate.
 TrustedUserCAKeys {{ ssh_user_ca_dest }}
+AuthorizedPrincipalsFile {{ ssh_user_ca_principals_dir }}/%u

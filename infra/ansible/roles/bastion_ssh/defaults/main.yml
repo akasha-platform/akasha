@@ -12,4 +12,5 @@ bastion_ssh_laptop_known_hosts: "{{ lookup('ansible.builtin.env', 'HOME') }}/.ss
 bastion_ssh_openbao_addr: https://core.akasha.internal:8200
 bastion_ssh_openbao_user: operator
 bastion_ssh_sign_path: ssh-client-signer/sign/node
-bastion_ssh_principal: debian
+# The principal the nodes map to their user debian (role ssh_user_ca).
+bastion_ssh_principal: os-node

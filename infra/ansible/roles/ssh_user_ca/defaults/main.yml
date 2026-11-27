@@ -1,7 +1,11 @@
 ---
 # OpenBao's SSH user CA (ADR-0050): its public key, committed once the stack `openbao` created
-# it (runbook bastion.md). sshd accepts a certificate it signed for the user the certificate
-# names, in addition to the keys of authorized_keys.
+# it (runbook bastion.md). sshd accepts a certificate it signed when one of the certificate's
+# principals is listed for the target user (AuthorizedPrincipalsFile), in addition to the keys
+# of authorized_keys. A user without a list accepts no certificate.
 ssh_user_ca_src: "{{ role_path }}/../../../pki/ssh-user-ca.pub"
 ssh_user_ca_dest: /etc/ssh/akasha-user-ca.pub
 ssh_user_ca_dropin: /etc/ssh/sshd_config.d/20-akasha-user-ca.conf
+ssh_user_ca_principals_dir: /etc/ssh/akasha-principals
+# User -> principals that may log in as that user. Set by the playbook for each group of VMs.
+ssh_user_ca_principals: {}

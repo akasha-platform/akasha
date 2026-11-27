@@ -24,8 +24,8 @@ mise exec -- uv run --locked ansible-playbook playbooks/router.yml --syntax-chec
 ## SSH to the OpenStack nodes
 
 Design: [ADR-0050](../adr/0050-bastion-ssh-certificates-from-openbao.md). OpenBao's SSH CA signs
-`akasha`'s key for the user `debian` of the nodes, for 8 hours. The nodes trust the CA (role
-`ssh_user_ca`, playbook `openstack-nodes.yml`, tag `ssh_ca`). The bastion has the key, the
+`akasha`'s key with the principal `os-node`, for 8 hours. The nodes trust the CA and let
+`os-node` in as `debian` (role `ssh_user_ca`, playbook `openstack-nodes.yml`, tag `ssh_ca`). The bastion has the key, the
 nodes' host keys and `akasha-ssh-cert` (role `bastion_ssh`, tag `ssh`). OpenBao must be
 unsealed.
 
@@ -46,7 +46,8 @@ mise exec -- uv run --locked ansible openstack_nodes -m ping
 ```
 
 The certificate is `~/.ssh/id_ed25519-cert.pub`; ssh uses it on its own. When it has expired,
-run `akasha-ssh-cert` again.
+run the laptop command again. `akasha-ssh-cert` refuses a terminal on stdin, so the password is
+never typed, or shown, on the bastion.
 
 ### Once: the operator, the CA and the roles
 
@@ -58,20 +59,23 @@ run `akasha-ssh-cert` again.
    uv run --locked python infra/opentofu/scripts/tofu_passphrase.py --service akasha-openbao --verify operator
    ```
 
-2. **The user, then the stack.** Open the tunnel and get the admin's token as in runbook
-   `openbao-pki.md` ("Apply"). userpass needs a password to create a user, and OpenTofu writes
-   only its token fields. So create the user first, with the password from the keyring on
-   stdin:
+2. **The user, then the stack.** At the repository's root, run the block "Every session" of
+   runbook `openbao-pki.md` **only up to** `test -n "$VAULT_TOKEN"`: the tunnel and the admin's
+   token, no plan yet. userpass needs a password to create a user, and OpenTofu writes only
+   its token fields. So create the user first, with the password from the keyring on stdin.
+   `--plain` ends it with a newline, which `bao write … password=-` would keep, so `tr` drops
+   it:
 
    ```bash
    mise exec -- uv run --locked --quiet python infra/opentofu/scripts/tofu_passphrase.py --service akasha-openbao --plain operator \
-     | BAO_ADDR=http://127.0.0.1:8200 BAO_TOKEN="$VAULT_TOKEN" mise exec -- bao write auth/userpass/users/operator password=-
+     | tr -d '\n' | BAO_ADDR=http://127.0.0.1:8200 BAO_TOKEN="$VAULT_TOKEN" mise exec -- bao write auth/userpass/users/operator password=-
    cd infra/opentofu/live/openbao
    tofu plan -out=openbao.plan    # 5 to add: mount, CA, role, policy, operator's token fields
    tofu apply openbao.plan && tofu plan   # then: No changes
    ```
 
-   Until the apply, `operator` holds only the `default` policy and no address binding.
+   Until the apply, `operator` holds only the `default` policy and no address binding. Then
+   make the off-AWS copy of the state (`openbao-pki.md`, "Off-AWS copy after every apply").
 
 3. **The CA's public key in the repository**, checked against OpenBao (an unauthenticated
    endpoint):
@@ -86,7 +90,9 @@ run `akasha-ssh-cert` again.
    Commit it. End the session as in `openbao-pki.md` (revoke the token, close the tunnel).
 
 4. **The nodes, then the bastion**, from `infra/ansible`, dry run first. `toolchain` installs
-   the pinned `bao` CLI from `mise.lock`:
+   the pinned `bao` CLI from `mise.lock` of the commit it checks out, `main` by default: merge
+   the pull request that pins `bao` first, or pass `-e bastion_toolchain_commit=<branch>`.
+   Then run the laptop command of "Every working session": it must print an 8-hour validity.
 
    ```bash
    uv run --locked ansible-playbook playbooks/openstack-nodes.yml --tags ssh_ca --check --diff
@@ -100,21 +106,28 @@ run `akasha-ssh-cert` again.
 * **`* permission denied` at login**: wrong password, or not from the bastion (the user is
   bound to 10.10.0.10). **`Vault is sealed`** (HTTP 503): unseal (runbook `core.md`).
 * **`Permission denied (publickey)` from a node**:
-  * the certificate expired: run `akasha-ssh-cert`;
-  * or the node does not trust the CA: `sudo sshd -T | grep trustedusercakeys` there, through
-    the laptop's key.
+  * the certificate expired: run the laptop command of "Every working session" again;
+  * or the node does not trust the CA: `sudo sshd -T | grep -E 'trustedusercakeys|principalsfile'`
+    and `cat /etc/ssh/akasha-principals/debian` (`os-node`) there, through the laptop's key.
 * **`Host key verification failed`**: the node's host key changed (a rebuild). Verify it on the
   laptop first (runbook `lab-vms.md`), then run `bastion.yml --tags ssh` again.
-* **A certificate must stop working now** (a stolen bastion): certificates cannot be revoked.
-  From the laptop, on each node: `sudo rm /etc/ssh/sshd_config.d/20-akasha-user-ca.conf && sudo
-  systemctl reload ssh`. Then replace the CA:
-  * `tofu apply -replace=vault_ssh_secret_backend_ca.ssh_client_signer`;
-  * commit the new public key;
-  * run `--tags ssh_ca`.
+* **A certificate must stop working now** (a stolen bastion). Certificates cannot be revoked,
+  and root on the bastion may also have caught the operator's password at its last use. In
+  this order:
+  1. On each node, from the laptop: `sudo rm /etc/ssh/sshd_config.d/20-akasha-user-ca.conf &&
+     sudo systemctl reload ssh`, then end the sessions that are already open:
+     `sudo ss -K dst 10.10.0.10` (a reload keeps them).
+  2. As admin through the tunnel, delete the user: `bao delete auth/userpass/users/operator`.
+  3. Rebuild the bastion (runbook `opentofu-l0.md`, "Rebuilding one VM").
+  4. Replace the CA: `tofu apply -replace=vault_ssh_secret_backend_ca.ssh_client_signer`,
+     commit the new public key, run `--tags ssh_ca`.
+  5. Give `operator` a new password (keyring and paper) and create it again as in "Once".
 * **Change the operator's password**:
-  * `--restore` a new value into the keyring (or delete the entry and `--init` again);
-  * write it with `bao write auth/userpass/users/operator/password password=-`, through the
-    tunnel and the admin's token as in step 2;
+  * delete the keyring entry (service `akasha-openbao`, user `operator`; `--restore` and
+    `--init` refuse an existing one), then `--init` again;
+  * write it with `… --plain operator | tr -d '\n' | … bao write
+    auth/userpass/users/operator/password password=-`, through the tunnel and the admin's
+    token as in step 2;
   * update the paper.
 
 ## Update the code
@@ -176,8 +189,8 @@ firewall").
 
 SSH to the nodes (ADR-0050): `userdel -r` removes `akasha`'s key and known hosts; also run
 `sudo rm /usr/local/bin/akasha-ssh-cert`. On each node, through the laptop's key:
-`sudo rm /etc/ssh/sshd_config.d/20-akasha-user-ca.conf /etc/ssh/akasha-user-ca.pub && sudo
-systemctl reload ssh`. In OpenBao:
+`sudo rm -r /etc/ssh/sshd_config.d/20-akasha-user-ca.conf /etc/ssh/akasha-user-ca.pub
+/etc/ssh/akasha-principals && sudo systemctl reload ssh`. In OpenBao:
 * remove `ssh.tf` and its output, then plan and apply;
 * delete the user: `bao delete auth/userpass/users/operator`, as admin. Or rebuild the bastion (runbook `opentofu-l0.md`, "Rebuilding one VM"): it keeps no
 data of its own.

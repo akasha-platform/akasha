@@ -1,6 +1,7 @@
 # SSH user certificates for the bastion (ADR-0050). The operator logs in from the bastion as the
-# userpass user `operator` and gets an 8-hour certificate for the user `debian` of the lab's
-# OpenStack nodes, which trust this CA (role ssh_user_ca). The CA key is generated inside
+# userpass user `operator` and gets an 8-hour certificate with the principal `os-node`. The
+# lab's OpenStack nodes trust this CA and let `os-node` log in as `debian` (role ssh_user_ca,
+# AuthorizedPrincipalsFile): another VM that trusts the CA later accepts only its own principal. The CA key is generated inside
 # OpenBao and never leaves it; its public key is committed as infra/pki/ssh-user-ca.pub.
 resource "vault_mount" "ssh_client_signer" {
   path        = "ssh-client-signer"
@@ -14,16 +15,18 @@ resource "vault_ssh_secret_backend_ca" "ssh_client_signer" {
   key_type             = "ed25519"
 }
 
-# One login as `debian`, with a terminal, for one working session. No other user, extension,
-# critical option or key type can be asked for.
+# One principal, `os-node`, with a terminal, for one working session. No other principal,
+# extension or key type can be asked for. An empty allowed_critical_options allows any (OpenBao API
+# docs), but OpenSSH's critical options only restrict a certificate (force-command,
+# source-address, verify-required).
 resource "vault_ssh_secret_backend_role" "node" {
   backend                  = vault_mount.ssh_client_signer.path
   name                     = "node"
   key_type                 = "ca"
   allow_user_certificates  = true
   allow_host_certificates  = false
-  allowed_users            = "debian"
-  default_user             = "debian"
+  allowed_users            = "os-node"
+  default_user             = "os-node"
   allowed_extensions       = "permit-pty"
   default_extensions       = { "permit-pty" = "" }
   allowed_critical_options = ""

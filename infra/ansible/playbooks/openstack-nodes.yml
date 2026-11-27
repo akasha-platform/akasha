@@ -27,5 +27,9 @@
       tags: [client]
     - role: ssh_user_ca
       tags: [ssh_ca]
+      # Certificates with the principal os-node log in as debian, nothing else (ADR-0050).
+      vars:
+        ssh_user_ca_principals:
+          debian: [os-node]
     - role: os_node
       tags: [node]

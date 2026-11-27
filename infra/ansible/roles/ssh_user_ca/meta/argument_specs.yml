@@ -15,3 +15,9 @@ argument_specs:
       ssh_user_ca_dropin:
         type: path
         description: The sshd drop-in that names it.
+      ssh_user_ca_principals_dir:
+        type: path
+        description: One file per user, listing the principals that may log in as that user.
+      ssh_user_ca_principals:
+        type: dict
+        description: User -> list of principals (e.g. debian -> [os-node]); must not be empty.
