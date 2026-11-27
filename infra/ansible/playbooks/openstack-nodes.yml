@@ -1,6 +1,7 @@
 ---
-# OpenStack nodes (ADR-0041): VM base, router client, read-only node checks. Kolla-Ansible
-# configures them in P2; their host firewall is designed then too.
+# OpenStack nodes (ADR-0041): VM base, router client, trust in OpenBao's SSH user CA (ADR-0050),
+# read-only node checks. Kolla-Ansible configures them in P2; their host firewall is designed
+# then too.
 # No -K: the VMs' default user has passwordless sudo (ADR-0035). Always dry-run first; vm_base
 # needs the private file:
 #   uv run ansible-playbook playbooks/openstack-nodes.yml --check --diff -e @~/akasha-private/lab_vms.yml
@@ -24,5 +25,7 @@
       tags: [base]
     - role: lab_client
       tags: [client]
+    - role: ssh_user_ca
+      tags: [ssh_ca]
     - role: os_node
       tags: [node]

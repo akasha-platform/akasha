@@ -1,0 +1,17 @@
+---
+argument_specs:
+  main:
+    short_description: sshd trusts OpenBao's SSH user CA (ADR-0050)
+    description:
+      - Installs the CA's public key and an sshd drop-in with TrustedUserCAKeys, checked by sshd
+        before it replaces anything. authorized_keys keeps working.
+    options:
+      ssh_user_ca_src:
+        type: path
+        description: The CA's public key in the repository (one ssh-ed25519 line).
+      ssh_user_ca_dest:
+        type: path
+        description: Where the VM keeps the CA's public key.
+      ssh_user_ca_dropin:
+        type: path
+        description: The sshd drop-in that names it.

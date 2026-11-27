@@ -148,3 +148,6 @@ Applied to the bastion from PR #70.
 * 2026-11-24: Renovate now opens a pull request when a new release of mise is out, through a
   regex custom manager on the version line ([ADR-0042](0042-updates-of-pinned-release-binaries.md),
   open question B16). The SHA-256, the publication time and the signature check stay manual.
+* 2026-11-27: SSH from the bastion to the OpenStack nodes, deferred here, is decided in
+  [ADR-0050](0050-bastion-ssh-certificates-from-openbao.md): `akasha`'s key, signed by OpenBao's
+  SSH CA for 8 hours, and the nodes' host keys copied from the laptop (role `bastion_ssh`).

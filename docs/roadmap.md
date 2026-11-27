@@ -197,6 +197,20 @@ Kolla configuration as code (pinned kolla-ansible), passwords from OpenBao KV v2
 Done when: `openstack` CLI smoke tests pass, cold boot recovers by the runbook, measured
 `reserved_host_memory_mb` is set.
 
+Split by the owner on 2026-11-27 into eight steps, one pull request each, run once P1 is closed:
+1. 🔄 SSH from the bastion to the nodes with 8-hour certificates from OpenBao's SSH CA
+   (ADR-0050): the operator's userpass login from the bastion only, the CA trusted by the nodes,
+   their host keys copied from the laptop. Code tested in containers; not yet applied.
+2. ⏳ Kolla's toolchain: kolla-ansible pinned in `uv.lock` (B5; it lists Python 3.11 and 3.12,
+   the repository uses 3.14), configuration skeleton and V1b inventory.
+3. ⏳ Kolla's passwords in OpenBao KV v2 (A5), materialised on tmpfs only for a run.
+4. ⏳ TLS of the API from OpenBao's PKI; one VIP or two (B4).
+5. ⏳ Deployment of the core services without Octavia; tenant MTU (B2); smoke tests.
+6. ⏳ Real memory use (A2) and `reserved_host_memory_mb`.
+7. ⏳ Octavia (OVN provider) and Kolla's Prometheus, if the measured RAM allows; A18.
+8. ⏳ Operations: cold boot (A1) and `mariadb-recovery`, boot order and health check,
+   scheduled `mariadb-backup` copied off-site.
+
 ## P3 — L2 OpenStack resources
 
 Domains, projects, users, application credentials, quotas, networks, images, flavors — all

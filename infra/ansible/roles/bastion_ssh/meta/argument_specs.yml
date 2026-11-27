@@ -1,0 +1,30 @@
+---
+argument_specs:
+  main:
+    short_description: SSH from the bastion to the OpenStack nodes with OpenBao certificates (ADR-0050)
+    description:
+      - Gives the toolchain user an ed25519 key, the nodes' host keys verified on the laptop, and
+        akasha-ssh-cert, which has the key signed by OpenBao for one working session.
+    options:
+      bastion_ssh_user:
+        type: str
+        description: The toolchain user (ADR-0040).
+      bastion_ssh_targets:
+        type: list
+        elements: str
+        description: Inventory names of the VMs whose host keys the bastion learns.
+      bastion_ssh_laptop_known_hosts:
+        type: path
+        description: The laptop's known_hosts, where those host keys were verified.
+      bastion_ssh_openbao_addr:
+        type: str
+        description: OpenBao's TLS address.
+      bastion_ssh_openbao_user:
+        type: str
+        description: The userpass user that may sign.
+      bastion_ssh_sign_path:
+        type: str
+        description: The signing endpoint (mount and role).
+      bastion_ssh_principal:
+        type: str
+        description: The user the certificate logs in as.

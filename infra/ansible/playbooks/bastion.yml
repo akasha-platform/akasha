@@ -1,6 +1,7 @@
 ---
 # Bastion (ADR-0032, ADR-0040): VM base, router client, swap file (ADR-0030), host firewall,
-# pinned toolchain for the unprivileged user akasha.
+# pinned toolchain for the unprivileged user akasha, and its SSH to the OpenStack nodes with
+# OpenBao certificates (ADR-0050).
 # No -K: the VM's default user has passwordless sudo (ADR-0035). Always dry-run first; vm_base
 # needs the private file:
 #   uv run ansible-playbook playbooks/bastion.yml --check --diff -e @~/akasha-private/lab_vms.yml
@@ -32,3 +33,5 @@
       tags: [trust]
     - role: bastion_toolchain
       tags: [toolchain]
+    - role: bastion_ssh
+      tags: [ssh]
