@@ -51,30 +51,32 @@ never typed, or shown, on the bastion.
 
 ### Once: the operator, the CA and the roles
 
-1. **The password.** In a desktop session on the laptop, generate it into the keyring and copy
-   it on paper (groups of 8), then check the paper:
+1. **The password.** In a desktop session on the laptop, generate it into the keyring. It is
+   kept there only, never on paper (the owner's choice, ADR-0050 Implementation): `--init`
+   shows it once, and that copy is not written down. If the keyring loses it, the admin sets a
+   new one ("Change the operator's password").
 
    ```bash
    uv run --locked python infra/opentofu/scripts/tofu_passphrase.py --service akasha-openbao --init operator
-   uv run --locked python infra/opentofu/scripts/tofu_passphrase.py --service akasha-openbao --verify operator
    ```
 
 2. **The user, then the stack.** At the repository's root, run the block "Every session" of
    runbook `openbao-pki.md` **only up to** `test -n "$VAULT_TOKEN"`: the tunnel and the admin's
    token, no plan yet. userpass needs a password to create a user, and OpenTofu writes only
-   its token fields. So create the user first, with the password from the keyring on stdin.
-   `--plain` ends it with a newline, which `bao write … password=-` would keep, so `tr` drops
-   it:
+   its token fields. So create the user first, with the password from the keyring on stdin and
+   already bound to the bastion's address. `--plain` ends the password with a newline, which
+   `bao write … password=-` would keep, so `tr` drops it:
 
    ```bash
    mise exec -- uv run --locked --quiet python infra/opentofu/scripts/tofu_passphrase.py --service akasha-openbao --plain operator \
-     | tr -d '\n' | BAO_ADDR=http://127.0.0.1:8200 BAO_TOKEN="$VAULT_TOKEN" mise exec -- bao write auth/userpass/users/operator password=-
+     | tr -d '\n' | BAO_ADDR=http://127.0.0.1:8200 BAO_TOKEN="$VAULT_TOKEN" mise exec -- bao write auth/userpass/users/operator \
+       password=- token_bound_cidrs=10.10.0.10
    cd infra/opentofu/live/openbao
    tofu plan -out=openbao.plan    # 5 to add: mount, CA, role, policy, operator's token fields
    tofu apply openbao.plan && tofu plan   # then: No changes
    ```
 
-   Until the apply, `operator` holds only the `default` policy and no address binding. Then
+   Until the apply, `operator` holds only the `default` policy. Then
    make the off-AWS copy of the state (`openbao-pki.md`, "Off-AWS copy after every apply").
 
 3. **The CA's public key in the repository**, checked against OpenBao (an unauthenticated
@@ -103,8 +105,15 @@ never typed, or shown, on the bastion.
 
 ### Failure modes
 
-* **`* permission denied` at login**: wrong password, or not from the bastion (the user is
-  bound to 10.10.0.10). **`Vault is sealed`** (HTTP 503): unseal (runbook `core.md`).
+* **Login refused.** OpenBao checks the password first, then the address:
+  * `* invalid username or password`: a wrong password, or one that still ends with the
+    newline of `--plain` (`bao login … password=-` keeps it; `akasha-ssh-cert` strips it,
+    other commands need `tr -d '\n'`). Do not retry in a loop: failed logins count towards
+    OpenBao's user lockout;
+  * `* permission denied`: the right password, from another address than the bastion (the
+    user is bound to 10.10.0.10).
+
+  **`Vault is sealed`** (HTTP 503): unseal (runbook `core.md`).
 * **`Permission denied (publickey)` from a node**:
   * the certificate expired: run the laptop command of "Every working session" again;
   * or the node does not trust the CA: `sudo sshd -T | grep -E 'trustedusercakeys|principalsfile'`
@@ -121,14 +130,13 @@ never typed, or shown, on the bastion.
   3. Rebuild the bastion (runbook `opentofu-l0.md`, "Rebuilding one VM").
   4. Replace the CA: `tofu apply -replace=vault_ssh_secret_backend_ca.ssh_client_signer`,
      commit the new public key, run `--tags ssh_ca`.
-  5. Give `operator` a new password (keyring and paper) and create it again as in "Once".
+  5. Give `operator` a new password in the keyring and create it again as in "Once".
 * **Change the operator's password**:
   * delete the keyring entry (service `akasha-openbao`, user `operator`; `--restore` and
     `--init` refuse an existing one), then `--init` again;
   * write it with `… --plain operator | tr -d '\n' | … bao write
     auth/userpass/users/operator/password password=-`, through the tunnel and the admin's
-    token as in step 2;
-  * update the paper.
+    token as in step 2.
 
 ## Update the code
 
