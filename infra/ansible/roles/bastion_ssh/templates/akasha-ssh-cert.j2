@@ -1,0 +1,41 @@
+#!/bin/bash
+# {{ ansible_managed }}
+# An SSH certificate for the lab's OpenStack nodes (ADR-0050, runbook bastion.md). Run as
+# {{ bastion_ssh_user }}, with the operator's password on standard input, from the laptop:
+#   tofu_passphrase.py --service akasha-openbao --plain operator \
+#     | ssh debian@10.10.0.10 'sudo -iu {{ bastion_ssh_user }} akasha-ssh-cert'
+# Logs in to OpenBao as `{{ bastion_ssh_openbao_user }}` (accepted from this VM's address only),
+# has ~/.ssh/id_ed25519.pub signed with the principal `{{ bastion_ssh_principal }}` (8 hours),
+# which the nodes let in as `debian`, writes
+# ~/.ssh/id_ed25519-cert.pub, which ssh picks up on its own, and revokes the token. The password
+# never appears on a command line.
+set -euo pipefail
+umask 077
+if [ "$(id -un)" != "{{ bastion_ssh_user }}" ]; then
+  echo "run as {{ bastion_ssh_user }}: sudo -iu {{ bastion_ssh_user }} akasha-ssh-cert" >&2
+  exit 1
+fi
+cd "$HOME/akasha" # the repository: mise runs the bao CLI pinned in its mise.lock
+export BAO_ADDR={{ bastion_ssh_openbao_addr }}
+key=$HOME/.ssh/id_ed25519
+
+# Never typed on the bastion: a terminal would echo it.
+if [ -t 0 ]; then
+  echo "pipe the operator's password from the laptop (runbook bastion.md), never type it here" >&2
+  exit 1
+fi
+IFS= read -r password || true
+if [ -z "$password" ]; then
+  echo "expected the operator's password on standard input" >&2
+  exit 1
+fi
+BAO_TOKEN=$(printf '%s' "$password" | BAO_TOKEN='' mise exec -- bao login -no-store -token-only \
+  -method=userpass username={{ bastion_ssh_openbao_user }} password=-)
+unset password
+export BAO_TOKEN
+trap 'mise exec -- bao token revoke -self >/dev/null 2>&1 || true' EXIT
+
+mise exec -- bao write -field=signed_key {{ bastion_ssh_sign_path }} \
+  public_key=@"$key.pub" valid_principals={{ bastion_ssh_principal }} > "$key-cert.pub.new"
+mv "$key-cert.pub.new" "$key-cert.pub"
+ssh-keygen -L -f "$key-cert.pub" | awk '/Key ID:|Valid:/ { $1 = $1; print }'

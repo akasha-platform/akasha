@@ -1,0 +1,16 @@
+---
+# SSH from the bastion to the OpenStack nodes (ADR-0050): the toolchain user's key, signed by
+# OpenBao for 8 hours with akasha-ssh-cert, and the nodes' host keys as the laptop verified them.
+
+bastion_ssh_user: akasha
+# The VMs whose host keys the bastion learns, from the laptop's ~/.ssh/known_hosts, where each
+# was added only after it was compared with the VM's serial console (runbook lab-vms.md).
+bastion_ssh_targets: "{{ groups['openstack_nodes'] }}"
+bastion_ssh_laptop_known_hosts: "{{ lookup('ansible.builtin.env', 'HOME') }}/.ssh/known_hosts"
+
+# OpenBao over TLS (ADR-0047) and the role that signs (stack openbao, ssh.tf).
+bastion_ssh_openbao_addr: https://core.akasha.internal:8200
+bastion_ssh_openbao_user: operator
+bastion_ssh_sign_path: ssh-client-signer/sign/node
+# The principal the nodes map to their user debian (role ssh_user_ca).
+bastion_ssh_principal: os-node

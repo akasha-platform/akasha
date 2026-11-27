@@ -115,6 +115,8 @@ and platform services). Cut-downs, if needed, are chosen after measurement from 
 - App changes: build on ARC (push/tag only), sign with cosign, attest, push to GHCR,
   open a PR in `akasha-gitops`; Argo CD syncs.
 - Secrets: OpenBao (Shamir unseal by hand after each host reboot). Root CA offline.
+- Access: the bastion reaches the OpenStack nodes with 8-hour SSH certificates signed by
+  OpenBao's SSH CA ([ADR-0050](../adr/0050-bastion-ssh-certificates-from-openbao.md)).
 - OpenTofu states: L0 (all VMs on the host, applied by the owner) in one AWS S3 bucket
   (ADR-0031); L2 and L3 (applied by CI, which runs `tofu` on the bastion) in a second one
   (ADR-0032); all encrypted client-side and locked with `use_lockfile`.
