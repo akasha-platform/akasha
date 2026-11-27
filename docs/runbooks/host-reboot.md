@@ -15,21 +15,33 @@ cd ~/Documents/dev/Projets/akasha && mkdir -p ~/akasha-private/reboot && chmod 7
 state() {   # state <name>: the read-only snapshot of infra/scripts/insa-state.sh, shown and kept
   local f=~/akasha-private/reboot/"$1".txt
   ssh -o LogLevel=error insa 'cat > /tmp/akasha-state.sh' < infra/scripts/insa-state.sh &&
-  ssh -t -o LogLevel=error insa 'sudo bash /tmp/akasha-state.sh' | tr -d '\r' | tee "$f.raw" &&
-  grep -v '^\[sudo\]' "$f.raw" > "$f" && rm -f "$f.raw"   # sudo's prompt goes through the same terminal
+  ssh -t -o LogLevel=error insa 'sudo bash /tmp/akasha-state.sh' | tee "$f.raw" &&
+  tr -d '\r' < "$f.raw" | grep -v '^\[sudo\]' > "$f" && rm -f "$f.raw"   # sudo's prompt shares the terminal
 }
 lv() { ssh -o BatchMode=yes -o LogLevel=error insa "LC_ALL=C virsh -c qemu:///system $*"; }
 ```
 
 ## 1. Before: who is on the machine, and the lab's state
 
+The snapshot first. Its name stays in a file, for a new terminal after the reboot.
+
 ```bash
-ssh -o LogLevel=error insa 'loginctl list-sessions --no-legend | wc -l; ls /var/run/reboot-required 2>/dev/null'
+echo "$(date -u +%Y%m%dT%H%MZ)" > ~/akasha-private/reboot/current; state "$(cat ~/akasha-private/reboot/current)-before"
 ```
 
-More than one session (the owner's SSH) means someone else is logged in, for example on the
-school's desktop: ask before going on, since a reboot ends it. Then stop the lab VMs, the router
-last. OpenBao seals when `core` stops; the backups resume once it is unsealed.
+Check in it:
+* the `sessions` lines, by kind. `class=greeter` is only the desktop's login screen,
+  `class=manager` is systemd's per-user service manager (not a person), and the owner's SSH
+  shows as `remote=yes`. A `class=user` with `remote=no` means someone is logged in
+  on the machine itself (the school's desktop): ask before going on, since a reboot ends it;
+* `akasha_firewall=active enabled`, `tailscaled=active enabled`;
+* every VM, `linux2024` included, has `autostart=disable` and `managed_save=no`. A saved
+  `core` would resume unsealed;
+* `libvirt_guests=enabled` with the effective `ON_BOOT=ignore ON_SHUTDOWN=shutdown` (Debian's
+  defaults: a host shutdown stops the guests cleanly and never restarts or saves them).
+
+Then stop the lab VMs, the router last. OpenBao seals when `core` stops; the backups resume once
+it is unsealed.
 
 ```bash
 for vm in os-cmp02 os-cmp01 os-ctl01 bastion core router; do
@@ -40,18 +52,7 @@ done
 ```
 
 Each line must say `shut off`. On `STOP`, look at that VM's serial console (runbook
-`lab-vms.md`); `virsh destroy` is the last resort. Then the snapshot. Its name stays in a file,
-for a new terminal after the reboot.
-
-```bash
-echo "$(date -u +%Y%m%dT%H%MZ)" > ~/akasha-private/reboot/current; state "$(cat ~/akasha-private/reboot/current)-before"
-```
-
-Check in it:
-* `akasha_firewall=active enabled`, `tailscaled=active enabled`;
-* every VM, `linux2024` included, has `autostart=disable` and `managed_save=no`. A saved
-  `core` would resume unsealed;
-* `libvirt_guests` and its `ON_BOOT`/`ON_SHUTDOWN`.
+`lab-vms.md`); `virsh destroy` is the last resort.
 
 ## 2. Reboot
 
@@ -70,8 +71,9 @@ t=$(cat ~/akasha-private/reboot/current); state "$t-after"
 diff ~/akasha-private/reboot/$t-before.txt ~/akasha-private/reboot/$t-after.txt
 ```
 
-The only expected differences are `boot_id`, which **must** differ (it proves the reboot), plus
-`kernel` and `reboot_required` after a kernel update. Anything else is a finding:
+The only expected differences are `boot_id`, which **must** differ (it proves the reboot), the
+`sessions` lines, plus `kernel` and `reboot_required` after a kernel update. Anything else is a
+finding:
 * a missing bridge or route, or a bridge with IPv6 or the wrong forwarding;
 * `akasha_firewall` not `active`, or `nft_table_inet_akasha=0`. **Then do not start the
   router**: without the table the lab is routed without filter or NAT (runbook

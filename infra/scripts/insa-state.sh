@@ -12,7 +12,12 @@ v() { virsh -c qemu:///system "$@" 2>/dev/null; }
 echo "boot_id=$(cat /proc/sys/kernel/random/boot_id)"
 echo "kernel=$(uname -r)"
 echo "reboot_required=$([ -e /var/run/reboot-required ] && echo yes || echo no)"
-echo "login_sessions=$(loginctl list-sessions --no-legend 2>/dev/null | wc -l)"
+# Sessions by kind (a greeter is the school desktop's login screen, a user session someone
+# logged in), without user names.
+loginctl list-sessions --no-legend 2>/dev/null | awk '{print $1}' | while read -r s; do
+  echo "session class=$(loginctl show-session "$s" -p Class --value)" \
+    "type=$(loginctl show-session "$s" -p Type --value) remote=$(loginctl show-session "$s" -p Remote --value)"
+done | sort | uniq -c | sed 's/^ */sessions /'
 for b in br-transit br-mgmt br-tun br-ext; do
   if [ -d "/sys/class/net/$b" ]; then
     echo "bridge $b present" \
@@ -38,14 +43,18 @@ echo "tailscale_advertised=$(tailscale debug prefs 2>/dev/null \
 echo "tailscaled_iptables_mode_logged=$(journalctl -b -u tailscaled --no-pager 2>/dev/null | grep -q 'default choosing iptables' && echo yes || echo no)"
 echo "images_mount=$(findmnt -no FSTYPE /var/lib/libvirt/akasha)"
 echo "pool_akasha=$(v pool-info akasha | awk '/^State/ {print $2}')"
+# The effective values: the defaults in the unit's own script (Debian: ignore, shutdown), then any
+# override from /etc/default (the last value wins). The script's path comes from the unit.
+g=$(systemctl show -P ExecStart libvirt-guests 2>/dev/null | sed -n 's/^{ path=\([^ ;]*\).*/\1/p')
 echo "libvirt_guests=$(systemctl is-enabled libvirt-guests 2>/dev/null)" \
-  "$(grep -E '^(ON_BOOT|ON_SHUTDOWN)=' /etc/default/libvirt-guests 2>/dev/null | tr '\n' ' ')"
+  "$(cat "$g" /etc/default/libvirt-guests 2>/dev/null \
+     | grep -E '^(ON_BOOT|ON_SHUTDOWN)=' | tr -d '"' | tr '\n' ' ' | sed 's/ $//')"
 # Unit files, not runtime states: a timer's oneshot service may be running at that very moment.
 systemctl list-unit-files 'akasha-*' --no-legend --plain | awk '{print "unit", $1, $2}'
 for t in $(systemctl list-unit-files 'akasha-*.timer' --no-legend --plain | awk '{print $1}'); do
   echo "timer $t $(systemctl is-active "$t")"
 done
 v list --all --name | grep . | sort | while read -r d; do
-  echo "vm $d autostart=$(v dominfo "$d" | awk '/^Autostart/ {print $2}')" \
+  echo "vm $d autostart=$(v dominfo "$d" | awk '/^Autostart:/ {print $2}')" \
     "managed_save=$(v dominfo "$d" | awk '/^Managed save/ {print $3}')"
 done
