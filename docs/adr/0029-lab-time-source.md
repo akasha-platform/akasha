@@ -118,3 +118,9 @@ the NTP server by DHCP.
   * The time chain itself is unchanged: chrony with the router as its only source, and the
     Debian pool line of the packaged `chrony.conf` turned off. That file is a modified
     conffile, so a chrony update that changes it may wait for a manual `apt` (INFERRED).
+* 2026-11-27 (open question A20): `insa` is synchronised by `systemd-timesyncd` again
+  (`NTPSynchronized=yes`, offset −80 µs, poll interval 34 min). NTP from the campus has worked
+  since about 2026-11-18 (update above). The drift rate therefore no longer matters while NTP
+  works, and A20 is closed. The −18.0 s of 2026-11-17 was measured while NTP was blocked. A
+  direct comparison with the laptop (0.8 s, with a 0.5 s SSH round trip) only showed that the
+  laptop itself was not synchronised.

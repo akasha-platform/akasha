@@ -186,3 +186,9 @@ Made by hand from PR #81, following runbook `backups.md`.
 * 2026-11-27 (step 7e-2, [ADR-0049](0049-openbao-daily-backup.md)): the repository `core`
   is written daily by `core` with the access key of a second append-only user,
   `akasha-backup-core` (within `core/` only). The lifecycle gains the rule `locks-core`.
+* 2026-11-27 (open question C7, closed):
+  * the AWS account is the owner's paid account (ADR-0031);
+  * the prices of S3 Standard in eu-west-3 were checked on 2026-11-25 (facts above);
+  * the expected cost of both repositories is far below one US cent a month: ~0.5 MB for the
+    laptop, ~40 KB a day for `core`, every version kept at least 90 days;
+  * the account's 1 USD budget alert stays the guard.
