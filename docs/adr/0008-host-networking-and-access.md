@@ -258,3 +258,11 @@ On 2026-11-17:
 ## More Information
 
 [research/04-host-and-network.md](../research/04-host-and-network.md)
+
+## Updates
+
+* 2026-11-27 (open question C8): key expiry is **disabled** for `insa` in the tailnet (admin
+  console), as Tailscale advises for servers and subnet routers. Before, its node key would have
+  expired on 2027-03-21 and dropped `insa` from the tailnet until a login on site. The end of
+  the loan of `insa` is not known yet. Trade-off: the node key no longer expires by itself;
+  if `insa` is compromised or returned, remove the machine from the tailnet by hand.

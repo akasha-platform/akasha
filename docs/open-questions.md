@@ -21,7 +21,6 @@ item here.
 | A12 | Restore drills: etcd snapshot, CloudNativePG PITR, OpenBao raft snapshot, restic from AWS | A backup is only real once restored | P7 |
 | A17 | After the next host reboot: the four lab bridges come back (`ip -br link show type bridge`), unmanaged by NetworkManager, no IPv6 on them, `ip_forward=1`, libvirt `default` network inactive, `akasha-firewall` active with table `inet akasha` loaded, `forwarding` 1/0/0/0 on the bridges, `tailscale debug prefs` still advertises both lab routes, `ip route show 10.10.0.0/24` and `10.20.0.0/24` via 10.255.255.2 dev br-transit, tailscaled log says "default choosing iptables", the guard rule is in `nft list chain inet akasha forward` | Checked only on the running host (ADR-0008 step 4a) | P1 |
 | A18 | Lab time chain once the router exists (ADR-0029, router part replaced by ADR-0036 on 2026-11-23): offset of the router (chrony over NTP; confirmed 2026-11-23: 0.8 ms, six sources reachable) and of an L1 VM against UTC (core and bastion synchronised to the router, 2026-11-24); the `ptp_kvm` reading of the host offset (first readings 2026-11-24, by `chronyd -Q` in role `lab_client`: insa −6.8 ms, −6.8 ms, −8.4 ms from the VMs' clock); behaviour when every NTP source is unreachable (the router's root distance grows, its clients drop it past 3 s); an OpenStack instance gets the NTP server from OVN DHCP | Each is an assumption of ADR-0029 or ADR-0036 | P1 (step 6) |
-| A20 | Drift rate of the host clock: second offset measurement against an NTP-synced laptop (first: −18.0 s on 2026-11-17 09:48 UTC) | Shows how fast the host departs from UTC; the lab does not depend on it (ADR-0029) but `ptp_kvm` monitoring does | P1 |
 | A23 | libvirt provider 0.9.9, state-loss drill (ADR-0031): after a lost state, import blocks must end with a plan that destroys nothing. The lost-temp-directory part was confirmed on 2026-11-22 (ADR-0033). The drill must include `libvirt_volume.core_data` (ADR-0038): without an import, its create fails because the volume exists (fail-closed) | Without it, a routine plan can stop `core` | P1 (step 6) |
 
 ## B. Decisions deliberately deferred
@@ -48,8 +47,6 @@ item here.
 | C2 | Is there a real domain name (for public TLS / DNS-01), or only `akasha.internal`? | P5 |
 | C3 | Where do alerts go (Alertmanager receiver: email, Discord, …)? Retention targets for metrics and logs? | P5/P7 |
 | C6 | Acceptable reboot window for host kernel updates (unattended upgrades never reboot automatically) | P1 |
-| C7 | AWS account, free-tier terms and expected monthly cost for off-site backups | P1 |
-| C8 | Node key expiry of `insa` in the tailnet (expires 2027-03-21, read on 2026-11-17): expiry drops `insa` from the tailnet and locks the owner out until a log-in on site; Tailscale advises disabling expiry on servers and subnet routers. Depends on when the semester (and the loan of `insa`) ends | P1 |
 
 ## D. Facts to re-check right before use
 

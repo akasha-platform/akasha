@@ -83,7 +83,8 @@ Neither was in use on 2026-11-17 (no exit node offered, no shared device, one us
 - **Node key expiry of `insa`.** When the key expires, `insa` leaves the tailnet and the owner
   loses SSH and the lab until someone logs in on site. Read the date with
   `tailscale status --json | jq -r '.Peer[] | "\(.HostName) \(.KeyExpiry)"'` on the laptop.
-  Whether to disable expiry for `insa` is open question C8.
+  Since 2026-11-27 expiry is disabled for `insa` (ADR-0008 Updates): the command shows
+  `null` for it. When `insa` is returned to the school, remove it from the tailnet.
 
 ## Check
 
