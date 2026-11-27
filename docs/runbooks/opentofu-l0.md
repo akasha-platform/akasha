@@ -176,6 +176,52 @@ The OpenTofu registry has no GPG key for `dmacvicar/libvirt`, so `tofu init` pri
 all 13 `zh:` hashes of `.terraform.lock.hcl` match that file. Repeat this check whenever the
 provider version changes.
 
+## Lost or damaged state
+
+Drilled on 2026-11-27 (open question A23, ADR-0031 Updates).
+
+**First choice: restore a copy.** Copies of the state, all encrypted with the passphrase `l0`:
+1. the bucket's own versions (180 days or 100 versions; listing and reading old versions needs
+   `akasha-admin`);
+2. the off-AWS copies in `~/akasha-private/backups/` (section above);
+3. those copies inside the restic repository `laptop` (runbook `backups.md`, "Restore").
+
+Take the copy with the highest `serial` (`jq .serial <file>`: the envelope is not encrypted).
+Then prove it, without touching anything, in a git-ignored directory of the repository. mise
+and uv only find the pinned tools from inside the repository.
+
+```bash
+cd ~/Documents/dev/Projets/akasha && D=infra/opentofu/.terraform/drill && L=infra/opentofu/live/l0-host
+mkdir -p $D/live/l0-host && cp -r infra/opentofu/modules infra/opentofu/scripts $D/ && cp -r $L/templates $D/live/l0-host/
+cp $L/*.tf $L/images.json $L/.terraform.lock.hcl $D/live/l0-host/ && rm $D/live/l0-host/backend.tf   # local state
+cp <copy> $D/live/l0-host/terraform.tfstate
+export TF_VAR_ssh_public_key="$(cat ~/.ssh/id_ed25519.pub)"
+tofu -chdir=$D/live/l0-host init -input=false && tofu -chdir=$D/live/l0-host plan
+rm -rf $D
+```
+
+The plan must only create `libvirt_cloudinit_disk.seed` for each VM (the ISOs are local
+temporary files, never read again by a running VM), with 0 to change and 0 to destroy. Then,
+as `akasha-l0`, put the copy back. The bucket keeps the replaced version.
+
+```bash
+aws s3 cp --only-show-errors <copy> "s3://$BUCKET/l0/terraform.tfstate"
+```
+
+Then run `tofu plan` in the real stack: it shows the same.
+
+**Last resort: rebuild the state by import**, when no copy is left.
+`uv run --locked python infra/opentofu/scripts/l0_imports.py > infra/opentofu/live/l0-host/imports.tf`
+reads libvirt on `insa` (read-only `virsh`) and writes 21 import blocks (pool, volumes, domains).
+With provider 0.9.9 this is **not clean** (drill of 2026-11-27): the plan imports everything but
+also updates all 21 resources. libvirt reports every detail it fills in (device aliases, PCI
+addresses, timestamps), and the configuration has none of them.
+* A volume or pool update fails ("Update Not Supported").
+* A domain update shuts the VM down, redefines it and starts it.
+
+Use it only in a maintenance window, VM by VM (`-target`), after reading the plan. Delete
+`imports.tf` once the state is back.
+
 ## Rotate the passphrase
 
 Add a second chain (`external "passphrase_v2"` calling the script with `l0-v2`, a `pbkdf2`

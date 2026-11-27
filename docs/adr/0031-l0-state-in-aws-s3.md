@@ -177,3 +177,17 @@ and are carried into the step-6 design (open question A23):
   the state of the stack `openbao` under `openbao/terraform.tfstate`, encrypted with its own
   passphrase. The policy `akasha-l0-state` of `akasha-l0` now allows that key and its lock too
   (a new policy version; the previous one stays for a rollback).
+* 2026-11-27 (open question A23, the state-loss drill). Both runs were plan-only, in temporary
+  copies of the stack, without touching the real state or the VMs.
+  * **Rebuilding the state by import** (`scripts/l0_imports.py`, 21 import blocks from libvirt)
+    is not clean with provider 0.9.9. The plan had 21 imports, 6 local ISOs to add, and **21
+    in-place updates**. Imported resources carry every detail libvirt fills in, and the
+    configuration declares none of them. The provider's `Update` refuses volumes and pools,
+    and redefines (restarts) domains. Import stays a last resort, for a maintenance window.
+  * **Restoring a copy** is the recovery path:
+    * the newest off-AWS copy had the same serial (18) as the object in S3;
+    * a plan from it only recreated the 6 local cloud-init ISOs, with 0 to change and 0 to
+      destroy.
+
+    Copies exist in three places: the bucket's versions, `~/akasha-private/backups/`, and the
+    restic repository `laptop` (ADR-0048). Runbook `opentofu-l0.md`, "Lost or damaged state".
