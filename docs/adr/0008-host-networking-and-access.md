@@ -266,3 +266,23 @@ On 2026-11-17:
   expired on 2027-03-21 and dropped `insa` from the tailnet until a login on site. The end of
   the loan of `insa` is not known yet. Trade-off: the node key no longer expires by itself;
   if `insa` is compromised or returned, remove the machine from the tailnet by hand.
+* 2026-11-27 (open question A17): first reboot of `insa` since the lab's network was set up,
+  following runbook `host-reboot.md`, done remotely by the owner (policy C6, ADR-0027 Updates).
+  * Same kernel (6.12.116+deb13), no new one waiting.
+  * The VMs were stopped router last, and every one of them read `shut off`.
+  * `insa` came back over Tailscale on its own, with a new `boot_id`.
+  * The snapshots of `infra/scripts/insa-state.sh` from before and after differ only in
+    `boot_id` and the login sessions. Everything A17 lists came back unchanged:
+    * the four bridges, unmanaged by NetworkManager, IPv6 off, forwarding 1/0/0/0;
+    * `ip_forward=1` and libvirt's `default` network inactive;
+    * `akasha-firewall` active and enabled, table `inet akasha` and the guard rule loaded;
+    * both lab routes via 10.255.255.2 on `br-transit`, both advertised by Tailscale;
+    * tailscaled's "default choosing iptables" log line;
+    * the images LV mounted, the pool running, the `akasha-*` units in place;
+    * no VM autostarted or saved.
+  * `host.yml` (without `oom`) reported `changed=0`. The VMs started router first, each
+    `running`.
+  * After that:
+    * OpenBao was unsealed with two shares, and one backup run succeeded;
+    * the OOM order reported `changed=0`, with scores 300 (router) to 1000 (os-cmp02);
+    * the router's chrony read stratum 4, `Normal`.

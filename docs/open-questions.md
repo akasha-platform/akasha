@@ -19,7 +19,6 @@ item here.
 | A10 | KSM A/B: profit, ksmd CPU, Galera/RabbitMQ/etcd latency with KSM on vs off | No published nested benchmark | P7 |
 | A11 | Live migration of a K3s VM between computes; evacuation; expected "No valid host" for hard anti-affinity | Failure drills | P7 |
 | A12 | Restore drills: etcd snapshot, CloudNativePG PITR, OpenBao raft snapshot, restic from AWS | A backup is only real once restored | P7 |
-| A17 | After the next host reboot: the four lab bridges come back (`ip -br link show type bridge`), unmanaged by NetworkManager, no IPv6 on them, `ip_forward=1`, libvirt `default` network inactive, `akasha-firewall` active with table `inet akasha` loaded, `forwarding` 1/0/0/0 on the bridges, `tailscale debug prefs` still advertises both lab routes, `ip route show 10.10.0.0/24` and `10.20.0.0/24` via 10.255.255.2 dev br-transit, tailscaled log says "default choosing iptables", the guard rule is in `nft list chain inet akasha forward` | Checked only on the running host (ADR-0008 step 4a) | P1 |
 | A18 | An OpenStack instance gets the lab's NTP server from OVN DHCP (the rest of A18 is settled: ADR-0036 Updates, 2026-11-27) | Assumption of ADR-0029/ADR-0036 for L2 | P2 |
 
 ## B. Decisions deliberately deferred
@@ -44,7 +43,6 @@ item here.
 | C1 | Should the NovaShop demo be reachable from the Internet (e.g. a tunnel) for the portfolio, or only through Tailscale? | P6 |
 | C2 | Is there a real domain name (for public TLS / DNS-01), or only `akasha.internal`? | P5 |
 | C3 | Where do alerts go (Alertmanager receiver: email, Discord, …)? Retention targets for metrics and logs? | P5/P7 |
-| C6 | Acceptable reboot window for host kernel updates (unattended upgrades never reboot automatically) | P1 |
 
 ## D. Facts to re-check right before use
 

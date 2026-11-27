@@ -115,3 +115,19 @@ go wrong" section, and risky plans carry the independent review's findings.
   * The file and the host-wide setting are the school's, so akasha touches neither.
   * The lab is not affected: IPv6 is off on every lab bridge (ADR-0008), and the lab is
     IPv4-only.
+* 2026-11-27 (open question C6, decided by the owner): when `insa` is rebooted. Unattended
+  upgrades never reboot it. `/var/run/reboot-required` tells when a new kernel waits.
+  * **No new kernel waiting**: the owner may reboot it remotely, the day before a day on
+    campus, so that a host that does not come back is fixed the next day.
+  * **A new kernel waiting**: only while the owner is on campus, near the machine.
+
+  What supports the remote case:
+  * `ssh`, `tailscaled` and `NetworkManager` are enabled;
+  * three earlier remote reboots came back, and so did the A17 reboot of 2026-11-27
+    (ADR-0008 Updates);
+  * GRUB waits 5 s;
+  * `inet akasha` accepts all input outside the lab's bridges;
+  * the akasha LV is mounted `nofail`.
+
+  A reboot ends whatever runs on the school's desktop, so the procedure first lists the
+  sessions on the machine. The runbook is `host-reboot.md`.
