@@ -20,7 +20,7 @@ item here.
 | A11 | Live migration of a K3s VM between computes; evacuation; expected "No valid host" for hard anti-affinity | Failure drills | P7 |
 | A12 | Restore drills: etcd snapshot, CloudNativePG PITR, OpenBao raft snapshot, restic from AWS | A backup is only real once restored | P7 |
 | A17 | After the next host reboot: the four lab bridges come back (`ip -br link show type bridge`), unmanaged by NetworkManager, no IPv6 on them, `ip_forward=1`, libvirt `default` network inactive, `akasha-firewall` active with table `inet akasha` loaded, `forwarding` 1/0/0/0 on the bridges, `tailscale debug prefs` still advertises both lab routes, `ip route show 10.10.0.0/24` and `10.20.0.0/24` via 10.255.255.2 dev br-transit, tailscaled log says "default choosing iptables", the guard rule is in `nft list chain inet akasha forward` | Checked only on the running host (ADR-0008 step 4a) | P1 |
-| A18 | Lab time chain once the router exists (ADR-0029, router part replaced by ADR-0036 on 2026-11-23): offset of the router (chrony over NTP; confirmed 2026-11-23: 0.8 ms, six sources reachable) and of an L1 VM against UTC (core and bastion synchronised to the router, 2026-11-24); the `ptp_kvm` reading of the host offset (first readings 2026-11-24, by `chronyd -Q` in role `lab_client`: insa −6.8 ms, −6.8 ms, −8.4 ms from the VMs' clock); behaviour when every NTP source is unreachable (the router's root distance grows, its clients drop it past 3 s); an OpenStack instance gets the NTP server from OVN DHCP | Each is an assumption of ADR-0029 or ADR-0036 | P1 (step 6) |
+| A18 | An OpenStack instance gets the lab's NTP server from OVN DHCP (the rest of A18 is settled: ADR-0036 Updates, 2026-11-27) | Assumption of ADR-0029/ADR-0036 for L2 | P2 |
 
 ## B. Decisions deliberately deferred
 
@@ -32,7 +32,6 @@ item here.
 | B5 | Pin kolla-ansible by PyPI release (22.2.0) or by `stable/2026.1` commit SHA | | P2 |
 | B6 | Add `net01` (dedicated network node) | only if ≥ 1.5 GB spare after A2 | P7 |
 | B8 | Root disks of K3s VMs; metadata delivery | Cinder boot-from-volume (no disk copy on live migration, uses the 120 G Cinder LV) · local ephemeral on the computes · config drive (blocks block migration) vs metadata service | P3/P4 |
-| B9 | Host-wide IPv6 on `insa`: a pre-existing `/etc/sysctl.d/99-disable-ipv6.conf` (not from akasha) holds `sysctl -w …` shell lines, which `systemd-sysctl` cannot parse, so IPv6 stays on (checked 2026-11-14); the lab bridges have IPv6 off either way (ADR-0008) | leave as is · delete the file · disable IPv6 host-wide in valid syntax (affects Tailscale IPv6 and `::1`) | P1 |
 | B12 | SSH authentication of the CI runner to the bastion wrapper (ADR-0032): the OpenBao SSH CA is out of the runner's reach and Tailscale SSH would bypass `ForceCommand`; a static low-value key as a GitHub secret is the remaining option, a long-lived secret | static key · other | P3 |
 | B13 | Offline backup of the OpenBao Transit keys that encrypt the L2/L3 states: exportable keys with plaintext backup (cannot be turned off later) or rely on the off-site OpenBao raft snapshots plus the unseal shares | exportable key backup · raft snapshots only | P3 |
 | B14 | Off-AWS copy of the L2/L3 states, like ADR-0031's for L0, or none (they can be rebuilt by import) | copy after apply · none | P3 |
