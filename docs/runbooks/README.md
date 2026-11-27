@@ -26,7 +26,8 @@ One runbook per alert or known failure mode, written when the failure mode is in
 * [aws-l0-state.md](aws-l0-state.md) — AWS bucket and IAM users for the L0 OpenTofu state:
   administrator user, bucket, least-privilege user, read-back, checks, roll back
 * [backups.md](backups.md) — off-site backups: bucket and IAM user, restic password, session,
-  back up, restore, check the lock, retention, failure modes
+  back up, restore, check the lock, retention, undo an attack; core's daily OpenBao backup
+  (user, AppRole, init, check, restore OpenBao, key rotation); failure modes
 * [openbao-pki.md](openbao-pki.md) — OpenBao's configuration with OpenTofu: AWS policy and
   passphrase, session (tunnel, token), the intermediate CA, checks, off-AWS copy, failure modes
 * [pki-root-ca.md](pki-root-ca.md) — offline root CA: files, check, use the key, make the root,

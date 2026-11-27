@@ -178,7 +178,7 @@ Done when: an empty PR passes every check; actions are SHA-pinned; `main` is pro
        backed up and restored identically, password from paper checked, lock refused the
        backup user and the admin alike. Independent review: one blocker fixed before
        anything was created.
-     * 7e-2: OpenBao's Raft snapshots from `core` to their own repository.
+     * 7e-2: OpenBao's Raft snapshots from `core` to their own repository (ADR-0049).
 
 Done when: the L0 stack rebuilds from zero, lab traffic cannot reach the campus LAN, the
 laptop reaches the lab only through Tailscale.

@@ -1,0 +1,38 @@
+#!/bin/bash
+# {{ ansible_managed }}
+# Daily backup of OpenBao's Raft storage to the restic repository `core` (ADR-0049, runbook
+# backups.md), run by akasha-openbao-backup.timer as root:
+#   1. log in with the AppRole (role and secret IDs from root-only files, secret on stdin);
+#   2. save a Raft snapshot (still encrypted by OpenBao's barrier), revoke the token;
+#   3. restic backup of the snapshot, append-only (the access key may delete lock files only).
+# `--init` creates the repository once (the bucket's Object Lock then keeps it 90 days).
+# Configuration and credentials: {{ openbao_backup_config_dir }}/core.env (EnvironmentFile).
+set -euo pipefail
+umask 077
+export BAO_ADDR=http://{{ openbao_api_address | default('127.0.0.1:8200') }}
+dir={{ openbao_backup_config_dir }}
+snapshot={{ openbao_backup_state_dir }}/openbao.snap
+
+if [ "${1:-}" = --init ]; then
+  restic init
+  exit
+fi
+
+for f in approle-role-id approle-secret-id; do
+  if [ ! -s "$dir/$f" ]; then
+    echo "$dir/$f is missing: run akasha-bao-approle (runbook backups.md)" >&2
+    exit 1
+  fi
+done
+
+BAO_TOKEN=$(bao write -field=token auth/approle/login role_id="$(cat "$dir/approle-role-id")" \
+  secret_id=- < "$dir/approle-secret-id")
+export BAO_TOKEN
+trap 'bao token revoke -self >/dev/null 2>&1 || true' EXIT
+bao operator raft snapshot save "$snapshot.new"
+mv "$snapshot.new" "$snapshot"
+bao token revoke -self >/dev/null
+trap - EXIT
+
+restic backup --host core --tag openbao "$snapshot"
+restic snapshots --host core --latest 1 --compact

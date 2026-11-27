@@ -1,0 +1,16 @@
+# {{ ansible_managed }}
+[Unit]
+Description=akasha: back up OpenBao's Raft storage off-site (restic, ADR-0049)
+Documentation=https://github.com/akasha-platform/akasha/blob/main/docs/runbooks/backups.md
+After=network-online.target openbao.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile={{ openbao_backup_config_dir }}/core.env
+ExecStart=/usr/local/sbin/akasha-openbao-backup
+ProtectSystem=strict
+ReadWritePaths={{ openbao_backup_state_dir }} {{ openbao_backup_cache_dir }}
+PrivateTmp=true
+NoNewPrivileges=true
+ProtectHome=true

@@ -180,3 +180,9 @@ Made by hand from PR #81, following runbook `backups.md`.
   https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock-managing.html.
 * restic: https://restic.readthedocs.io/ (v0.20.0), CHANGELOG #2202.
 * ADR-0012, ADR-0022 (pinned toolchain), ADR-0031 (`aws login`, IAM users), ADR-0044, ADR-0045.
+
+## Updates
+
+* 2026-11-27 (step 7e-2, [ADR-0049](0049-openbao-daily-backup.md)): the repository `core`
+  is written daily by `core` with the access key of a second append-only user,
+  `akasha-backup-core` (within `core/` only). The lifecycle gains the rule `locks-core`.

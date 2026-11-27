@@ -1,0 +1,196 @@
+---
+# Daily off-site backup of OpenBao's Raft storage from core (ADR-0048, ADR-0049).
+
+- name: Check the private input of the backup
+  ansible.builtin.assert:
+    that:
+      - openbao_backup_bucket is defined and openbao_backup_bucket is match('^akasha-backup-[0-9a-f]{8}$')
+      - openbao_backup_aws_access_key_id is defined and openbao_backup_aws_access_key_id is match('^AKIA[0-9A-Z]{16}$')
+      - openbao_backup_aws_secret_access_key is defined and openbao_backup_aws_secret_access_key | length == 40
+      - openbao_backup_restic_password is defined and openbao_backup_restic_password | length >= 32
+    fail_msg: >-
+      Pass the private file: -e @~/akasha-private/backup_core.yml (runbook backups.md, "core").
+    quiet: true
+  no_log: true
+
+- name: Check that the pinned restic release is past the cooldown (ADR-0022)
+  ansible.builtin.assert:
+    that:
+      - >-
+        (now(utc=true) - (openbao_backup_restic_published_at | to_datetime('%Y-%m-%dT%H:%M:%SZ'))).total_seconds()
+        >= (openbao_backup_cooldown_days | int) * 86400
+    fail_msg: >-
+      restic {{ openbao_backup_restic_version }} was published at
+      {{ openbao_backup_restic_published_at }}: wait until {{ openbao_backup_cooldown_days }}
+      days have passed. Nothing was changed.
+    quiet: true
+
+- name: Install bzip2 (the release is a .bz2)
+  ansible.builtin.apt:
+    name: bzip2
+    state: present
+
+- name: Create the download cache
+  ansible.builtin.file:
+    path: /var/cache/akasha
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+# get_url checks the SHA-256 before the file is kept: a mismatch fails and leaves nothing.
+- name: Download the pinned restic release
+  ansible.builtin.get_url:
+    url: "{{ openbao_backup_restic_url }}"
+    dest: /var/cache/akasha/{{ openbao_backup_restic_file }}
+    checksum: sha256:{{ openbao_backup_restic_sha256 }}
+    owner: root
+    group: root
+    mode: "0644"
+  register: openbao_backup_download
+
+- name: Read the installed restic version
+  ansible.builtin.command: /usr/local/bin/restic version
+  register: openbao_backup_restic_installed
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Install restic
+  ansible.builtin.shell: |
+    set -euo pipefail
+    bzcat /var/cache/akasha/{{ openbao_backup_restic_file }} > /usr/local/bin/restic.new
+    chmod 0755 /usr/local/bin/restic.new
+    mv /usr/local/bin/restic.new /usr/local/bin/restic
+  args:
+    executable: /bin/bash
+  when: >-
+    not ansible_check_mode and
+    ('restic ' ~ openbao_backup_restic_version ~ ' ') not in (openbao_backup_restic_installed.stdout | default(''))
+  changed_when: true
+
+- name: Create the root-only directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  loop:
+    - "{{ openbao_backup_config_dir }}"
+    - "{{ openbao_backup_state_dir }}"
+    - "{{ openbao_backup_cache_dir }}"
+
+- name: Write the private configuration
+  ansible.builtin.template:
+    src: core.env.j2
+    dest: "{{ openbao_backup_config_dir }}/core.env"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
+- name: Write the restic password
+  ansible.builtin.copy:
+    content: "{{ openbao_backup_restic_password }}\n"
+    dest: "{{ openbao_backup_config_dir }}/restic-password"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
+- name: Install the backup script and the AppRole helper
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - {src: akasha-openbao-backup.j2, dest: /usr/local/sbin/akasha-openbao-backup}
+    # /usr/local/bin: Debian's sshd PATH for non-root users has no sbin directory.
+    - {src: akasha-bao-approle.j2, dest: /usr/local/bin/akasha-bao-approle}
+
+- name: Install the service and the timer
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: /etc/systemd/system/{{ item }}
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - akasha-openbao-backup.service
+    - akasha-openbao-backup.timer
+
+- name: Look for the installed timer
+  ansible.builtin.stat:
+    path: /etc/systemd/system/akasha-openbao-backup.timer
+  register: openbao_backup_timer
+
+- name: Enable and start the timer
+  ansible.builtin.systemd_service:
+    name: akasha-openbao-backup.timer
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: not ansible_check_mode or openbao_backup_timer.stat.exists
+
+# --- Checks ----------------------------------------------------------------------------------
+
+- name: Look for the AppRole credentials
+  ansible.builtin.stat:
+    path: "{{ openbao_backup_config_dir }}/approle-secret-id"
+  register: openbao_backup_secret_id
+
+- name: Read the timer, the last run and the newest snapshot
+  ansible.builtin.shell: |
+    set -o pipefail
+    echo "timer=$(systemctl is-active akasha-openbao-backup.timer) $(systemctl is-enabled akasha-openbao-backup.timer)"
+    echo "result=$(systemctl show -P Result akasha-openbao-backup.service)"
+    set -a; . {{ openbao_backup_config_dir }}/core.env; set +a
+    restic snapshots --host core --latest 1 --json 2>/dev/null | python3 -c '
+    import datetime, json, sys
+    try:
+        snaps = json.load(sys.stdin)
+    except ValueError:
+        snaps = None
+    if not snaps:
+        print("newest=none")
+    else:
+        t = datetime.datetime.fromisoformat(snaps[-1]["time"])
+        age = datetime.datetime.now(datetime.timezone.utc) - t
+        print(f"newest_age_hours={int(age.total_seconds() // 3600)}")'
+  args:
+    executable: /bin/bash
+  register: openbao_backup_state
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode and openbao_backup_secret_id.stat.exists
+
+- name: Check the timer, the last run and the age of the newest snapshot
+  vars:
+    openbao_backup_age: >-
+      {{ (openbao_backup_state.stdout_lines | select('match', '^newest_age_hours=') | first
+          | default('newest_age_hours=999999')).split('=')[1] | int }}
+  ansible.builtin.assert:
+    that:
+      - "'timer=active enabled' in openbao_backup_state.stdout_lines"
+      - "'result=success' in openbao_backup_state.stdout_lines"
+      - openbao_backup_age | int <= openbao_backup_max_age_hours
+    fail_msg: >-
+      {{ openbao_backup_state.stdout_lines }}: the newest snapshot must be younger than
+      {{ openbao_backup_max_age_hours }} h and the last run successful (runbook backups.md,
+      "core": `sudo systemctl start akasha-openbao-backup`, `journalctl -u akasha-openbao-backup`).
+    quiet: true
+  when: not ansible_check_mode and openbao_backup_secret_id.stat.exists
+
+- name: Stop until the AppRole credentials exist
+  ansible.builtin.assert:
+    that:
+      - openbao_backup_secret_id.stat.exists
+    fail_msg: >-
+      {{ openbao_backup_config_dir }}/approle-secret-id is missing: run akasha-bao-approle,
+      initialise the repository and run the first backup (runbook backups.md, "core"), then
+      run the role again.
+    quiet: true
+  when: not ansible_check_mode

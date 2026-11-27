@@ -34,3 +34,6 @@
       tags: [trust]
     - role: openbao
       tags: [openbao]
+    # Needs the private file too: -e @~/akasha-private/backup_core.yml (runbook backups.md).
+    - role: openbao_backup
+      tags: [backup]
