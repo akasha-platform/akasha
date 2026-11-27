@@ -71,7 +71,7 @@ Done when: an empty PR passes every check; actions are SHA-pinned; `main` is pro
      one after the step-6 RAM gate, from measurements.
    * Host monitoring (node-exporter) waits until a Prometheus exists (P5); until then
      measurements are read-only commands over SSH.
-6. 🔄 OpenTofu L0 (applied from the laptop; state in a dedicated AWS S3 bucket, ADR-0031),
+6. ✅ 2026-11-24 OpenTofu L0 (applied from the laptop; state in a dedicated AWS S3 bucket, ADR-0031),
    in four steps:
    * 6a ✅ 2026-11-20: stack skeleton `infra/opentofu/live/l0-host` (OpenTofu 1.13.9, provider
      libvirt 0.9.9 with hashes checked against its signed release), partial S3 backend, state
@@ -146,8 +146,8 @@ Done when: an empty PR passes every check; actions are SHA-pinned; `main` is pro
          least 3.56 GiB available, no swap-in.
        * The formula with the measured QEMU overhead gives 3.54 GiB.
        * The measurement was short, by the owner's choice: nobody uses the desktop.
-7. OpenBao initialisation, its certificates, off-site backups and host checks, split by the
-   owner on 2026-11-24 (Shamir: 3 shares, threshold 2):
+7. ✅ 2026-11-27 OpenBao initialisation, its certificates, off-site backups and host checks,
+   split by the owner on 2026-11-24 (Shamir: 3 shares, threshold 2):
    * 7a ✅ 2026-11-24: Renovate proposes new OpenBao and mise releases (B16, ADR-0042).
    * 7b ✅ 2026-11-25: OOM order of the lab VMs on the host (A15, ADR-0043).
      * Second run `changed=0`; the OOM scores rise from the router (873) to os-cmp02 (1346).
@@ -178,7 +178,11 @@ Done when: an empty PR passes every check; actions are SHA-pinned; `main` is pro
        backed up and restored identically, password from paper checked, lock refused the
        backup user and the admin alike. Independent review: one blocker fixed before
        anything was created.
-     * 7e-2: OpenBao's Raft snapshots from `core` to their own repository.
+     * 7e-2 ✅ 2026-11-27: OpenBao's Raft snapshots from `core`, daily, to their own repository
+       (ADR-0049): AppRole `core-backup` (snapshot only, loopback), append-only access key of
+       `akasha-backup-core`, pinned restic 0.20.0 under a sandboxed timer; first snapshot
+       restored complete from the laptop; a full restore into a fresh OpenBao was tested in a
+       container.
 
 Done when: the L0 stack rebuilds from zero, lab traffic cannot reach the campus LAN, the
 laptop reaches the lab only through Tailscale.

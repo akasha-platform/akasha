@@ -1,0 +1,35 @@
+---
+# Daily off-site backup of OpenBao's Raft storage from core (ADR-0049): an AppRole snapshot,
+# then restic to the repository `core` of the backup bucket (ADR-0048).
+
+# restic itself: the official binary, pinned. To bump (runbook backups.md): verify the
+# release's GPG-signed SHA256SUMS (key CF8F 18F2 8445 7597 3F79 D4E1 91A6 868B D3F7 A907,
+# published in restic's installation docs), then change the three values. Renovate proposes
+# new versions (ADR-0042). The laptop uses the same version (mise.toml).
+# renovate: datasource=github-releases depName=restic/restic
+openbao_backup_restic_version: 0.20.0
+openbao_backup_restic_sha256: 0ccd9fa7885074a24603b051e01bf9bd8b5e45d6a1791e9d9887e9e9372107f7
+openbao_backup_restic_published_at: "2026-11-19T12:11:52Z"
+openbao_backup_restic_file: restic_{{ openbao_backup_restic_version }}_linux_amd64.bz2
+openbao_backup_restic_url: >-
+  https://github.com/restic/restic/releases/download/v{{ openbao_backup_restic_version
+  }}/{{ openbao_backup_restic_file }}
+openbao_backup_cooldown_days: 6
+
+# Private input, never committed: pass -e @~/akasha-private/backup_core.yml (runbook
+# backups.md). The bucket name, the access key of akasha-backup-core and the password of the
+# restic repository `core`.
+# openbao_backup_bucket:
+# openbao_backup_aws_access_key_id:
+# openbao_backup_aws_secret_access_key:
+# openbao_backup_restic_password:
+
+openbao_backup_region: eu-west-3
+openbao_backup_repository_path: core
+openbao_backup_config_dir: /etc/akasha/backup
+openbao_backup_state_dir: /var/lib/akasha-backup
+openbao_backup_cache_dir: /var/cache/akasha-backup
+openbao_backup_approle: core-backup
+openbao_backup_on_calendar: "*-*-* 03:30:00"
+# The role fails when the newest snapshot in the repository is older than this.
+openbao_backup_max_age_hours: 48

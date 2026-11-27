@@ -55,3 +55,4 @@ its status changed or a dated note pointing to the new one. Only dated sections 
 | [0046](0046-openbao-pki-intermediate.md) | OpenBao's intermediate CA, configured with OpenTofu | accepted |
 | [0047](0047-openbao-tls-and-network-access.md) | OpenBao's TLS listener, its certificate and who may reach it | accepted |
 | [0048](0048-off-site-backups-restic-s3-object-lock.md) | Off-site backups: restic to AWS S3 with Object Lock in compliance mode | accepted |
+| [0049](0049-openbao-daily-backup.md) | OpenBao's daily off-site backup from core | accepted |

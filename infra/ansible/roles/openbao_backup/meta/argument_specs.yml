@@ -1,0 +1,64 @@
+---
+argument_specs:
+  main:
+    short_description: Daily off-site backup of OpenBao's Raft storage from core (ADR-0049)
+    description:
+      - Installs the pinned restic binary after its SHA-256 is checked, the AppRole helper,
+        the backup script and its daily timer, and the private configuration (access key,
+        restic password) from a private file. Checks the timer, the last run and the age of
+        the newest snapshot.
+    options:
+      openbao_backup_restic_version:
+        type: str
+        description: Pinned restic version.
+      openbao_backup_restic_sha256:
+        type: str
+        description: SHA-256 of the official linux_amd64 .bz2 of that version.
+      openbao_backup_restic_published_at:
+        type: str
+        description: Publication time of the GitHub release (UTC, %Y-%m-%dT%H:%M:%SZ).
+      openbao_backup_restic_file:
+        type: str
+        description: File name of the .bz2 in the release.
+      openbao_backup_restic_url:
+        type: str
+        description: Download URL of that file.
+      openbao_backup_cooldown_days:
+        type: int
+        description: Minimum age of the release before it may be installed (ADR-0022).
+      openbao_backup_bucket:
+        type: str
+        description: Name of the backup bucket (private).
+      openbao_backup_aws_access_key_id:
+        type: str
+        description: Access key ID of akasha-backup-core (private).
+      openbao_backup_aws_secret_access_key:
+        type: str
+        description: Secret access key of akasha-backup-core (private).
+      openbao_backup_restic_password:
+        type: str
+        description: Password of the restic repository `core` (private).
+      openbao_backup_region:
+        type: str
+        description: AWS region of the bucket.
+      openbao_backup_repository_path:
+        type: str
+        description: Prefix of the repository in the bucket.
+      openbao_backup_config_dir:
+        type: str
+        description: Root-only directory of the private configuration and the AppRole files.
+      openbao_backup_state_dir:
+        type: str
+        description: Where the snapshot is written before restic uploads it.
+      openbao_backup_cache_dir:
+        type: str
+        description: restic's cache.
+      openbao_backup_approle:
+        type: str
+        description: Name of the AppRole role in OpenBao.
+      openbao_backup_on_calendar:
+        type: str
+        description: systemd OnCalendar of the daily run.
+      openbao_backup_max_age_hours:
+        type: int
+        description: The role fails when the newest snapshot is older than this.

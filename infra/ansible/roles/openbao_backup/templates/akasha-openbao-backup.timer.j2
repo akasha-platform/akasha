@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+[Unit]
+Description=akasha: daily off-site backup of OpenBao (ADR-0049)
+Documentation=https://github.com/akasha-platform/akasha/blob/main/docs/runbooks/backups.md
+
+[Timer]
+OnCalendar={{ openbao_backup_on_calendar }}
+RandomizedDelaySec=30min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

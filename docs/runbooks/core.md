@@ -8,7 +8,9 @@ Design:
 * [ADR-0045](../adr/0045-openbao-initialisation-and-administration.md): initialisation, unseal
   shares, audit log, administrator;
 * [ADR-0047](../adr/0047-openbao-tls-and-network-access.md): TLS listener, its certificate,
-  firewall, trust store, the admin bound to loopback.
+  firewall, trust store, the admin bound to loopback;
+* [ADR-0049](../adr/0049-openbao-daily-backup.md): the daily off-site backup (runbook
+  `backups.md`, section "core").
 
 Managed by `infra/ansible/playbooks/core.yml`, through the roles `vm_firewall` (tag `firewall`)
 and `openbao` (tag `openbao`). Commands run on `core` (`ssh debian@10.10.0.12`) unless stated
