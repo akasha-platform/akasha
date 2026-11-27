@@ -69,7 +69,7 @@ Chosen by the owner on 2026-11-27 (the options in bold).
   secret ID, and revokes the admin's token. The secret never leaves `core`.
 * **AWS.** The IAM user `akasha-backup-core` has an access key and no console. Its policy
   `akasha-backup-core-repo` is append-only within `core/`:
-  * read, write, read retention;
+  * read and write;
   * delete under `core/locks/` only;
   * the same explicit deny as `akasha-backup`.
 
@@ -85,8 +85,9 @@ Chosen by the owner on 2026-11-27 (the options in bold).
   * revokes the token;
   * runs `restic backup --host core --tag openbao`.
 
-  The unit is sandboxed (`ProtectSystem=strict`, private `/tmp`, no new privileges).
-  Everything is kept. `--init` creates the repository once.
+  The unit is sandboxed: `ProtectSystem=strict`, private `/tmp`, no new privileges, and
+  `BAO_TOKEN_PATH` set away from the hidden `/root`. A run that hangs is stopped after 30
+  minutes. Everything is kept. `--init` creates the repository once.
 * **Checks.** The role verifies the timer, the last result and that the newest snapshot is
   younger than 48 h. Until the AppRole's files exist, it stops with the steps to take.
 * **Recovery chain.**
@@ -112,6 +113,9 @@ Chosen by the owner on 2026-11-27 (the options in bold).
   again.
 * Bad, because a snapshot a day, kept for at least 90 days, only grows (a few tens of KB each
   today).
+* Bad, because `akasha-backup-core` may list object names (hashes and sizes) outside `core/`,
+  though not read them. Limiting `s3:ListBucket` with an `s3:prefix` condition would change
+  restic's error paths (HEAD on a missing key answers 403 instead of 404); left for later.
 * Bad, because the timer runs whether or not OpenBao is unsealed. After a reboot, the backups
   fail until someone unseals it, which is visible but not alerted.
 
@@ -128,6 +132,16 @@ From the laptop: restore the newest snapshot of `core` and check its size and da
 restore into a fresh OpenBao was tested in a container).
 
 ## More Information
+
+* The independent review (2026-11-27) found no blocker. Its findings were fixed before
+  anything ran:
+  * a key rotation would have replaced the repository password;
+  * the key one-liner could record empty values;
+  * the helper could skip destroying older secret IDs silently;
+  * a hung run had no timeout;
+  * the bucket name was unmasked in three commands;
+  * a few smaller points: the role ID on argv, restic's errors hidden from the check, the
+    token helper under `ProtectHome`.
 
 * Runbook: [backups.md](../runbooks/backups.md), section "core".
 * OpenBao AppRole and Raft snapshot APIs (v2.7.3 docs); restic 0.20.0.

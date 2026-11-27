@@ -29,9 +29,11 @@ unset response
 mv "$dir/approle-role-id.new" "$dir/approle-role-id"
 mv "$dir/approle-secret-id.new" "$dir/approle-secret-id"
 
-# Destroy the older secret IDs: only the new one logs in from now on.
-for old in $(bao list -format=json "auth/approle/role/$role/secret-id" \
-    | python3 -c 'import json, sys; print("\n".join(json.load(sys.stdin)))'); do
+# Destroy the older secret IDs: only the new one logs in from now on. The list is assigned
+# first, so that a failure stops the script instead of skipping the loop.
+accessors=$(bao list -format=json "auth/approle/role/$role/secret-id" \
+  | python3 -c 'import json, sys; print("\n".join(json.load(sys.stdin)))')
+for old in $accessors; do
   if [ "$old" != "$accessor" ]; then
     bao write "auth/approle/role/$role/secret-id-accessor/destroy" secret_id_accessor="$old" >/dev/null
     echo "destroyed an older secret ID"

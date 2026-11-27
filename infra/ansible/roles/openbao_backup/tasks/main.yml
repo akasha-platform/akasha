@@ -11,7 +11,6 @@
     fail_msg: >-
       Pass the private file: -e @~/akasha-private/backup_core.yml (runbook backups.md, "core").
     quiet: true
-  no_log: true
 
 - name: Check that the pinned restic release is past the cooldown (ADR-0022)
   ansible.builtin.assert:
@@ -148,7 +147,8 @@
     echo "timer=$(systemctl is-active akasha-openbao-backup.timer) $(systemctl is-enabled akasha-openbao-backup.timer)"
     echo "result=$(systemctl show -P Result akasha-openbao-backup.service)"
     set -a; . {{ openbao_backup_config_dir }}/core.env; set +a
-    restic snapshots --host core --latest 1 --json 2>/dev/null | python3 -c '
+    err=$(mktemp)
+    restic snapshots --host core --latest 1 --json 2>"$err" | python3 -c '
     import datetime, json, sys
     try:
         snaps = json.load(sys.stdin)
@@ -160,6 +160,9 @@
         t = datetime.datetime.fromisoformat(snaps[-1]["time"])
         age = datetime.datetime.now(datetime.timezone.utc) - t
         print(f"newest_age_hours={int(age.total_seconds() // 3600)}")'
+    # The first error line of restic, the bucket name masked.
+    head -c 300 "$err" | head -1 | sed 's/{{ openbao_backup_bucket }}/<backup-bucket>/g; s/^/restic_error=/'
+    rm -f "$err"
   args:
     executable: /bin/bash
   register: openbao_backup_state
@@ -181,6 +184,7 @@
       {{ openbao_backup_state.stdout_lines }}: the newest snapshot must be younger than
       {{ openbao_backup_max_age_hours }} h and the last run successful (runbook backups.md,
       "core": `sudo systemctl start akasha-openbao-backup`, `journalctl -u akasha-openbao-backup`).
+      A restic_error line is restic's own message (network, password, repository).
     quiet: true
   when: not ansible_check_mode and openbao_backup_secret_id.stat.exists
 

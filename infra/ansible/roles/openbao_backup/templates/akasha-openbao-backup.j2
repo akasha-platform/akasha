@@ -25,13 +25,14 @@ for f in approle-role-id approle-secret-id; do
   fi
 done
 
-BAO_TOKEN=$(bao write -field=token auth/approle/login role_id="$(cat "$dir/approle-role-id")" \
+# role_id from its file (@path, never on argv), secret_id on stdin.
+BAO_TOKEN=$(bao write -field=token auth/approle/login role_id=@"$dir/approle-role-id" \
   secret_id=- < "$dir/approle-secret-id")
 export BAO_TOKEN
 trap 'bao token revoke -self >/dev/null 2>&1 || true' EXIT
 bao operator raft snapshot save "$snapshot.new"
 mv "$snapshot.new" "$snapshot"
-bao token revoke -self >/dev/null
+bao token revoke -self >/dev/null || true   # it expires in 5 minutes anyway
 trap - EXIT
 
 restic backup --host core --tag openbao "$snapshot"

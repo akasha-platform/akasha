@@ -9,6 +9,10 @@ Wants=network-online.target
 Type=oneshot
 EnvironmentFile={{ openbao_backup_config_dir }}/core.env
 ExecStart=/usr/local/sbin/akasha-openbao-backup
+# A hung run would block the next ones (oneshot has no start timeout by default).
+TimeoutStartSec=30min
+# No token helper: with ProtectHome, /root/.vault-token is hidden; point bao elsewhere.
+Environment=BAO_TOKEN_PATH={{ openbao_backup_state_dir }}/no-token-helper
 ProtectSystem=strict
 ReadWritePaths={{ openbao_backup_state_dir }} {{ openbao_backup_cache_dir }}
 PrivateTmp=true
