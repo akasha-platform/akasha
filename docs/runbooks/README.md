@@ -32,6 +32,8 @@ One runbook per alert or known failure mode, written when the failure mode is in
   passphrase, session (tunnel, token), the intermediate CA, checks, off-AWS copy, failure modes
 * [pki-root-ca.md](pki-root-ca.md) — offline root CA: files, check, use the key, make the root,
   lost passphrase or laptop, leaked key, constraint violations, expiry
+* [host-reboot.md](host-reboot.md) — reboot `insa` (only with the owner on site): record the
+  state, stop the lab, reboot, compare, start the lab router first, unseal, check
 * [host-oom-order.md](host-oom-order.md) — OOM order of the lab VMs: values, run, check,
   a restarted VM, a failing service, after an OOM kill, remove
 * [host-firewall.md](host-firewall.md) — lab firewall and NAT: run with the private campus
