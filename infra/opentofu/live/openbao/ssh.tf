@@ -60,7 +60,7 @@ resource "vault_generic_endpoint" "operator_user" {
   ignore_absent_fields = true
   disable_delete       = true
   data_json = jsonencode({
-    token_policies    = [vault_policy.operator.name, vault_policy.kolla_passwords.name]
+    token_policies    = [vault_policy.operator.name, vault_policy.kolla_passwords.name, vault_policy.kolla_tls.name]
     token_ttl         = 900 # 15 minutes: enough to sign, or to read the passwords (kv.tf)
     token_max_ttl     = 900
     token_type        = "service"

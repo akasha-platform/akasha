@@ -1,0 +1,24 @@
+---
+# TLS of the OpenStack APIs (ADR-0053): HAProxy serves HTTPS on both VIPs, with a certificate
+# from OpenBao's PKI. Back-end TLS (HAProxy to the services) stays off: one controller.
+
+kolla_enable_tls_internal: true
+kolla_enable_tls_external: true
+# With internal TLS, Kolla also turns on TLS between the services and ProxySQL, MariaDB's proxy
+# on the internal VIP (database_enable_tls_internal), with the same certificate: the files
+# proxysql-cert.pem, proxysql-key.pem and proxysql-ca.pem below (ADR-0053, Updates).
+
+# The lab's root CA (infra/pki/akasha-root-ca.crt) goes into every container's trust store,
+# and the services check the APIs against Debian's bundle there.
+kolla_copy_ca_into_containers: true
+openstack_cacert: "/etc/ssl/certs/ca-certificates.crt"
+# The CA written into admin-openrc.sh and clouds.yaml (OS_CACERT, cacert): the system bundle,
+# which holds the lab's root on the bastion (role lab_trust) and in the containers. Python's
+# requests would otherwise use certifi, which does not.
+kolla_admin_openrc_cacert: "/etc/ssl/certs/ca-certificates.crt"
+
+# haproxy.pem, haproxy-internal.pem, proxysql-*.pem and ca/ are written to the bastion's tmpfs by
+# akasha-kolla-passwords read (ADR-0052, ADR-0053), never to a disk. Kolla only reads this
+# directory on the deployment host. Without them Kolla's prechecks and copy tasks stop: it
+# never deploys without TLS.
+kolla_certificates_dir: "/run/akasha-kolla/certificates"

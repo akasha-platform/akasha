@@ -163,6 +163,36 @@ Step 5, after the deployment:
   `--cacert`;
 * nothing listens on `10.10.0.101:3306`.
 
+## Updates
+
+* 2026-11-28, from the independent review of the code (P2 step 4b), with the owner's choices:
+  * **MariaDB's TLS.** With internal TLS, Kolla also turns on TLS between the services and
+    ProxySQL on the internal VIP (`database_enable_tls_internal`, VERIFIED in
+    `group_vars/all/database.yml`). Without its files the first deployment stops. The owner
+    chose to keep it on, with the same certificate. `read` also writes
+    `proxysql-cert.pem` (the certificate), `proxysql-key.pem` and `proxysql-ca.pem` (the
+    intermediate, as Kolla's release note `fix-proxysql-database-internal-tls` asks).
+    Checked at step 5.
+  * **Where the key lives on `os-ctl01`:** `/etc/kolla/haproxy/` and `/etc/kolla/proxysql/`,
+    and the Docker volumes `letsencrypt_certificates`, which HAProxy always mounts, and
+    `proxysql`. A rotation or a retirement of the controller covers all four.
+  * **The KV secret** holds three fields: `certificate`, `issuing_ca`, `private_key` (not the
+    expiry, which the certificate holds). It keeps two versions (`max_versions`): the current
+    one and the one before, to go back. The operator can read every kept version.
+  * **Expiry:** `read` warns from 30 days and refuses below 7 days, which stops every Kolla
+    run until the admin issues a new certificate.
+  * **Revocation is not enough.** No client in the lab fetches CRLs. After a leak, the
+    certificate is replaced everywhere and the leaked KV version destroyed; it is also revoked,
+    for the record.
+  * **The laptop's swap** is off while the admin issues the certificate, as for the root CA's
+    ceremonies (ADR-0044).
+  * **Trust anchor:** `read` checks against the root-owned copy installed by `lab_trust`,
+    not the toolchain user's checkout.
+  * **Clients:** `kolla_admin_openrc_cacert` points to the system bundle, so that
+    `admin-openrc.sh` and `clouds.yaml` carry the CA. Python's requests on the bastion would
+    otherwise use certifi.
+  * **Never `kolla-ansible --diff`:** Ansible would print the key and the passwords.
+
 ## More Information
 
 * Kolla-Ansible 2026.1, TLS: https://docs.openstack.org/kolla-ansible/2026.1/admin/tls.html

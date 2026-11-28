@@ -22,3 +22,21 @@ bastion_kolla_passwords_path: kolla/passwords
 # The system's bundle, which holds the lab's root CA (role lab_trust). Python's requests does
 # not read it unless told.
 bastion_kolla_passwords_ca_file: /etc/ssl/certs/ca-certificates.crt
+
+# The OpenStack APIs' certificate and key (ADR-0053), in the same mount: written by the admin,
+# read here. `read` writes HAProxy's and ProxySQL's files only for a certificate that holds
+# every name and address below, chains to the lab's root and has at least `min_days` days
+# left; it warns when fewer than `warn_days` are left. The names and addresses are also in
+# infra/kolla/globals.d/10-network.yml and the role router_dns: change the three together.
+bastion_kolla_passwords_tls_path: kolla/tls/haproxy
+bastion_kolla_passwords_tls_names:
+  - api.akasha.internal
+  - api-int.akasha.internal
+bastion_kolla_passwords_tls_addresses:
+  - 10.10.0.101
+  - 10.10.0.100
+bastion_kolla_passwords_tls_warn_days: 30
+bastion_kolla_passwords_tls_min_days: 7
+# The trust anchor of the checks, and the CA given to Kolla's containers: the root-owned copy
+# the role lab_trust installs, not the toolchain user's checkout, which that user can change.
+bastion_kolla_passwords_root_ca: /usr/local/share/ca-certificates/akasha-root-ca.crt

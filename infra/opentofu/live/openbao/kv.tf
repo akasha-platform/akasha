@@ -28,3 +28,17 @@ resource "vault_policy" "kolla_passwords" {
     }
   EOT
 }
+
+# The OpenStack APIs' certificate and key (ADR-0053), at kv/kolla/tls/haproxy: written by the
+# admin from the laptop (runbook openbao-pki.md), read by akasha-kolla-passwords read on the
+# bastion as the userpass user `operator`.
+resource "vault_policy" "kolla_tls" {
+  name   = "kolla-tls"
+  policy = <<-EOT
+    # The operator on the bastion (ADR-0053): read the APIs' certificate and key, nothing else.
+    # Issuing or renewing it is the admin's; the operator has no PKI permission.
+    path "${vault_mount.kv.path}/data/kolla/tls/*" {
+      capabilities = ["read"]
+    }
+  EOT
+}
