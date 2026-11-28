@@ -165,6 +165,11 @@ git ls-remote origin main      # on the laptop: the same SHA as the run printed
   `git -C ~/akasha status` as `akasha`. Untracked files neither stop the checkout nor fail
   the checks.
 * **Pins.** The run also installs whatever `mise.lock` and `uv.lock` changed.
+* **Going back to an older commit.** Run the role of that commit, from a laptop checkout of
+  it (`git worktree add --detach <dir> <sha>`, then the command above from `<dir>/infra/ansible`
+  with `-e bastion_toolchain_commit=<sha>`). Today's role on a commit from before the group
+  `kolla` (before ADR-0051) stops at `uv sync` ("Group `kolla` is not defined") and installs
+  nothing; the older role removes Kolla. Tested in a container on 2026-11-28.
 * **GitHub's rate limit.** `mise install` checks each tool's provenance through GitHub's API,
   unauthenticated. From the lab, the campus NAT shares its address, so the limit (60
   requests an hour) can be hit: the run stops, nothing half-installed is used. Wait and run it
