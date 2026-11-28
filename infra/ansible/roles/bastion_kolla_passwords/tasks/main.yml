@@ -33,6 +33,9 @@
       - nosuid
       - nodev
       - noexec
+      # A failed mount must not stop the boot (no SSH then); without it everything that needs
+      # the passwords refuses to run.
+      - nofail
 
 # noswap (Linux 6.4 and later): the passwords never reach the swap file on the disk. Mounted at
 # every boot, empty after it.

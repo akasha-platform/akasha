@@ -120,6 +120,10 @@ Chosen by the owner on 2026-11-28 (the options in bold).
     * the deployment host's remote temporary directory (`ansible_remote_tmp` in
       `multinode`).
 
+    `no_target_syslog` in `infra/kolla/ansible.cfg` keeps module arguments, which carry
+    passwords, out of the bastion's and the nodes' journals. The fstab line has `nofail`: a
+    failed mount does not stop the boot, and everything that needs the tmpfs refuses to run.
+
     `infra/kolla/passwords.yml` is a symbolic link to the copy.
   * **`akasha-kolla-passwords`**, run as `akasha`, with the operator's password on stdin from
     the laptop, like `akasha-ssh-cert`:
@@ -145,9 +149,18 @@ Chosen by the owner on 2026-11-28 (the options in bold).
 ### Consequences
 
 * Good, because the passwords exist as files only in OpenBao and its backups, and on the
-  bastion's tmpfs without swap while Kolla runs. They are on no disk, command line or log.
+  bastion's tmpfs without swap while Kolla runs. Kolla's module arguments are kept out of the
+  journals (`no_target_syslog`).
+* Bad, because three Kolla commands still write secrets outside the tmpfs, so the runbook keeps
+  them for their steps:
+  * `post-deploy`: the admin's credentials, in the configuration directory;
+  * `certificates`: unencrypted private keys there; the API's TLS comes from OpenBao's PKI
+    instead (P2 step 4);
+  * `octavia-certificates`: keys there and two passwords on `openssl`'s command line (P2
+    step 7).
 * Good, because an `init` cannot overwrite existing passwords, and nothing on the bastion can
-  change or destroy one: a stolen bastion can read the passwords, not alter them.
+  change or destroy one. A stolen bastion can read the passwords, not alter them. It can only
+  add a name that does not exist yet, which the runbook's response checks.
 * Good, because the daily snapshot already backs them up off-site.
 * Bad, because the memory of the processes that hold the passwords can still be swapped to the
   bastion's swap file (ADR-0030: the bastion relies on swap during large Ansible runs):
@@ -209,6 +222,20 @@ Open question A5 is then answered.
     * core dumps;
     * the expiry service's hardening;
     * the runbook's details.
+* **A second independent review** of the fixed code found no blocker. What it found was
+  handled:
+  * module arguments in the journal: `no_target_syslog`;
+  * `certificates` and `octavia-certificates` writing secrets: deferred to their steps;
+  * an unsafe "change a password": Kolla's rotation procedure, and the SSH key pairs;
+  * Kolla's password tools replacing the link with a file: a warning, and `clean` removes it;
+  * smaller points:
+    * a name the operator may still create;
+    * `init`'s count;
+    * `nofail`;
+    * copies left by a killed run;
+    * the admin recovery's check;
+    * the tmpfs path written in three places;
+    * running from `infra/kolla` only.
 * **Found while testing the fixes:** Ansible creates `local_tmp` when it starts, also for
   `ansible-galaxy`. The role `bastion_toolchain` installs Kolla's collections before the
   tmpfs exists, so that task uses the user's usual directory (`ANSIBLE_LOCAL_TEMP`).

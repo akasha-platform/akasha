@@ -144,8 +144,10 @@ never typed, or shown, on the bastion.
   4. Replace the CA: `tofu apply -replace=vault_ssh_secret_backend_ca.ssh_client_signer`,
      commit the new public key, run `--tags ssh_ca`.
   5. Give `operator` a new password in the keyring and create it again as in "Once".
-  6. The operator's password also opened Kolla's passwords (ADR-0052): treat them as known
-     (the operator could not change or destroy them). Once OpenStack runs, change them
+  6. The operator's password also opened Kolla's passwords (ADR-0052): treat them as known.
+     The operator could not change or destroy them, but could add names that did not exist
+     yet. As admin, `bao kv metadata get kv/kolla/passwords/<name>` shows when each was
+     created; look for one created after the init. Once OpenStack runs, change them
      (Kolla's password rotation, to be written in P2 step 8).
 * **Change the operator's password**:
   * delete the keyring entry (service `akasha-openbao`, user `operator`; `--restore` and
@@ -180,7 +182,8 @@ mise exec -- uv run --locked --quiet python infra/opentofu/scripts/tofu_passphra
 # linked /home/akasha/akasha/infra/kolla/passwords.yml; ...
 ```
 
-Then, as `akasha` on the bastion:
+Then, as `akasha` on the bastion, always from `infra/kolla` (from elsewhere, or with
+`ANSIBLE_CONFIG` set, Ansible's temporary files go to `~/.ansible/tmp` on the disk):
 
 ```bash
 cd ~/akasha/infra/kolla
@@ -192,8 +195,18 @@ akasha-kolla-passwords clean        # when done; a timer removes files older tha
   OpenBao lacks; it never leaves a copy behind on failure. A newer Kolla release that adds
   passwords needs `kolla-mergepwd` first; that mode is added with the first such bump.
 * `clean` empties the tmpfs and removes the link and the files `kolla-ansible post-deploy`
-  writes (`clouds.yaml`, `*openrc*.sh`, with the admin password; git-ignored). Do not run
-  `post-deploy` before P2 step 5 decides where those credentials live.
+  writes (`clouds.yaml`, `*openrc*.sh`, with the admin password; git-ignored).
+* **Never run `kolla-genpwd`, `kolla-readpwd` or `kolla-mergepwd` on
+  `infra/kolla/passwords.yml`**: they replace the link with a plain file, and the 107 passwords
+  land on the bastion's disk. `read` and `init` then refuse; `clean` removes it, but its blocks
+  may remain.
+* **Not yet**, because they write secrets outside the tmpfs:
+  * `post-deploy`: the admin's credentials in `infra/kolla`; where they live is decided in
+    P2 step 5;
+  * `certificates`: private keys without a passphrase in `infra/kolla/certificates/`; the
+    API's TLS comes from OpenBao's PKI instead (P2 step 4);
+  * `octavia-certificates`: keys in `infra/kolla/octavia-certificates/` and
+    `infra/kolla/config/octavia/`, and two passwords on `openssl`'s command line (P2 step 7).
 
 ### Once: generate the passwords
 
@@ -203,7 +216,7 @@ After the role ran and stack `openbao` has the mount `kv` and the policy `kolla-
 mise exec -- uv run --locked --quiet python infra/opentofu/scripts/tofu_passphrase.py --service akasha-openbao --plain operator \
   | ssh -o BatchMode=yes -o LogLevel=error debian@10.10.0.10 'sudo -iu akasha akasha-kolla-passwords init'
 # WARNING: 'docker_registry_password' not found in Vault
-# init: 107 passwords written to OpenBao and read back identical
+# init: 106 passwords written to OpenBao and read back identical (1 left blank on purpose)
 ```
 
 `init` refuses when OpenBao already holds any password: it never overwrites the passwords of a
@@ -223,6 +236,7 @@ as admin through the tunnel (runbook `openbao-pki.md`, "Every session"):
    for n in $(mise exec -- bao kv list -format=json kv/kolla/passwords | jq -r '.[]'); do
      mise exec -- bao kv metadata delete "kv/kolla/passwords/$n"
    done
+   mise exec -- bao kv list kv/kolla/passwords    # must say: No value found at kv/metadata/kolla/passwords
    unset BAO_TOKEN
    ```
 
@@ -239,11 +253,22 @@ After a deployment, never do this: the cloud runs with those passwords.
 * **`Unable to create local directories '/run/akasha-kolla/ansible-local'`**: the same
   missing mount, seen by Ansible from `infra/kolla`.
 * **Login refused, `Vault is sealed`**: as for SSH certificates (above).
-* **Change a password**: as admin through the tunnel, with
-  `BAO_ADDR=http://127.0.0.1:8200 BAO_TOKEN="$VAULT_TOKEN" mise exec -- bao kv put
-  kv/kolla/passwords/<name> password=-`. The value comes on stdin, without a trailing newline
-  (`bao` keeps it). KV v2 keeps the 10 last versions (`bao kv get -version=<n> …`); the daily
-  snapshot (ADR-0049) keeps older ones. Then redeploy the services that use it.
+* **Change a password.** First read Kolla's
+  [password rotation](https://docs.openstack.org/kolla-ansible/2026.1/admin/password-rotation.html)
+  (`doc/source/admin/password-rotation.rst` at the pinned commit).
+  * **Only the secrets in its `reconfigure` list** may simply be written and redeployed.
+  * **Others need manual steps first**, or Kolla loses access: for example
+    `database_password` (MariaDB's root), `nova_database_password`, `rabbitmq_password` and
+    `kolla_ssh_key`.
+  * **The write**, as admin through the tunnel:
+    `BAO_ADDR=http://127.0.0.1:8200 BAO_TOKEN="$VAULT_TOKEN" mise exec -- bao kv put
+    kv/kolla/passwords/<name> password=-`. The value comes on stdin, without a trailing
+    newline (`bao` keeps it).
+  * **An `*_ssh_key` entry** is a pair: write both fields,
+    `… bao kv put kv/kolla/passwords/<name> private_key=@<file> public_key=@<file>`. A
+    `password=` field would break `read`'s result.
+  * **Old values:** KV v2 keeps the 10 last versions (`bao kv get -version=<n> …`); the daily
+    snapshot (ADR-0049) keeps older ones.
 * **At each bump of Kolla**: compare the new template with the old
   (`share/kolla-ansible/etc_examples/kolla/passwords.yml`) and `blank_keys` in
   `kolla_ansible/cmd/genpwd.py` with `BLANK` in the helper.

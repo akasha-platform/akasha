@@ -7,6 +7,8 @@ bastion_kolla_passwords_user: akasha
 # run (infra/kolla/ansible.cfg), which hold rendered configuration files with passwords: no
 # swap, no executable, empty after every boot. The size is a ceiling, not a reservation: the
 # copy is about 36 KiB; the temporary files are to be measured in P2 step 5.
+# Also written in infra/kolla/ansible.cfg (local_tmp) and infra/kolla/multinode
+# (ansible_remote_tmp): change the three together.
 bastion_kolla_passwords_dir: /run/akasha-kolla
 bastion_kolla_passwords_size: 32m
 # A copy older than this is removed by a timer: the lifetime of an SSH certificate (ADR-0050).
