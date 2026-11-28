@@ -151,3 +151,10 @@ Applied to the bastion from PR #70.
 * 2026-11-27: SSH from the bastion to the OpenStack nodes, deferred here, is decided in
   [ADR-0050](0050-bastion-ssh-certificates-from-openbao.md): `akasha`'s key, signed by OpenBao's
   SSH CA for 8 hours, and the nodes' host keys copied from the laptop (role `bastion_ssh`).
+* 2026-11-28: the role also installs Kolla-Ansible
+  ([ADR-0051](0051-kolla-toolchain.md)):
+  * `uv sync --locked --group kolla` installs the dependency group `kolla`, which the laptop and
+    CI leave out;
+  * `infra/kolla/collections/requirements.yml` installs Kolla's own collections into
+    `infra/kolla/collections`;
+  * the version check prints `kolla=`.

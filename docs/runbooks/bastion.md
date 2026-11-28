@@ -4,6 +4,7 @@ Design:
 * [ADR-0040](../adr/0040-bastion-toolchain.md): toolchain, user, code;
 * [ADR-0039](../adr/0039-openbao-on-core-bootstrap.md): host firewall defaults;
 * [ADR-0047](../adr/0047-openbao-tls-and-network-access.md): the lab's root CA in the trust store.
+* [ADR-0051](../adr/0051-kolla-toolchain.md): Kolla-Ansible's toolchain.
 
 Managed by `infra/ansible/playbooks/bastion.yml`, through the roles `vm_firewall` (tag
 `firewall`), `lab_trust` (tag `trust`) and `bastion_toolchain` (tag `toolchain`). OpenBao is at
@@ -20,6 +21,18 @@ mise exec -- uv run --locked ansible-playbook playbooks/router.yml --syntax-chec
 ```
 
 `akasha` reaches the OpenStack nodes with a certificate from OpenBao: see the next section.
+
+Kolla-Ansible ([ADR-0051](../adr/0051-kolla-toolchain.md)) runs from `infra/kolla`, so that
+its own `ansible.cfg` and collections apply, never those of `infra/ansible`:
+
+```bash
+cd ~/akasha/infra/kolla
+mise exec -- uv run --locked kolla-ansible --version
+mise exec -- uv run --locked ansible all -m ping     # Kolla's inventory multinode; needs a certificate
+```
+
+Every `kolla-ansible` command reads `passwords.yml` from the configuration directory
+(`--configdir .`), whatever `--passwords` says; it comes from OpenBao in P2 step 3.
 
 ## SSH to the OpenStack nodes
 
