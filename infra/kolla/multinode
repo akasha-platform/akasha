@@ -20,9 +20,10 @@ os-ctl01
 os-ctl01
 
 # The bastion, where kolla-ansible runs: local tasks use the Python that runs Ansible (the
-# repository's virtual environment, with kolla-ansible's dependencies).
+# repository's virtual environment, with kolla-ansible's dependencies), and their temporary
+# files stay on the tmpfs without swap, like local_tmp in ansible.cfg (ADR-0052).
 [deployment]
-localhost       ansible_connection=local ansible_python_interpreter="{{ ansible_playbook_python }}"
+localhost       ansible_connection=local ansible_python_interpreter="{{ ansible_playbook_python }}" ansible_remote_tmp=/run/akasha-kolla/ansible-remote
 
 # The nodes, reached as debian with a certificate from OpenBao (ADR-0050).
 [baremetal:vars]
