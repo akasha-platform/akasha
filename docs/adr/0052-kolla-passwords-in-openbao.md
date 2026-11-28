@@ -204,6 +204,54 @@ On the lab:
 
 Open question A5 is then answered.
 
+### Implementation (2026-11-28)
+
+Code from PR #93; applied on the lab on 2026-11-28. Every check above passed; A5 is answered.
+
+* **Stack `openbao`**, from the laptop through the tunnel:
+  * the plan showed the mount `kv`, the policy `kolla-passwords`, and an in-place update of
+    `operator_user`; the apply reported `2 added, 1 changed, 0 destroyed`;
+  * a second plan was empty;
+  * read back as admin:
+    * the mount is `kv` version 2;
+    * the operator has `token_policies` `["operator","kolla-passwords"]`;
+    * its address binding, TTLs and token type are unchanged.
+  * **The first apply failed.** The admin token lives one hour (`auth.tf`). It expired while
+    the plan waited for review, and the apply stopped at the provider's token lookup with
+    `403`. Nothing was created; a new login and an identical plan then applied.
+* **The bastion.**
+  * `bastion.yml --tags toolchain,kolla_passwords` checked out `5f2cd54`. The first run
+    reported `changed=5`:
+    * the checkout;
+    * the mount;
+    * the helper;
+    * the units;
+    * the timer.
+
+    The second run reported `changed=0`.
+  * The kernel is `6.12.118+deb13-cloud-amd64`; the tmpfs mounted with `noswap`, `size=32768k`,
+    `mode=700`, the owner `akasha` and `noexec`, and `/etc/fstab` holds its line.
+  * The expiry timer is enabled and active, and one run of its hardened service ended in
+    `success`.
+  * The bastion's available memory stayed at about 490 MB.
+* **`init`.**
+  * It wrote 106 passwords and read them back identical, with one left blank on purpose;
+    Python's `hvac` reached `core` over TLS with the system's CA bundle.
+  * A second `init` refused ("already holds 106 passwords"), exit 1.
+* **A Kolla run**, as in the runbook:
+  * **The SSH certificate:** 8 hours.
+  * **Two `read`s:** each gave 107 passwords, and the copies had the same SHA-256. The copy is
+    36,723 bytes, mode `600`, owned by `akasha`, behind the link.
+  * **`kolla-ansible gather-facts`:** succeeded on `localhost` and the three nodes.
+  * **Ansible's temporary files:** `ansible-local` and `ansible-remote` were created on the
+    tmpfs. Under `~/.ansible`, the run created no file, only SSH's ControlMaster sockets in
+    `~/.ansible/cp`. They are gone after `ControlPersist` (60 seconds) and hold no data.
+  * **`clean`:** left the tmpfs empty and removed the link; the certificate was deleted
+    afterwards.
+* **`~/.ansible/tmp`** was last changed during the bastion's run, before Kolla's run. INFERRED
+  from the time: the toolchain's Galaxy task, which uses that directory on purpose (More Information
+  below).
+
 ## More Information
 
 * **The independent review** (2026-11-28) ran the helper against its own OpenBao 2.7.3. Its

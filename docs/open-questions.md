@@ -11,7 +11,6 @@ item here.
 | A1 | Cold boot of all VMs (`virsh destroy`) — does single-node Galera restart alone or need `kolla-ansible mariadb-recovery`? | Kolla design note and Galera docs disagree | P2 |
 | A2 | Real memory use of `os-ctl01` and per-compute overhead (`docker stats`, `free`, `virsh dommemstat`); bastion memory during `kolla-ansible deploy` (lower `forks` if needed) and during a sandboxed `tofu` run with the OpenStack provider (ADR-0032) | Controller may need more than 8 GB; sets `reserved_host_memory_mb`; 768 MiB bastion (ADR-0030) is ESTIMATED | P2 |
 | A4 | barman-cloud (CloudNativePG) and K3s `etcd-s3` uploads to versitygw | Inferred compatibility | P4–P5 |
-| A5 | `kolla-readpwd` / `kolla-writepwd` against OpenBao KV v2 | Written for HashiCorp Vault | P2 |
 | A6 | cert-manager Vault issuer against OpenBao | Not documented by cert-manager | P5 |
 | A7 | OpenTofu `openbao` key provider against OpenBao 2.7 (Transit keys for the L2 and L3 states, ADR-0032) | Documented against Vault 1.14 | P3 |
 | A8 | External Secrets Operator Vault provider against OpenBao (JWT auth) | Tested upstream only with old versions | P5 |

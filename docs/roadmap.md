@@ -213,7 +213,8 @@ Split by the owner on 2026-11-27 into eight steps, one pull request each:
    dependency group `kolla` (Python 3.14), its own pinned collections, configuration skeleton
    and V1b inventory; installed on the bastion and checked on 2026-11-28. Before step 8: bump
    to the commit with "Fix MariaDB cluster recovery" (past the cooldown on 2026-12-03).
-3. ⏳ Kolla's passwords in OpenBao KV v2 (A5), materialised on tmpfs only for a run.
+3. ✅ Kolla's passwords in OpenBao KV v2 (ADR-0052, A5), copied to a tmpfs without swap on the
+   bastion only for a run; generated once and checked with `gather-facts` on 2026-11-28.
 4. ⏳ TLS of the API from OpenBao's PKI; one VIP or two (B4).
 5. ⏳ Deployment of the core services without Octavia; tenant MTU (B2); smoke tests.
 6. ⏳ Real memory use (A2) and `reserved_host_memory_mb`.
