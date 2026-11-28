@@ -209,8 +209,10 @@ Split by the owner on 2026-11-27 into eight steps, one pull request each:
 1. ✅ SSH from the bastion to the nodes with 8-hour certificates from OpenBao's SSH CA
    (ADR-0050): the operator's userpass login from the bastion only, the CA trusted by the nodes,
    their host keys copied from the laptop. Applied and checked on 2026-11-28.
-2. ⏳ Kolla's toolchain: kolla-ansible pinned in `uv.lock` (B5; it lists Python 3.11 and 3.12,
-   the repository uses 3.14), configuration skeleton and V1b inventory.
+2. ✅ Kolla's toolchain (ADR-0051): kolla-ansible at a `stable/2026.1` commit in the
+   dependency group `kolla` (Python 3.14), its own pinned collections, configuration skeleton
+   and V1b inventory; installed on the bastion and checked on 2026-11-28. Before step 8: bump
+   to the commit with "Fix MariaDB cluster recovery" (past the cooldown on 2026-12-03).
 3. ⏳ Kolla's passwords in OpenBao KV v2 (A5), materialised on tmpfs only for a run.
 4. ⏳ TLS of the API from OpenBao's PKI; one VIP or two (B4).
 5. ⏳ Deployment of the core services without Octavia; tenant MTU (B2); smoke tests.
