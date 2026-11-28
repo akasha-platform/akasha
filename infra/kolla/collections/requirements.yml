@@ -1,0 +1,30 @@
+# Kolla-Ansible's collections (ADR-0051), pinned to exact versions past the release cooldown
+# (ADR-0022), dependencies included. Kolla's requirements-core.yml gives only ranges and its
+# requirements.yml a moving branch, so `kolla-ansible install-deps` is never used.
+# ansible-galaxy checks each Galaxy download against the SHA-256 published by Galaxy.
+# Install, from infra/kolla:
+#   mise exec -- uv run --locked ansible-galaxy collection install -r collections/requirements.yml -p collections
+collections:
+  # requirements.yml of kolla-ansible: the head of stable/2026.1 on 2026-11-17, the same day
+  # as the pinned kolla-ansible commit.
+  - name: https://opendev.org/openstack/ansible-collection-kolla
+    type: git
+    version: 25c561e0c02cb073c0f60ee727c914fb49e02a17
+  # requirements-core.yml of kolla-ansible: the newest version within its range past the
+  # cooldown on 2026-11-28.
+  - name: ansible.netcommon
+    version: 8.8.0    # <9
+  - name: ansible.posix
+    version: 2.2.2    # <3
+  - name: ansible.utils
+    version: 6.1.1    # <7; also a dependency of ansible.netcommon (>=3.0.0)
+  - name: community.crypto
+    version: 3.5.1    # <4 (3.6.0 of 2026-11-22 was inside the cooldown)
+  - name: community.general
+    version: 11.4.10  # <12
+  - name: community.docker
+    version: 4.8.9    # <5 (4.8.10 of 2026-11-23 was inside the cooldown)
+  - name: containers.podman
+    version: 1.21.2   # <2
+  - name: community.library_inventory_filtering_v1
+    version: 1.1.5    # dependency of community.docker (>=1.0.0)

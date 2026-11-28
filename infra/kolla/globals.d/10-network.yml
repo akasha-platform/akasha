@@ -1,0 +1,14 @@
+---
+# Networking (ADR-0006, ADR-0041). Still open, for later steps: the VIPs (B4, step 4) and the
+# tenant MTU (B2, step 5).
+
+# The three NICs, named alike on every node by cloud-init (ADR-0041):
+# mgmt on br-mgmt (10.10.0.x): management and the OpenStack APIs;
+network_interface: "mgmt"
+# tun on br-tun (10.30.0.x, MTU 9000): the Geneve overlay between the nodes;
+tunnel_interface: "tun"
+# ext on br-ext, up without any address: OVN's provider bridge.
+neutron_external_interface: "ext"
+
+# OVN, not Kolla's default openvswitch agent (ADR-0006).
+neutron_plugin_agent: "ovn"

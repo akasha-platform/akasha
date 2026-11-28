@@ -28,7 +28,6 @@ item here.
 | B1 | RAM cut-downs if K3s guests lack memory | shorter metrics/log retention · one PostgreSQL instance for prod · merge CI node into workers · defer/drop Octavia (NodePort) · replace Kyverno with native ValidatingAdmissionPolicy (~0.45 GB, loses image-signature checks) | after A2 (P4) |
 | B2 | Tenant MTU | 1442 (default, 1500 underlay) · ≈ 8942 (`path_mtu` 9000 on `br-tun`); pod MTU = tenant − 50 | P2 |
 | B4 | One VIP or two (internal/external) for the OpenStack APIs | two VIPs need two certificates and an OPNsense rule | P2 |
-| B5 | Pin kolla-ansible by PyPI release (22.2.0) or by `stable/2026.1` commit SHA | | P2 |
 | B6 | Add `net01` (dedicated network node) | only if ≥ 1.5 GB spare after A2 | P7 |
 | B8 | Root disks of K3s VMs; metadata delivery | Cinder boot-from-volume (no disk copy on live migration, uses the 120 G Cinder LV) · local ephemeral on the computes · config drive (blocks block migration) vs metadata service | P3/P4 |
 | B12 | SSH authentication of the CI runner to the bastion wrapper (ADR-0032): the OpenBao SSH CA is out of the runner's reach and Tailscale SSH would bypass `ForceCommand`; a static low-value key as a GitHub secret is the remaining option, a long-lived secret | static key · other | P3 |

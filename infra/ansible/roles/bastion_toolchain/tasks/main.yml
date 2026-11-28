@@ -101,8 +101,10 @@
       changed_when: >-
         'installed 0 tools' not in (bastion_toolchain_mise_install.stdout ~ bastion_toolchain_mise_install.stderr)
 
+    # The default group and the group kolla (Kolla-Ansible, ADR-0051), which only the bastion
+    # installs.
     - name: Install the Python tools pinned in uv.lock
-      ansible.builtin.command: mise exec -- uv sync --locked
+      ansible.builtin.command: mise exec -- uv sync --locked --group kolla
       args:
         chdir: "{{ bastion_toolchain_repo_dir }}"
       register: bastion_toolchain_uv_sync
@@ -120,6 +122,23 @@
         chdir: "{{ bastion_toolchain_repo_dir }}/infra/ansible"
       register: bastion_toolchain_collections
       changed_when: "'was installed successfully' in bastion_toolchain_collections.stdout"
+
+    # Kolla-Ansible's own collections (ADR-0051), apart from the repository's. ansible-galaxy
+    # skips the Galaxy ones already installed, but clones and copies openstack.kolla (a git
+    # source) again on every run, from the same pinned commit: that copy is not a change. A new
+    # commit of it comes with a new commit of the repository, which the checkout reports.
+    - name: Install Kolla-Ansible's pinned Ansible collections
+      ansible.builtin.command: >-
+        mise exec -- uv run --locked ansible-galaxy collection install
+        -r collections/requirements.yml -p collections
+      args:
+        chdir: "{{ bastion_toolchain_repo_dir }}/infra/kolla"
+      register: bastion_toolchain_kolla_collections
+      changed_when: >-
+        bastion_toolchain_kolla_collections.stdout_lines
+        | select('search', 'was installed successfully')
+        | reject('search', '^openstack[.]kolla:')
+        | list | length > 0
 
 # --- Checks ----------------------------------------------------------------------------------
 
@@ -140,11 +159,12 @@
     # Nothing in mise.lock is missing, and the virtual environment matches uv.lock.
     missing=$(mise ls --missing)
     echo "mise_missing=$(printf '%s' "$missing" | grep -c . || true)"
-    if mise exec -- uv sync --locked --check >/dev/null 2>&1; then echo uv_synced=yes; fi
+    if mise exec -- uv sync --locked --group kolla --check >/dev/null 2>&1; then echo uv_synced=yes; fi
     # For information: the versions in use.
     echo "tofu=$(mise exec -- tofu version | awk 'NR == 1 { print $2 }')"
     echo "uv=$(mise exec -- uv --version | awk '{ print $2 }')"
     echo "ansible=$(mise exec -- uv run --locked ansible --version | awk 'NR == 1 { print $3 }' | tr -d ']')"
+    echo "kolla=$(mise exec -- uv run --locked kolla-ansible --version | awk '{ print $2 }')"
     echo "commit=$(git rev-parse HEAD)"
     # Tracked files only: untracked files never stop the checkout (force: false ignores them).
     status=$(git status --porcelain --untracked-files=no)
@@ -179,5 +199,5 @@
 # Compare the commit with GitHub (`git ls-remote origin main` on the laptop).
 - name: Show the checked-out commit and the tool versions
   ansible.builtin.debug:
-    msg: "{{ bastion_toolchain_state.stdout_lines | select('match', '(commit|tofu|uv|ansible)=') | list }}"
+    msg: "{{ bastion_toolchain_state.stdout_lines | select('match', '(commit|tofu|uv|ansible|kolla)=') | list }}"
   when: not ansible_check_mode
