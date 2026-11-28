@@ -104,6 +104,63 @@ it (`/proc/<pid>/environ`). Keep the session short.
 3. Second apply: `set_signed` imports the certificate and the root. Then `tofu plan` shows no
    changes.
 
+## The OpenStack APIs' certificate (ADR-0053, once a year)
+
+One certificate for both VIPs (`api.akasha.internal` 10.10.0.101, `api-int.akasha.internal`
+10.10.0.100), from the role `server`, for one year. HAProxy serves it on both VIPs, and ProxySQL
+on MariaDB's port of the internal VIP. Its key goes from OpenBao's answer straight into KV v2
+through pipes: never to the laptop's disk (swap off meanwhile), a command line or the screen.
+The operator on the bastion may only read it (policy `kolla-tls`, stack `openbao`: apply it
+before the first `read`).
+
+After "Every session" (the tunnel and the admin's token), from the repository's root:
+
+```bash
+cd ~/Documents/dev/Projets/akasha && sudo swapoff -a && swapon --show && echo "swap off"
+export BAO_ADDR=http://127.0.0.1:8200; set -o pipefail      # bao takes the token from VAULT_TOKEN
+mise exec -- bao write -format=json pki/issue/server common_name=api.akasha.internal \
+    alt_names=api-int.akasha.internal ip_sans=10.10.0.101,10.10.0.100 ttl=8760h \
+  | jq '.data | {certificate, issuing_ca, private_key}' \
+  | mise exec -- bao kv put -mount=kv kolla/tls/haproxy -       # prints the secret's new version
+sudo swapon -a && swapon --show
+# KV v2 keeps this version and the one before (to go back), never older keys:
+mise exec -- bao kv metadata put -mount=kv -max-versions=2 kolla/tls/haproxy
+mise exec -- bao kv get -mount=kv -field=certificate kolla/tls/haproxy \
+  | openssl x509 -noout -subject -ext subjectAltName -enddate
+# subject=CN=api.akasha.internal
+# X509v3 Subject Alternative Name:
+#     DNS:api.akasha.internal, DNS:api-int.akasha.internal, IP Address:10.10.0.101, IP Address:10.10.0.100
+# notAfter=<one year from now>
+```
+
+Then end the session (above). The next `akasha-kolla-passwords read` on the bastion checks the
+certificate and puts it on the tmpfs. Once the cloud runs, a Kolla run with
+`kolla-ansible reconfigure -t loadbalancer` gives it to HAProxy and ProxySQL.
+
+* **Renewal:** `read` warns from 30 days before the expiry and refuses below 7 days, which
+  stops every Kolla run. Run the same commands: they write a new version of the secret.
+* **A leaked key.** Nothing in the lab checks revocation: OpenStack's clients and services do
+  not fetch CRLs, so a revoked certificate still works until it expires. What protects is
+  replacing it everywhere. In one session, swap off as above:
+  1. note the leaked version `<n>` (`mise exec -- bao kv metadata get -mount=kv
+     kolla/tls/haproxy`) and its serial:
+
+     ```bash
+     export BAO_ADDR=http://127.0.0.1:8200
+     s=$(mise exec -- bao kv get -mount=kv -version=<n> -field=certificate kolla/tls/haproxy \
+       | openssl x509 -noout -serial | cut -d= -f2 | sed 's/../&:/g;s/:$//' | tr A-F a-f)
+     ```
+
+  2. issue a new one (above);
+  3. revoke the leaked one, for the record: `mise exec -- bao write pki/revoke
+     serial_number="$s"` (`state: revoked`);
+  4. destroy the leaked key: `mise exec -- bao kv destroy -mount=kv -versions=<n>
+     kolla/tls/haproxy`;
+  5. a Kolla run with `kolla-ansible reconfigure -t loadbalancer`.
+
+  The key also has copies on `os-ctl01`: `/etc/kolla/haproxy/`, `/etc/kolla/proxysql/` and the
+  Docker volumes `letsencrypt_certificates` and `proxysql`. The reconfigure replaces them.
+
 ## Check
 
 Through the tunnel, with the token from stdin:

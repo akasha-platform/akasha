@@ -25,8 +25,8 @@ router_dns_forwarders:
 router_dns_zone: akasha.internal
 router_dns_ttl: 300
 
-# Names of the planned VMs on br-mgmt (docs/architecture/overview.md), with their reverse
-# records. VIP names wait for open question B4 (P2). The first entry is the router itself: the
+# Names of the planned VMs on br-mgmt (docs/architecture/overview.md) and of the OpenStack
+# APIs' VIPs (ADR-0053), with their reverse records. The first entry is the router itself: the
 # checks query its br-mgmt address.
 router_dns_hosts:
   - name: router
@@ -41,6 +41,12 @@ router_dns_hosts:
     address: 10.10.0.21
   - name: os-cmp02
     address: 10.10.0.22
+  # The internal VIP: the internal endpoints and MariaDB; held by keepalived on os-ctl01.
+  - name: api-int
+    address: 10.10.0.100
+  # The external VIP: the public endpoints only.
+  - name: api
+    address: 10.10.0.101
 
 # Reverse zones served locally, so that no PTR query for a lab address leaves the lab.
 router_dns_reverse_zones:

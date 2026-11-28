@@ -23,4 +23,11 @@ only a link to a tmpfs without swap during a run, made by `akasha-kolla-password
 `kolla-genpwd`, `kolla-readpwd` or `kolla-mergepwd` on it: they replace the link with a plain
 file on the disk.
 
+The APIs' TLS ([ADR-0053](../../docs/adr/0053-openstack-api-tls-and-vips.md)): two VIPs
+(`api-int.akasha.internal` 10.10.0.100, `api.akasha.internal` 10.10.0.101), HTTPS on both
+(`globals.d/20-tls.yml`), and TLS to MariaDB through ProxySQL. `read` also writes HAProxy's and
+ProxySQL's certificate files, from OpenBao, to `kolla_certificates_dir` on the same tmpfs. Never
+run `kolla-ansible` with `--diff`: it prints the files it copies, keys and passwords included. Never run `kolla-ansible certificates`: it makes its
+own test CA and unencrypted keys.
+
 Reference snippets: [research/03](../../docs/research/03-kolla-2026.1-findings.md).

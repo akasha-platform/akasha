@@ -158,15 +158,21 @@ never typed, or shown, on the bastion.
 
 ## Kolla's passwords
 
-Design: [ADR-0052](../adr/0052-kolla-passwords-in-openbao.md). The passwords live in OpenBao at
-`kv/kolla/passwords/<name>`. On the bastion they exist only while Kolla runs, on the tmpfs
-without swap `/run/akasha-kolla` (role `bastion_kolla_passwords`, tag `kolla_passwords`):
+Design: [ADR-0052](../adr/0052-kolla-passwords-in-openbao.md), and
+[ADR-0053](../adr/0053-openstack-api-tls-and-vips.md) for the APIs' certificate. The passwords
+live in OpenBao at `kv/kolla/passwords/<name>`, the certificate and its key at
+`kv/kolla/tls/haproxy`. On the bastion they exist only while Kolla runs, on the tmpfs without
+swap `/run/akasha-kolla` (role `bastion_kolla_passwords`, tag `kolla_passwords`):
 * the copy `passwords.yml`, with `infra/kolla/passwords.yml` a link to it;
+* `certificates/`, Kolla's `kolla_certificates_dir`: `haproxy.pem` and `haproxy-internal.pem`
+  (the certificate, the intermediate and the key), `proxysql-cert.pem`, `proxysql-key.pem` and
+  `proxysql-ca.pem` (MariaDB's TLS), and `ca/akasha-root-ca.crt`;
 * Ansible's temporary files of the run (`infra/kolla/ansible.cfg`, `local_tmp`), which hold
   rendered configuration files with passwords.
 
-The operator may read the passwords and add new ones, never change or delete one: that is the
-admin's, through the laptop's tunnel. `akasha-kolla-passwords` takes the operator's password on
+The operator may read the passwords and add new ones, never change or delete one, and may only
+read the certificate: changes, and the certificate's issuance, are the admin's, through the
+laptop's tunnel (runbook `openbao-pki.md`). `akasha-kolla-passwords` takes the operator's password on
 stdin from the laptop, like `akasha-ssh-cert`. OpenBao must be unsealed.
 
 ### Every Kolla run
@@ -178,7 +184,7 @@ session" above):
 mise exec -- uv run --locked --quiet python infra/opentofu/scripts/tofu_passphrase.py --service akasha-openbao --plain operator \
   | ssh -o BatchMode=yes -o LogLevel=error debian@10.10.0.10 'sudo -iu akasha akasha-kolla-passwords read'
 # WARNING: 'docker_registry_password' not found in Vault    (Kolla leaves it empty on purpose)
-# read: 107 passwords
+# read: 107 passwords; the APIs' certificate valid until <date> (<n> days)
 # linked /home/akasha/akasha/infra/kolla/passwords.yml; ...
 ```
 
@@ -194,6 +200,14 @@ akasha-kolla-passwords clean        # when done; a timer removes files older tha
 * `read` first removes any older copy and its link, then reports the name of a password that
   OpenBao lacks; it never leaves a copy behind on failure. A newer Kolla release that adds
   passwords needs `kolla-mergepwd` first; that mode is added with the first such bump.
+* `read` writes the certificate files only after checking that the chain verifies against the
+  lab's root (the copy of role `lab_trust`), the key matches, and the certificate holds both
+  names and both VIP addresses. A failed check writes nothing, the passwords included. Within
+  30 days of the expiry it prints `WARNING: the APIs' certificate expires on …`; below 7 days
+  it refuses, which stops every Kolla run: renew it (runbook `openbao-pki.md`, "The OpenStack
+  APIs' certificate").
+* **Never run `kolla-ansible` with `--diff` (`-D`)**: Ansible prints the content of the files
+  it copies or templates, the certificate's key and the passwords among them.
 * `clean` empties the tmpfs and removes the link and the files `kolla-ansible post-deploy`
   writes (`clouds.yaml`, `*openrc*.sh`, with the admin password; git-ignored).
 * **Never run `kolla-genpwd`, `kolla-readpwd` or `kolla-mergepwd` on
@@ -203,8 +217,8 @@ akasha-kolla-passwords clean        # when done; a timer removes files older tha
 * **Not yet**, because they write secrets outside the tmpfs:
   * `post-deploy`: the admin's credentials in `infra/kolla`; where they live is decided in
     P2 step 5;
-  * `certificates`: private keys without a passphrase in `infra/kolla/certificates/`; the
-    API's TLS comes from OpenBao's PKI instead (P2 step 4);
+  * `certificates`, never: its own test CA and private keys without a passphrase; the APIs'
+    certificate comes from OpenBao's PKI (ADR-0053);
   * `octavia-certificates`: keys in `infra/kolla/octavia-certificates/` and
     `infra/kolla/config/octavia/`, and two passwords on `openssl`'s command line (P2 step 7).
 
@@ -253,6 +267,17 @@ After a deployment, never do this: the cloud runs with those passwords.
 * **`Unable to create local directories '/run/akasha-kolla/ansible-local'`**: the same
   missing mount, seen by Ansible from `infra/kolla`.
 * **Login refused, `Vault is sealed`**: as for SSH certificates (above).
+* **The APIs' certificate** (`read: …`, nothing written):
+  * `no certificate at kv/kolla/tls/haproxy`: it was never issued, or was removed. Issue it
+    (runbook `openbao-pki.md`, "The OpenStack APIs' certificate");
+  * `expires on …, in less than 7 days`: issue a new one the same way, then `read` and
+    `kolla-ansible reconfigure -t loadbalancer`;
+  * `permission denied on kv/kolla/tls/haproxy`: stack `openbao` was not applied with the
+    policy `kolla-tls` (runbook `openbao-pki.md`);
+  * `does not verify for <name or address>`: a name, an address or the chain is wrong. Issue
+    it again with the runbook's exact command;
+  * `does not match its certificate`, or `does not hold a PEM …`: the secret was written by
+    hand. Issue it again.
 * **Change a password.** First read Kolla's
   [password rotation](https://docs.openstack.org/kolla-ansible/2026.1/admin/password-rotation.html)
   (`doc/source/admin/password-rotation.rst` at the pinned commit).
