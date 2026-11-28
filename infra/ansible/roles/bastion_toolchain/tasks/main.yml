@@ -133,6 +133,11 @@
         -r collections/requirements.yml -p collections
       args:
         chdir: "{{ bastion_toolchain_repo_dir }}/infra/kolla"
+      # infra/kolla/ansible.cfg keeps Ansible's local_tmp on the tmpfs of Kolla's passwords
+      # (ADR-0052), which the role bastion_kolla_passwords mounts after this one; installing
+      # collections handles no secret, so it uses the user's usual directory.
+      environment:
+        ANSIBLE_LOCAL_TEMP: /home/{{ bastion_toolchain_user }}/.ansible/tmp
       register: bastion_toolchain_kolla_collections
       changed_when: >-
         bastion_toolchain_kolla_collections.stdout_lines

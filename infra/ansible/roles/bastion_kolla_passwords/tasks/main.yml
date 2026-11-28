@@ -1,0 +1,102 @@
+---
+# Kolla-Ansible's passwords on the bastion (ADR-0052): a tmpfs without swap for the only copy,
+# akasha-kolla-passwords, and a timer that removes a forgotten copy.
+
+- name: Look for the toolchain user
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ bastion_kolla_passwords_user }}"
+    fail_key: false
+
+# The role bastion_toolchain creates the user; tmpfs takes numeric owners only. A dry run of
+# the whole playbook on a new VM has no user yet: the mount waits for the real run.
+- name: Check that the toolchain user exists
+  ansible.builtin.assert:
+    that:
+      - ansible_check_mode or ansible_facts.getent_passwd[bastion_kolla_passwords_user] is not none
+    fail_msg: >-
+      {{ bastion_kolla_passwords_user }} does not exist yet: run the tag toolchain first.
+      Nothing was changed.
+    quiet: true
+
+- name: Point at the toolchain user's IDs
+  when: ansible_facts.getent_passwd[bastion_kolla_passwords_user] is not none
+  ansible.builtin.set_fact:
+    bastion_kolla_passwords_uid: "{{ ansible_facts.getent_passwd[bastion_kolla_passwords_user][1] }}"
+    bastion_kolla_passwords_gid: "{{ ansible_facts.getent_passwd[bastion_kolla_passwords_user][2] }}"
+    bastion_kolla_passwords_opts:
+      - noswap
+      - size={{ bastion_kolla_passwords_size }}
+      - mode=0700
+      - uid={{ ansible_facts.getent_passwd[bastion_kolla_passwords_user][1] }}
+      - gid={{ ansible_facts.getent_passwd[bastion_kolla_passwords_user][2] }}
+      - nosuid
+      - nodev
+      - noexec
+      # A failed mount must not stop the boot (no SSH then); without it everything that needs
+      # the passwords refuses to run.
+      - nofail
+
+# noswap (Linux 6.4 and later): the passwords never reach the swap file on the disk. Mounted at
+# every boot, empty after it.
+- name: Mount the tmpfs for the passwords
+  ansible.posix.mount:
+    path: "{{ bastion_kolla_passwords_dir }}"
+    src: tmpfs
+    fstype: tmpfs
+    opts: "{{ bastion_kolla_passwords_opts | join(',') }}"
+    state: mounted
+  when: bastion_kolla_passwords_opts is defined
+
+- name: Install akasha-kolla-passwords
+  ansible.builtin.template:
+    src: akasha-kolla-passwords.j2
+    dest: /usr/local/bin/akasha-kolla-passwords
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install the expiry service and timer
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: /etc/systemd/system/{{ item }}
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - akasha-kolla-passwords-expire.service
+    - akasha-kolla-passwords-expire.timer
+
+# A dry run on a VM without the units cannot enable them.
+- name: Look for the expiry timer
+  ansible.builtin.stat:
+    path: /etc/systemd/system/akasha-kolla-passwords-expire.timer
+  register: bastion_kolla_passwords_timer
+
+- name: Enable and start the expiry timer
+  ansible.builtin.systemd_service:
+    name: akasha-kolla-passwords-expire.timer
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: not ansible_check_mode or bastion_kolla_passwords_timer.stat.exists
+
+# --- Checks ----------------------------------------------------------------------------------
+
+- name: Read the tmpfs's mount options
+  ansible.builtin.command: findmnt -n -o FSTYPE,OPTIONS --mountpoint {{ bastion_kolla_passwords_dir }}
+  register: bastion_kolla_passwords_findmnt
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+
+- name: Check that the tmpfs has no swap and belongs to the toolchain user only
+  ansible.builtin.assert:
+    that:
+      - bastion_kolla_passwords_findmnt.stdout is match('^tmpfs +(.*,)?noswap(,|$)')
+      - bastion_kolla_passwords_findmnt.stdout is search('(^|[ ,])mode=700(,|$)')
+      - bastion_kolla_passwords_findmnt.stdout is search('(^|[ ,])uid=' ~ bastion_kolla_passwords_uid ~ '(,|$)')
+      - bastion_kolla_passwords_findmnt.stdout is search('(^|[ ,])noexec(,|$)')
+    fail_msg: "{{ bastion_kolla_passwords_findmnt.stdout }}"
+    quiet: true
+  when: not ansible_check_mode

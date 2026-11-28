@@ -23,6 +23,9 @@ vault-password*
 # Kolla passwords must never be committed in clear (they live in OpenBao)
 infra/kolla/passwords.yml
 infra/kolla/**/passwords.yml
+# Credentials kolla-ansible post-deploy writes into its configuration directory (ADR-0052)
+infra/kolla/clouds.yaml
+infra/kolla/*openrc*.sh
 # Installed Ansible collections (from infra/ansible/collections/requirements.yml)
 infra/ansible/collections/ansible_collections/
 # Kolla-Ansible's own collections (from infra/kolla/collections/requirements.yml, ADR-0051)

@@ -58,3 +58,4 @@ its status changed or a dated note pointing to the new one. Only dated sections 
 | [0049](0049-openbao-daily-backup.md) | OpenBao's daily off-site backup from core | accepted |
 | [0050](0050-bastion-ssh-certificates-from-openbao.md) | SSH from the bastion to the OpenStack nodes with short-lived certificates from OpenBao | accepted |
 | [0051](0051-kolla-toolchain.md) | Kolla-Ansible's toolchain: a stable/2026.1 commit, the repository's Python, its own collections | accepted |
+| [0052](0052-kolla-passwords-in-openbao.md) | Kolla's passwords in OpenBao KV v2, on the bastion only in RAM during a run | accepted |

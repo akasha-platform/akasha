@@ -17,7 +17,10 @@ config/                    service overrides (galera.cnf, nova/nova-compute.conf
 multinode                  V1b inventory: 1 controller + 2 computes, 3 OVN gateway chassis
 ```
 
-`passwords.yml` is **never** committed: it is generated, stored in OpenBao KV v2
-(`kolla-writepwd`) and materialised on tmpfs only for a deployment run (`kolla-readpwd`).
+`passwords.yml` is **never** committed or written to a disk: it lives in OpenBao KV v2 and is
+only a link to a tmpfs without swap during a run, made by `akasha-kolla-passwords`
+([ADR-0052](../../docs/adr/0052-kolla-passwords-in-openbao.md), runbook `bastion.md`). Never run
+`kolla-genpwd`, `kolla-readpwd` or `kolla-mergepwd` on it: they replace the link with a plain
+file on the disk.
 
 Reference snippets: [research/03](../../docs/research/03-kolla-2026.1-findings.md).

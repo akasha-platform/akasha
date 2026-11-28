@@ -1,0 +1,24 @@
+---
+# Kolla-Ansible's passwords on the bastion (ADR-0052): akasha-kolla-passwords reads them from
+# OpenBao into a tmpfs without swap, for the time of a run.
+
+bastion_kolla_passwords_user: akasha
+# The tmpfs that holds the only copy on the bastion, and Ansible's temporary files of a Kolla
+# run (infra/kolla/ansible.cfg), which hold rendered configuration files with passwords: no
+# swap, no executable, empty after every boot. The size is a ceiling, not a reservation: the
+# copy is about 36 KiB; the temporary files are to be measured in P2 step 5.
+# Also written in infra/kolla/ansible.cfg (local_tmp) and infra/kolla/multinode
+# (ansible_remote_tmp): change the three together.
+bastion_kolla_passwords_dir: /run/akasha-kolla
+bastion_kolla_passwords_size: 32m
+# A copy older than this is removed by a timer: the lifetime of an SSH certificate (ADR-0050).
+bastion_kolla_passwords_max_age_minutes: 480
+
+# OpenBao over TLS (ADR-0047), its user and where the passwords live (stack openbao, kv.tf).
+bastion_kolla_passwords_openbao_addr: https://core.akasha.internal:8200
+bastion_kolla_passwords_openbao_user: operator
+bastion_kolla_passwords_mount: kv
+bastion_kolla_passwords_path: kolla/passwords
+# The system's bundle, which holds the lab's root CA (role lab_trust). Python's requests does
+# not read it unless told.
+bastion_kolla_passwords_ca_file: /etc/ssl/certs/ca-certificates.crt
