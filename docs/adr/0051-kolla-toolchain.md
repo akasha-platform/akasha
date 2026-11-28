@@ -151,6 +151,49 @@ On the bastion, as `akasha`, from `infra/kolla`:
 * with a certificate (ADR-0050), `ansible -i multinode all -m ping` reaches the three nodes,
   and `-m setup` reads their facts.
 
+### Implementation (2026-11-28)
+
+Code from PR #91; applied on the bastion on 2026-11-28.
+
+* **The bastion.** `bastion.yml --tags toolchain` checked out `486e4f6`, the head of `main` on
+  GitHub (`git ls-remote`). The first run reported `changed=3`:
+  * the checkout;
+  * `uv sync --locked --group kolla`;
+  * Kolla's collections.
+
+  The bastion reached opendev.org and galaxy.ansible.com. The version check printed
+  `kolla=22.2.1.dev38` and passed, with `uv_synced=yes` covering the group `kolla`. The second
+  run reported `changed=0`.
+* **Confirmation, as `akasha` from `infra/kolla`, with a certificate (ADR-0050):**
+  * `ansible-config` names `infra/kolla/ansible.cfg` and only `infra/kolla/collections`;
+  * `ansible baremetal:deployment -m ping` succeeded on `localhost` and the three nodes;
+  * `-m setup`:
+    * every node runs Debian 13.8 with `/usr/bin/python3`, and has `mgmt` (MTU 1500, 10.10.0.x),
+      `tun` (MTU 9000, 10.30.0.x) and `ext` (MTU 1500, no IPv4 or IPv6 address), all up;
+    * `localhost` runs `.venv/bin/python`;
+    * `mgmt` and `tun` each carry one IPv6 address. INFERRED: a link-local one, since the lab
+      advertises no IPv6. Worth a look when the nodes' firewall is designed;
+  * the certificate was deleted afterwards.
+* **Found while testing, before the run:**
+  * **`globals.yml`.** kolla-ansible passes `globals.yml` as extra vars, so the file must hold at
+    least one setting. A file of comments only is not a dictionary and stops every command.
+    It holds `kolla_base_distro` and `openstack_release`.
+  * **`passwords.yml`** (VERIFIED, `build_args` in `kolla_ansible/ansible.py`). `--passwords`
+    is only checked for readability: `ansible-playbook` always gets
+    `<configdir>/passwords.yml`. Step 3 must therefore put the tmpfs copy at
+    `infra/kolla/passwords.yml`, a git-ignored path, for example as a symbolic link.
+  * **`openstack.kolla`.** `ansible-galaxy` clones and copies it again on every run, from the
+    same commit. The role does not count that copy as a change.
+  * **Going back to an older commit.** Today's role on a commit from before the group `kolla`
+    stops at `uv sync` ("Group `kolla` is not defined") and changes nothing. The older
+    commit's own role, run from a worktree, removes Kolla (tested in a container; runbook
+    `bastion.md`).
+  * **CI.** `uv sync --locked` with an empty cache fetches nothing from git. CI's lint passed
+    on PR #91.
+* **Next bump.** "Fix MariaDB cluster recovery" (`5b2ae62908`, 2026-11-27) is past the cooldown
+  on 2026-12-03. It is taken before step 8, together with `openstack.kolla`'s head of the same
+  day.
+
 ## More Information
 
 * Kolla-Ansible 2026.1, "Quick Start for deployment/evaluation" and "Operating Kolla":
