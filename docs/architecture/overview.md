@@ -66,7 +66,7 @@ techniques (KSM, free page reporting, zswap) are a safety buffer, not capacity (
 | Bridge | CIDR | MTU | Purpose |
 |---|---|---|---|
 | br-transit | 10.255.255.0/29 | 1500 | Host ↔ edge router WAN. The host is the only NAT to the uplink and drops lab → campus LAN |
-| br-mgmt | 10.10.0.0/24 | 1500 | Management + OpenStack APIs: router .1, bastion .10, ctl .11, core .12, computes .21/.22, internal VIP .100, external VIP .101 (one-vs-two VIPs open) |
+| br-mgmt | 10.10.0.0/24 | 1500 | Management + OpenStack APIs: router .1, bastion .10, ctl .11, core .12, computes .21/.22, internal VIP .100 `api-int`, external VIP .101 `api` (TLS, [ADR-0053](../adr/0053-openstack-api-tls-and-vips.md)) |
 | br-tun | 10.30.0.0/24 | 9000 | Geneve overlay between controller and computes |
 | br-ext | 10.20.0.0/24 | 1500 | Provider/floating-IP network (FIP pool .100–.250), unaddressed NICs on ctl + computes |
 
