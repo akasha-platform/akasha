@@ -127,6 +127,13 @@ Chosen by the owner on 2026-11-28 (the options in bold).
   are what pin it. The bastion needs opendev.org and galaxy.ansible.com when it installs.
 * Bad, because 2026.1 is not tested upstream on Python 3.14. If the deployment fails because
   of it, the fallback is a project of its own on Python 3.12, which is a new decision.
+* Bad, because some of Kolla's libraries in `uv.lock` are newer than OpenStack's
+  upper-constraints of 2026.1 (cryptography 50.0.2 against 43.0.3, oslo.config 10.8.1 against
+  10.3.0, cliff 4.17.0 against 4.13.3). They are the versions the unit tests passed with, and
+  they run on the bastion only (the CLI, `kolla-readpwd`); the services run in Kolla's
+  images. The owner chose on 2026-11-28 to keep them rather than apply the constraints, which
+  would also lower the cryptography of the laptop's `keyring`. If one of them breaks Kolla,
+  that library is lowered (INFERRED risk).
 * Neutral: ansible-core stays capped below 2.21 while the repository runs Kolla 2026.1.
 
 ### Confirmation

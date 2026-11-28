@@ -1,0 +1,10 @@
+---
+# Kolla-Ansible's globals (ADR-0051). kolla-ansible reads this file, then globals.d/*.yml in
+# sorted order, as extra vars: this file must hold at least one setting (a file of comments
+# only is not a dictionary and stops every command). The other settings live in globals.d/,
+# one file per topic. Kolla's defaults: share/kolla-ansible/ansible/group_vars/all/ of the
+# pinned commit; its commented sample: share/kolla-ansible/etc_examples/kolla/globals.yml.
+
+# Debian images of the 2026.1 release (Debian 13, like the nodes; ADR-0004).
+kolla_base_distro: "debian"
+openstack_release: "2026.1"

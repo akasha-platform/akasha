@@ -20,6 +20,9 @@ dev = [
   # OpenTofu state passphrase from the desktop keyring (infra/opentofu/scripts, ADR-0031)
   "keyring>=25.7,<26",
 ]
+# Kolla-Ansible 2026.1, installed on the bastion only: `uv sync --locked --group kolla`
+# (ADR-0051). It uses the dev group's ansible-core (Kolla needs >=2.19,!=2.19.0,<2.21).
+kolla = ["kolla-ansible"]
 
 [tool.uv]
 package = false
@@ -28,3 +31,8 @@ required-version = ">=0.13.6,<0.14"   # refuse other uv series; raise with a uv 
 python-preference = "only-managed"    # uv-downloaded, hash-verified CPython; never the system one
 # 7-day rule for PyPI, as a fixed date so resolution is reproducible. Move it forward on purpose.
 exclude-newer = "6 days"   # release cooldown (ADR-0022), recorded as a span in uv.lock
+
+[tool.uv.sources]
+# A commit of stable/2026.1, past the cooldown (ADR-0051). uv's exclude-newer does not apply to
+# git sources: check the commit's date by hand before a bump.
+kolla-ansible = { git = "https://opendev.org/openstack/kolla-ansible", rev = "d9658dc9c5c13c151ed3ecb77ac7796afd30e2fe" }

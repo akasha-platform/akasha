@@ -6,3 +6,4 @@ offline: true
 exclude_paths:
   - .venv/
   - infra/ansible/collections/ansible_collections/
+  - infra/kolla/collections/ansible_collections/
